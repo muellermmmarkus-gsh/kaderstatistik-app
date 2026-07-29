@@ -59,6 +59,7 @@ select
   p.id as player_id,
   p.first_name,
   p.last_name,
+  e.season,
   date_trunc('month', e.event_date)::date as month,
   e.type,
   count(*) filter (where a.present) as attended,
@@ -69,7 +70,7 @@ select
 from attendance a
 join players p on p.id = a.player_id
 join events e on e.id = a.event_id
-group by p.id, p.first_name, p.last_name, date_trunc('month', e.event_date), e.type;
+group by p.id, p.first_name, p.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- Anwesenheit pro Spieler und Saison
 create or replace view attendance_by_season as
