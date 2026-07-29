@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Kaderstatistik-App
 
-## Getting Started
+Web-App zur Erfassung von Trainings-/Spielanwesenheit und Toren der E-Jugend-Mannschaft. Mehrere Nutzer koennen vom PC und mobil per Browser lesen und schreiben.
 
-First, run the development server:
+### Stack
+
+- [Next.js 16](https://nextjs.org/) (App Router) – Frontend & Server
+- [Supabase](https://supabase.com/) – Postgres-Datenbank, Auth, REST-API
+- [Vercel](https://vercel.com/) – Hosting
+
+### 1. Supabase-Projekt anlegen
+
+1. Im [Supabase-Dashboard](https://supabase.com/dashboard) ein neues Projekt anlegen (eigenes Projekt fuer diese App, nicht das bestehende wiederverwenden).
+2. Unter **SQL Editor** die Datei [`supabase/schema.sql`](supabase/schema.sql) einfuegen und ausfuehren. Das legt Tabellen (`players`, `events`, `attendance`, `goals`), Statistik-Views und Row-Level-Security-Policies an.
+3. Unter **Authentication -> Users** die Nutzer (Trainer/Betreuer) anlegen, die Zugriff bekommen sollen (z.B. per E-Mail-Einladung).
+4. Unter **Project Settings -> API** die **Project URL** und den **anon public key** notieren.
+
+### 2. Lokale Umgebung einrichten
+
+```bash
+npm install
+cp .env.local.example .env.local
+```
+
+`.env.local` mit den Werten aus Supabase befuellen:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Danach starten:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App laeuft unter [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Deployment (GitHub + Vercel)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Neues GitHub-Repository anlegen und dieses Projekt pushen.
+2. In [Vercel](https://vercel.com/) ein neues Projekt aus dem Repo erstellen.
+3. In den Vercel-Projekteinstellungen unter **Environment Variables** dieselben zwei Variablen (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) eintragen.
+4. Deploy anstossen – danach ist die App unter der Vercel-URL fuer alle Nutzer erreichbar (PC und mobil, kein separates Programm noetig).
 
-## Learn More
+### Datenmodell
 
-To learn more about Next.js, take a look at the following resources:
+- **players** – Spieler-Stammdaten
+- **events** – Trainings- und Spieltermine (`type`: `training`/`game`, inkl. `season`)
+- **attendance** – Anwesenheit pro Spieler und Termin
+- **goals** – erzielte Tore pro Spieler und Spiel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Statistiken (Anwesenheit pro Monat/Saison, Tore pro Saison) stehen als SQL-Views (`attendance_by_month`, `attendance_by_season`, `goals_by_season`) zur Verfuegung und koennen direkt ueber den Supabase-Client abgefragt werden.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Hinweis zu Next.js 16
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Dieses Projekt nutzt Next.js 16. Die frueher `middleware.ts` genannte Datei heisst jetzt [`src/proxy.ts`](src/proxy.ts) (Konvention seit v16).
