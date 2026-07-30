@@ -61,6 +61,31 @@ function formatPct(row: PivotRow | undefined) {
   return `${row.attended}/${row.total} (${row.attendance_pct}%)`;
 }
 
+function formatMonthLabel(month: string) {
+  return new Date(month).toLocaleDateString("de-DE", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
+function toMonthMatrix(
+  monthPivot: { month: string; rows: { name: string; training?: PivotRow; game?: PivotRow } [] }[],
+  months: string[],
+  type: "training" | "game",
+) {
+  const names = new Set<string>();
+  for (const { rows } of monthPivot) {
+    for (const row of rows) names.add(row.name);
+  }
+
+  return [...names].sort((a, b) => a.localeCompare(b)).map((name) => ({
+    name,
+    cells: monthPivot.map(
+      ({ rows }) => rows.find((r) => r.name === name)?.[type],
+    ),
+  }));
+}
+
 function AttendanceTable({
   caption,
   rows,
@@ -98,6 +123,59 @@ function AttendanceTable({
         )}
       </tbody>
     </table>
+  );
+}
+
+function MonthMatrixTable({
+  caption,
+  months,
+  rows,
+}: {
+  caption: string;
+  months: string[];
+  rows: { name: string; cells: (PivotRow | undefined)[] }[];
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="border-b border-zinc-200 dark:border-zinc-800">
+            <th className="py-2 pr-4">Name</th>
+            {months.map((month) => (
+              <th key={month} className="whitespace-nowrap py-2 px-2">
+                {formatMonthLabel(month)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.name}
+              className="border-b border-zinc-100 dark:border-zinc-900"
+            >
+              <td className="py-2 pr-4 whitespace-nowrap">{row.name}</td>
+              {row.cells.map((cell, i) => (
+                <td key={months[i]} className="whitespace-nowrap py-2 px-2">
+                  {formatPct(cell)}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {!rows.length && (
+            <tr>
+              <td
+                colSpan={months.length + 1}
+                className="py-4 text-zinc-500"
+              >
+                Keine Daten fuer diese Saison.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -303,46 +381,44 @@ export default async function StatsPage({
                 <h2 className="mb-3 font-medium">
                   Spieler – Anwesenheit pro Monat
                 </h2>
-                {monthPivot.map(({ month, rows }) => (
-                  <div key={month} className="mb-6">
-                    <h3 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      {new Date(month).toLocaleDateString("de-DE", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </h3>
-                    <AttendanceTable
-                      caption={`Spieler-Anwesenheit ${month}`}
-                      rows={rows}
-                    />
-                  </div>
-                ))}
-                {!monthPivot.length && (
-                  <p className="text-zinc-500">Keine Daten fuer diese Saison.</p>
-                )}
+                <h3 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Training
+                </h3>
+                <MonthMatrixTable
+                  caption="Spieler-Anwesenheit Training pro Monat"
+                  months={months}
+                  rows={toMonthMatrix(monthPivot, months, "training")}
+                />
+                <h3 className="mb-2 mt-6 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Spiel
+                </h3>
+                <MonthMatrixTable
+                  caption="Spieler-Anwesenheit Spiel pro Monat"
+                  months={months}
+                  rows={toMonthMatrix(monthPivot, months, "game")}
+                />
               </section>
 
               <section className="mb-10">
                 <h2 className="mb-3 font-medium">
                   Trainer – Anwesenheit pro Monat
                 </h2>
-                {trainerMonthPivot.map(({ month, rows }) => (
-                  <div key={month} className="mb-6">
-                    <h3 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      {new Date(month).toLocaleDateString("de-DE", {
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </h3>
-                    <AttendanceTable
-                      caption={`Trainer-Anwesenheit ${month}`}
-                      rows={rows}
-                    />
-                  </div>
-                ))}
-                {!trainerMonthPivot.length && (
-                  <p className="text-zinc-500">Keine Daten fuer diese Saison.</p>
-                )}
+                <h3 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Training
+                </h3>
+                <MonthMatrixTable
+                  caption="Trainer-Anwesenheit Training pro Monat"
+                  months={trainerMonths}
+                  rows={toMonthMatrix(trainerMonthPivot, trainerMonths, "training")}
+                />
+                <h3 className="mb-2 mt-6 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Spiel
+                </h3>
+                <MonthMatrixTable
+                  caption="Trainer-Anwesenheit Spiel pro Monat"
+                  months={trainerMonths}
+                  rows={toMonthMatrix(trainerMonthPivot, trainerMonths, "game")}
+                />
               </section>
             </>
           )}
