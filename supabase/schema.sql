@@ -14,6 +14,17 @@ create table if not exists players (
   created_at timestamptz not null default now()
 );
 
+create table if not exists seasons (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique, -- z.B. '2025/2026'
+  is_default boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- stellt sicher, dass hoechstens eine Saison als Standard markiert ist
+create unique index if not exists one_default_season
+  on seasons (is_default) where is_default = true;
+
 create type event_type as enum ('training', 'game');
 
 create table if not exists events (
@@ -184,6 +195,16 @@ alter table attendance enable row level security;
 alter table goals enable row level security;
 alter table trainers enable row level security;
 alter table trainer_attendance enable row level security;
+alter table seasons enable row level security;
+
+create policy "authenticated read seasons" on seasons
+  for select to authenticated using (true);
+create policy "authenticated write seasons" on seasons
+  for insert to authenticated with check (true);
+create policy "authenticated update seasons" on seasons
+  for update to authenticated using (true);
+create policy "authenticated delete seasons" on seasons
+  for delete to authenticated using (true);
 
 create policy "authenticated read players" on players
   for select to authenticated using (true);

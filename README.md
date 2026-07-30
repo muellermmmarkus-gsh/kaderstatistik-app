@@ -11,8 +11,8 @@ Web-App zur Erfassung von Trainings-/Spielanwesenheit und Toren der E-Jugend-Man
 ### 1. Supabase-Projekt anlegen
 
 1. Im [Supabase-Dashboard](https://supabase.com/dashboard) ein neues Projekt anlegen (eigenes Projekt fuer diese App, nicht das bestehende wiederverwenden).
-2. Unter **SQL Editor** die Datei [`supabase/schema.sql`](supabase/schema.sql) einfuegen und ausfuehren. Das legt Tabellen (`players`, `trainers`, `events`, `attendance`, `trainer_attendance`, `goals`), Statistik-Views und Row-Level-Security-Policies an.
-   - Falls du schon ein bestehendes Projekt mit der alten `schema.sql`-Version hast (ohne Trainer), reicht es, zusaetzlich [`supabase/migration_002_trainers.sql`](supabase/migration_002_trainers.sql) auszufuehren.
+2. Unter **SQL Editor** die Datei [`supabase/schema.sql`](supabase/schema.sql) einfuegen und ausfuehren. Das legt Tabellen (`players`, `trainers`, `seasons`, `events`, `attendance`, `trainer_attendance`, `goals`), Statistik-Views und Row-Level-Security-Policies an.
+   - Falls du schon ein bestehendes Projekt hast, reichen die passenden `supabase/migration_00X_*.sql`-Dateien der Reihe nach aus, statt das komplette Schema neu auszufuehren.
 3. Unter **Authentication -> Users** die Nutzer (Trainer/Betreuer) anlegen, die Zugriff bekommen sollen (z.B. per E-Mail-Einladung).
 4. Unter **Project Settings -> API** die **Project URL** und den **anon public key** notieren.
 
@@ -49,7 +49,8 @@ App laeuft unter [http://localhost:3000](http://localhost:3000).
 
 - **players** – Spieler-Stammdaten
 - **trainers** – Trainer-Stammdaten
-- **events** – Trainings- und Spieltermine (`type`: `training`/`game`, inkl. `season`)
+- **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
+- **events** – Trainings- und Spieltermine (`type`: `training`/`game`, `season` als Text passend zu `seasons.name`)
 - **attendance** – Anwesenheit pro Spieler und Termin
 - **trainer_attendance** – Anwesenheit pro Trainer und Termin
 - **goals** – erzielte Tore pro Spieler und Spiel
