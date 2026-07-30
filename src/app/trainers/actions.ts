@@ -1,0 +1,25 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+export async function addTrainer(formData: FormData) {
+  const firstName = String(formData.get("firstName") ?? "").trim();
+  const lastName = String(formData.get("lastName") ?? "").trim();
+
+  if (!firstName || !lastName) return;
+
+  const supabase = await createClient();
+  await supabase.from("trainers").insert({
+    first_name: firstName,
+    last_name: lastName,
+  });
+
+  revalidatePath("/trainers");
+}
+
+export async function toggleTrainerActive(trainerId: string, active: boolean) {
+  const supabase = await createClient();
+  await supabase.from("trainers").update({ active }).eq("id", trainerId);
+  revalidatePath("/trainers");
+}

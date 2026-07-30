@@ -13,6 +13,16 @@ type AttendanceRow = {
 
 type MonthRow = AttendanceRow & { month: string };
 
+type TrainerAttendanceRow = {
+  trainer_id: string;
+  first_name: string;
+  last_name: string;
+  type: "training" | "game";
+  attended: number;
+  total: number;
+  attendance_pct: number;
+};
+
 type GoalsRow = {
   player_id: string;
   first_name: string;
@@ -20,24 +30,29 @@ type GoalsRow = {
   goals: number;
 };
 
-function pivotByPlayer(rows: AttendanceRow[]) {
-  const byPlayer = new Map<
-    string,
-    { name: string; training?: AttendanceRow; game?: AttendanceRow }
-  >();
+type PivotRow = {
+  first_name: string;
+  last_name: string;
+  type: "training" | "game";
+  attended: number;
+  total: number;
+  attendance_pct: number;
+};
+
+function pivotById<T extends PivotRow>(rows: T[], idOf: (row: T) => string) {
+  const byId = new Map<string, { name: string; training?: T; game?: T }>();
 
   for (const row of rows) {
-    const entry = byPlayer.get(row.player_id) ?? {
-      name: `${row.first_name} ${row.last_name}`,
-    };
+    const id = idOf(row);
+    const entry = byId.get(id) ?? { name: `${row.first_name} ${row.last_name}` };
     entry[row.type] = row;
-    byPlayer.set(row.player_id, entry);
+    byId.set(id, entry);
   }
 
-  return [...byPlayer.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function formatPct(row: AttendanceRow | undefined) {
+function formatPct(row: PivotRow | undefined) {
   if (!row) return "–";
   return `${row.attended}/${row.total} (${row.attendance_pct}%)`;
 }
@@ -58,41 +73,62 @@ export default async function StatsPage({
   const seasons = [...new Set(seasonRows?.map((r) => r.season) ?? [])];
   const season = selectedSeason ?? seasons[0];
 
-  const [{ data: bySeason }, { data: byMonth }, { data: byGoals }] =
-    await Promise.all([
-      season
-        ? supabase
-            .from("attendance_by_season")
-            .select(
-              "player_id, first_name, last_name, type, attended, total, attendance_pct",
-            )
-            .eq("season", season)
-        : Promise.resolve({ data: [] as AttendanceRow[] }),
-      season
-        ? supabase
-            .from("attendance_by_month")
-            .select(
-              "player_id, first_name, last_name, type, month, attended, total, attendance_pct",
-            )
-            .eq("season", season)
-            .order("month")
-        : Promise.resolve({ data: [] as MonthRow[] }),
-      season
-        ? supabase
-            .from("goals_by_season")
-            .select("player_id, first_name, last_name, goals")
-            .eq("season", season)
-            .order("goals", { ascending: false })
-        : Promise.resolve({ data: [] as GoalsRow[] }),
-    ]);
+  const [
+    { data: bySeason },
+    { data: byMonth },
+    { data: byGoals },
+    { data: trainerBySeason },
+  ] = await Promise.all([
+    season
+      ? supabase
+          .from("attendance_by_season")
+          .select(
+            "player_id, first_name, last_name, type, attended, total, attendance_pct",
+          )
+          .eq("season", season)
+      : Promise.resolve({ data: [] as AttendanceRow[] }),
+    season
+      ? supabase
+          .from("attendance_by_month")
+          .select(
+            "player_id, first_name, last_name, type, month, attended, total, attendance_pct",
+          )
+          .eq("season", season)
+          .order("month")
+      : Promise.resolve({ data: [] as MonthRow[] }),
+    season
+      ? supabase
+          .from("goals_by_season")
+          .select("player_id, first_name, last_name, goals")
+          .eq("season", season)
+          .order("goals", { ascending: false })
+      : Promise.resolve({ data: [] as GoalsRow[] }),
+    season
+      ? supabase
+          .from("trainer_attendance_by_season")
+          .select(
+            "trainer_id, first_name, last_name, type, attended, total, attendance_pct",
+          )
+          .eq("season", season)
+      : Promise.resolve({ data: [] as TrainerAttendanceRow[] }),
+  ]);
 
-  const seasonPivot = pivotByPlayer((bySeason as AttendanceRow[]) ?? []);
+  const seasonPivot = pivotById(
+    (bySeason as AttendanceRow[]) ?? [],
+    (r) => r.player_id,
+  );
+
+  const trainerPivot = pivotById(
+    (trainerBySeason as TrainerAttendanceRow[]) ?? [],
+    (r) => r.trainer_id,
+  );
 
   const months = [...new Set((byMonth as MonthRow[])?.map((r) => r.month))];
   const monthPivot = months.map((month) => ({
     month,
-    rows: pivotByPlayer(
+    rows: pivotById(
       ((byMonth as MonthRow[]) ?? []).filter((r) => r.month === month),
+      (r) => r.player_id,
     ),
   }));
 
@@ -147,7 +183,9 @@ export default async function StatsPage({
       {season && (
         <>
           <section className="mb-10">
-            <h2 className="mb-3 font-medium">Anwesenheit Saison {season}</h2>
+            <h2 className="mb-3 font-medium">
+              Spieler – Anwesenheit Saison {season}
+            </h2>
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
@@ -168,6 +206,40 @@ export default async function StatsPage({
                   </tr>
                 ))}
                 {!seasonPivot.length && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-zinc-500">
+                      Keine Daten fuer diese Saison.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="mb-10">
+            <h2 className="mb-3 font-medium">
+              Trainer – Anwesenheit Saison {season}
+            </h2>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="py-2">Trainer</th>
+                  <th className="py-2">Training</th>
+                  <th className="py-2">Spiel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainerPivot.map((entry) => (
+                  <tr
+                    key={entry.name}
+                    className="border-b border-zinc-100 dark:border-zinc-900"
+                  >
+                    <td className="py-2">{entry.name}</td>
+                    <td className="py-2">{formatPct(entry.training)}</td>
+                    <td className="py-2">{formatPct(entry.game)}</td>
+                  </tr>
+                ))}
+                {!trainerPivot.length && (
                   <tr>
                     <td colSpan={3} className="py-4 text-zinc-500">
                       Keine Daten fuer diese Saison.
@@ -211,7 +283,9 @@ export default async function StatsPage({
           </section>
 
           <section>
-            <h2 className="mb-3 font-medium">Anwesenheit pro Monat</h2>
+            <h2 className="mb-3 font-medium">
+              Spieler – Anwesenheit pro Monat
+            </h2>
             {monthPivot.map(({ month, rows }) => (
               <div key={month} className="mb-6">
                 <h3 className="mb-2 text-sm font-medium text-zinc-600 dark:text-zinc-400">

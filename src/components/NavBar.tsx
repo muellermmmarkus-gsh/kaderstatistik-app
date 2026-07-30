@@ -15,6 +15,7 @@ export default async function NavBar() {
       <div className="flex items-center gap-4 text-sm font-medium">
         <Link href="/">Kaderstatistik</Link>
         <Link href="/players">Spieler</Link>
+        <Link href="/trainers">Trainer</Link>
         <Link href="/events">Termine</Link>
         <Link href="/stats">Statistik</Link>
       </div>

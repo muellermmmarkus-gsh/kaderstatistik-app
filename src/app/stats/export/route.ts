@@ -18,22 +18,39 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  const [{ data: attendance }, { data: goals }] = await Promise.all([
-    supabase
-      .from("attendance_by_season")
-      .select("first_name, last_name, type, attended, total, attendance_pct")
-      .eq("season", season)
-      .order("last_name"),
-    supabase
-      .from("goals_by_season")
-      .select("first_name, last_name, goals")
-      .eq("season", season)
-      .order("goals", { ascending: false }),
-  ]);
+  const [{ data: attendance }, { data: trainerAttendance }, { data: goals }] =
+    await Promise.all([
+      supabase
+        .from("attendance_by_season")
+        .select("first_name, last_name, type, attended, total, attendance_pct")
+        .eq("season", season)
+        .order("last_name"),
+      supabase
+        .from("trainer_attendance_by_season")
+        .select("first_name, last_name, type, attended, total, attendance_pct")
+        .eq("season", season)
+        .order("last_name"),
+      supabase
+        .from("goals_by_season")
+        .select("first_name, last_name, goals")
+        .eq("season", season)
+        .order("goals", { ascending: false }),
+    ]);
 
   const attendanceCsv = toCsvRows(
     ["Spieler", "Art", "Anwesend", "Gesamt", "Prozent"],
     (attendance ?? []).map((r) => [
+      `${r.first_name} ${r.last_name}`,
+      r.type === "training" ? "Training" : "Spiel",
+      r.attended,
+      r.total,
+      r.attendance_pct,
+    ]),
+  );
+
+  const trainerAttendanceCsv = toCsvRows(
+    ["Trainer", "Art", "Anwesend", "Gesamt", "Prozent"],
+    (trainerAttendance ?? []).map((r) => [
       `${r.first_name} ${r.last_name}`,
       r.type === "training" ? "Training" : "Spiel",
       r.attended,
@@ -48,8 +65,11 @@ export async function GET(request: NextRequest) {
   );
 
   const csv = [
-    `Anwesenheit Saison ${season}`,
+    `Anwesenheit Spieler Saison ${season}`,
     attendanceCsv,
+    "",
+    `Anwesenheit Trainer Saison ${season}`,
+    trainerAttendanceCsv,
     "",
     `Tore Saison ${season}`,
     goalsCsv,

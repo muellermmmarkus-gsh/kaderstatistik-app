@@ -42,12 +42,31 @@ create table if not exists goals (
   created_at timestamptz not null default now()
 );
 
+create table if not exists trainers (
+  id uuid primary key default gen_random_uuid(),
+  first_name text not null,
+  last_name text not null,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists trainer_attendance (
+  id uuid primary key default gen_random_uuid(),
+  trainer_id uuid not null references trainers(id) on delete cascade,
+  event_id uuid not null references events(id) on delete cascade,
+  present boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique (trainer_id, event_id)
+);
+
 create index if not exists idx_attendance_player on attendance(player_id);
 create index if not exists idx_attendance_event on attendance(event_id);
 create index if not exists idx_goals_player on goals(player_id);
 create index if not exists idx_goals_event on goals(event_id);
 create index if not exists idx_events_date on events(event_date);
 create index if not exists idx_events_season on events(season);
+create index if not exists idx_trainer_attendance_trainer on trainer_attendance(trainer_id);
+create index if not exists idx_trainer_attendance_event on trainer_attendance(event_id);
 
 -- ─────────────────────────────────────────────
 -- Statistik-Views
@@ -103,6 +122,37 @@ join players p on p.id = g.player_id
 join events e on e.id = g.event_id
 group by p.id, p.first_name, p.last_name, e.season;
 
+-- Gesamt-Anwesenheit des Teams (Spieler) pro Saison, ueber Training und Spiel hinweg
+create or replace view attendance_overall_by_season as
+select
+  e.season,
+  count(*) filter (where a.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where a.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from attendance a
+join events e on e.id = a.event_id
+group by e.season;
+
+-- Anwesenheit pro Trainer und Saison
+create or replace view trainer_attendance_by_season as
+select
+  t.id as trainer_id,
+  t.first_name,
+  t.last_name,
+  e.season,
+  e.type,
+  count(*) filter (where ta.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where ta.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from trainer_attendance ta
+join trainers t on t.id = ta.trainer_id
+join events e on e.id = ta.event_id
+group by t.id, t.first_name, t.last_name, e.season, e.type;
+
 -- ─────────────────────────────────────────────
 -- Row Level Security
 -- Jeder eingeloggte Nutzer (Trainer/Betreuer) darf lesen und schreiben.
@@ -113,6 +163,8 @@ alter table players enable row level security;
 alter table events enable row level security;
 alter table attendance enable row level security;
 alter table goals enable row level security;
+alter table trainers enable row level security;
+alter table trainer_attendance enable row level security;
 
 create policy "authenticated read players" on players
   for select to authenticated using (true);
@@ -148,4 +200,22 @@ create policy "authenticated write goals" on goals
 create policy "authenticated update goals" on goals
   for update to authenticated using (true);
 create policy "authenticated delete goals" on goals
+  for delete to authenticated using (true);
+
+create policy "authenticated read trainers" on trainers
+  for select to authenticated using (true);
+create policy "authenticated write trainers" on trainers
+  for insert to authenticated with check (true);
+create policy "authenticated update trainers" on trainers
+  for update to authenticated using (true);
+create policy "authenticated delete trainers" on trainers
+  for delete to authenticated using (true);
+
+create policy "authenticated read trainer_attendance" on trainer_attendance
+  for select to authenticated using (true);
+create policy "authenticated write trainer_attendance" on trainer_attendance
+  for insert to authenticated with check (true);
+create policy "authenticated update trainer_attendance" on trainer_attendance
+  for update to authenticated using (true);
+create policy "authenticated delete trainer_attendance" on trainer_attendance
   for delete to authenticated using (true);
