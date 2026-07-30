@@ -2,8 +2,14 @@
 -- Behebt: Monatsansicht der Spieler-Statistik liefert keine Daten, weil
 -- die View in der Datenbank noch eine aeltere Version ohne season-Filter ist.
 -- Im Supabase SQL Editor ausfuehren.
+--
+-- Hinweis: "create or replace view" reicht hier nicht, da Postgres keine
+-- Spalte mitten in der Spaltenliste einfuegen kann (nur am Ende anhaengen).
+-- Deshalb wird die View erst gelöscht und dann neu angelegt.
 
-create or replace view attendance_by_month as
+drop view if exists attendance_by_month;
+
+create view attendance_by_month as
 select
   p.id as player_id,
   p.first_name,
