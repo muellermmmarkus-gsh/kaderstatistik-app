@@ -34,6 +34,35 @@ const typeStyles = {
   event: "bg-purple-600 text-white",
 } as const;
 
+// Verschiedene, aber alle roetliche Farbtoene fuer die Trainer-Abwesenheiten
+const ABSENCE_COLORS = [
+  "bg-red-600",
+  "bg-rose-600",
+  "bg-orange-600",
+  "bg-red-800",
+  "bg-pink-600",
+  "bg-rose-800",
+  "bg-orange-800",
+  "bg-pink-800",
+];
+
+type CalendarEvent = {
+  id: string;
+  type: EventType;
+  event_date: string;
+  opponent: string | null;
+  label: string | null;
+  trainer_attendance: { present: boolean }[];
+};
+
+type CalendarAbsence = {
+  id: string;
+  trainer_id: string;
+  start_date: string;
+  end_date: string;
+  trainers: { first_name: string; last_name: string } | null;
+};
+
 function toDateKey(date: Date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -76,14 +105,19 @@ function getMonthWeeks(year: number, month: number) {
   return weeks;
 }
 
-function eventLabel(event: {
-  type: "training" | "game" | "event";
-  opponent: string | null;
-  label: string | null;
-}) {
-  if (event.type === "training") return "Training";
-  if (event.type === "game") return event.opponent ? `Spiel vs ${event.opponent}` : "Spiel";
-  return event.label ?? "Event";
+function eventLabel(event: CalendarEvent, totalTrainers: number) {
+  const base =
+    event.type === "training"
+      ? "Training"
+      : event.type === "game"
+        ? event.opponent
+          ? `Spiel vs ${event.opponent}`
+          : "Spiel"
+        : (event.label ?? "Event");
+
+  if (!totalTrainers) return base;
+  const confirmed = event.trainer_attendance.filter((a) => a.present).length;
+  return `${base} (${confirmed}/${totalTrainers})`;
 }
 
 export default async function CalendarPage({
@@ -102,23 +136,38 @@ export default async function CalendarPage({
   const rangeEnd = toDateKey(weeks[weeks.length - 1][6]);
 
   const supabase = await createClient();
-  const { data: eventsData } = await supabase
-    .from("events")
-    .select("id, type, event_date, opponent, label")
-    .gte("event_date", rangeStart)
-    .lte("event_date", rangeEnd)
-    .order("event_date");
+  const [{ data: eventsData }, { data: absencesData }, { data: trainerIdRows }, { count: totalTrainers }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select("id, type, event_date, opponent, label, trainer_attendance(present)")
+        .gte("event_date", rangeStart)
+        .lte("event_date", rangeEnd)
+        .order("event_date"),
+      supabase
+        .from("trainer_absences")
+        .select("id, trainer_id, start_date, end_date, trainers(first_name, last_name)")
+        .lte("start_date", rangeEnd)
+        .gte("end_date", rangeStart),
+      supabase.from("trainers").select("id").order("id"),
+      supabase.from("trainers").select("*", { count: "exact", head: true }).eq("active", true),
+    ]);
 
-  const events = eventsData as
-    | { id: string; type: EventType; event_date: string; opponent: string | null; label: string | null }[]
-    | null;
+  const events = (eventsData as CalendarEvent[] | null) ?? [];
+  const absences = (absencesData as CalendarAbsence[] | null) ?? [];
+  const trainerOrder = (trainerIdRows ?? []).map((t) => t.id);
 
-  const eventsByDate = new Map<string, NonNullable<typeof events>>();
-  for (const event of events ?? []) {
+  const eventsByDate = new Map<string, CalendarEvent[]>();
+  for (const event of events) {
     const list = eventsByDate.get(event.event_date) ?? [];
     list.push(event);
     eventsByDate.set(event.event_date, list);
   }
+
+  const absenceColorByTrainer = new Map<string, string>();
+  trainerOrder.forEach((id, i) => {
+    absenceColorByTrainer.set(id, ABSENCE_COLORS[i % ABSENCE_COLORS.length]);
+  });
 
   const prevMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
@@ -152,7 +201,7 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-4 text-xs text-zinc-600 dark:text-zinc-400">
+      <div className="mb-4 flex flex-wrap items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Training
         </span>
@@ -162,6 +211,19 @@ export default async function CalendarPage({
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-purple-600" /> Event
         </span>
+        {!!absences.length && <span className="text-zinc-400">·</span>}
+        {[...new Set(absences.map((a) => a.trainer_id))].map((trainerId) => {
+          const absence = absences.find((a) => a.trainer_id === trainerId);
+          if (!absence?.trainers) return null;
+          return (
+            <span key={trainerId} className="flex items-center gap-1.5">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${absenceColorByTrainer.get(trainerId)}`}
+              />
+              {absence.trainers.first_name} {absence.trainers.last_name} abwesend
+            </span>
+          );
+        })}
       </div>
 
       <div className="overflow-x-auto">
@@ -192,6 +254,9 @@ export default async function CalendarPage({
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                 const isToday = dateKey === todayKey;
                 const dayEvents = eventsByDate.get(dateKey) ?? [];
+                const dayAbsences = absences.filter(
+                  (a) => a.start_date <= dateKey && dateKey <= a.end_date,
+                );
 
                 return (
                   <div
@@ -223,9 +288,19 @@ export default async function CalendarPage({
                           key={event.id}
                           href={`/events/${event.id}`}
                           className={`truncate rounded px-1.5 py-0.5 text-xs ${typeStyles[event.type]}`}
-                          title={eventLabel(event)}
+                          title={eventLabel(event, totalTrainers ?? 0)}
                         >
-                          {eventLabel(event)}
+                          {eventLabel(event, totalTrainers ?? 0)}
+                        </Link>
+                      ))}
+                      {dayAbsences.map((absence) => (
+                        <Link
+                          key={absence.id}
+                          href="/absences"
+                          className={`truncate rounded px-1.5 py-0.5 text-xs ${absenceColorByTrainer.get(absence.trainer_id) ?? ABSENCE_COLORS[0]} text-white`}
+                          title={`${absence.trainers?.first_name ?? ""} ${absence.trainers?.last_name ?? ""} abwesend`}
+                        >
+                          {absence.trainers?.first_name} {absence.trainers?.last_name}
                         </Link>
                       ))}
                     </div>

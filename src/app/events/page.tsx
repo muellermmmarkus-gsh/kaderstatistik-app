@@ -9,18 +9,35 @@ const typeLabels: Record<string, string> = {
   event: "Event",
 };
 
+type EventRow = {
+  id: string;
+  type: string;
+  event_date: string;
+  opponent: string | null;
+  label: string | null;
+  season: string;
+  trainer_attendance: {
+    present: boolean;
+    trainers: { first_name: string; last_name: string } | null;
+  }[];
+};
+
 export default async function EventsPage() {
   const supabase = await createClient();
-  const [{ data: events }, { data: seasons }] = await Promise.all([
+  const [{ data: eventsData }, { data: seasons }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, type, event_date, opponent, label, season")
+      .select(
+        "id, type, event_date, opponent, label, season, trainer_attendance(present, trainers(first_name, last_name))",
+      )
       .order("event_date", { ascending: false }),
     supabase
       .from("seasons")
       .select("name, is_default")
       .order("name", { ascending: false }),
   ]);
+
+  const events = eventsData as EventRow[] | null;
 
   const defaultSeason =
     seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
@@ -48,6 +65,7 @@ export default async function EventsPage() {
             <th className="py-2">Art</th>
             <th className="py-2">Gegner</th>
             <th className="py-2">Event</th>
+            <th className="py-2">Trainer</th>
             <th className="py-2">Saison</th>
             <th className="py-2" />
           </tr>
@@ -55,6 +73,10 @@ export default async function EventsPage() {
         <tbody>
           {events?.map((event) => {
             const remove = deleteEvent.bind(null, event.id);
+            const confirmedTrainers = event.trainer_attendance
+              .filter((a) => a.present && a.trainers)
+              .map((a) => `${a.trainers!.first_name} ${a.trainers!.last_name}`)
+              .join(", ");
             return (
               <tr
                 key={event.id}
@@ -68,6 +90,7 @@ export default async function EventsPage() {
                 <td className="py-2">{typeLabels[event.type]}</td>
                 <td className="py-2 text-zinc-500">{event.opponent ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{event.label ?? "–"}</td>
+                <td className="py-2 text-zinc-500">{confirmedTrainers || "–"}</td>
                 <td className="py-2 text-zinc-500">{event.season}</td>
                 <td className="py-2 text-right">
                   <form action={remove}>
@@ -84,7 +107,7 @@ export default async function EventsPage() {
           })}
           {!events?.length && (
             <tr>
-              <td colSpan={6} className="py-4 text-zinc-500">
+              <td colSpan={7} className="py-4 text-zinc-500">
                 Noch keine Termine angelegt.
               </td>
             </tr>

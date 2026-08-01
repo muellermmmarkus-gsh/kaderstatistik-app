@@ -16,6 +16,7 @@ export default async function NavBar() {
         <Link href="/">Kaderstatistik</Link>
         <Link href="/players">Spieler</Link>
         <Link href="/trainers">Trainer</Link>
+        <Link href="/absences">Abwesenheiten</Link>
         <Link href="/events">Termine</Link>
         <Link href="/calendar">Kalender</Link>
         <Link href="/seasons">Saisonverwaltung</Link>

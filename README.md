@@ -52,7 +52,8 @@ App laeuft unter [http://localhost:3000](http://localhost:3000).
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
 - **events** – Termine (`type`: `training`/`game`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`)
 - **attendance** – Anwesenheit pro Spieler und Termin
-- **trainer_attendance** – Anwesenheit pro Trainer und Termin
+- **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin
+- **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
 - **goals** – erzielte Tore pro Spieler und Spiel
 
 Statistiken (Anwesenheit pro Monat/Saison, Tore pro Saison) stehen als SQL-Views zur Verfuegung: `attendance_by_month`, `attendance_by_season`, `goals_by_season` (Spieler), `trainer_attendance_by_season` (Trainer) sowie `attendance_overall_by_season` (Team-Gesamtwert fuers Dashboard).
