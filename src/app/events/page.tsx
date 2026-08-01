@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { createEvent, deleteEvent } from "./actions";
+import { deleteEvent } from "./actions";
+import CreateEventForm from "./CreateEventForm";
+
+const typeLabels: Record<string, string> = {
+  training: "Training",
+  game: "Spiel",
+  event: "Event",
+};
 
 export default async function EventsPage() {
   const supabase = await createClient();
   const [{ data: events }, { data: seasons }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, type, event_date, opponent, season")
+      .select("id, type, event_date, opponent, label, season")
       .order("event_date", { ascending: false }),
     supabase
       .from("seasons")
@@ -31,70 +38,7 @@ export default async function EventsPage() {
           mindestens eine Saison ein.
         </p>
       ) : (
-        <form
-          action={createEvent}
-          className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-        >
-          <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="type">
-              Art
-            </label>
-            <select
-              id="type"
-              name="type"
-              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="training">Training</option>
-              <option value="game">Spiel</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="eventDate">
-              Datum
-            </label>
-            <input
-              id="eventDate"
-              name="eventDate"
-              type="date"
-              required
-              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="opponent">
-              Gegner (bei Spiel)
-            </label>
-            <input
-              id="opponent"
-              name="opponent"
-              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="season">
-              Saison
-            </label>
-            <select
-              id="season"
-              name="season"
-              required
-              defaultValue={defaultSeason}
-              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              {seasons.map((s) => (
-                <option key={s.name} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Anlegen
-          </button>
-        </form>
+        <CreateEventForm seasons={seasons} defaultSeason={defaultSeason} />
       )}
 
       <table className="w-full text-left text-sm">
@@ -103,6 +47,7 @@ export default async function EventsPage() {
             <th className="py-2">Datum</th>
             <th className="py-2">Art</th>
             <th className="py-2">Gegner</th>
+            <th className="py-2">Event</th>
             <th className="py-2">Saison</th>
             <th className="py-2" />
           </tr>
@@ -120,10 +65,9 @@ export default async function EventsPage() {
                     {event.event_date}
                   </Link>
                 </td>
-                <td className="py-2">
-                  {event.type === "training" ? "Training" : "Spiel"}
-                </td>
+                <td className="py-2">{typeLabels[event.type]}</td>
                 <td className="py-2 text-zinc-500">{event.opponent ?? "–"}</td>
+                <td className="py-2 text-zinc-500">{event.label ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{event.season}</td>
                 <td className="py-2 text-right">
                   <form action={remove}>
@@ -140,7 +84,7 @@ export default async function EventsPage() {
           })}
           {!events?.length && (
             <tr>
-              <td colSpan={5} className="py-4 text-zinc-500">
+              <td colSpan={6} className="py-4 text-zinc-500">
                 Noch keine Termine angelegt.
               </td>
             </tr>

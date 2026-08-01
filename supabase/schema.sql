@@ -25,13 +25,14 @@ create table if not exists seasons (
 create unique index if not exists one_default_season
   on seasons (is_default) where is_default = true;
 
-create type event_type as enum ('training', 'game');
+create type event_type as enum ('training', 'game', 'event');
 
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   type event_type not null,
   event_date date not null,
   opponent text, -- nur relevant bei type = 'game'
+  label text, -- nur relevant bei type = 'event'
   season text not null, -- z.B. '2025/2026'
   created_at timestamptz not null default now()
 );

@@ -50,7 +50,7 @@ App laeuft unter [http://localhost:3000](http://localhost:3000).
 - **players** – Spieler-Stammdaten
 - **trainers** – Trainer-Stammdaten
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
-- **events** – Trainings- und Spieltermine (`type`: `training`/`game`, `season` als Text passend zu `seasons.name`)
+- **events** – Termine (`type`: `training`/`game`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`)
 - **attendance** – Anwesenheit pro Spieler und Termin
 - **trainer_attendance** – Anwesenheit pro Trainer und Termin
 - **goals** – erzielte Tore pro Spieler und Spiel

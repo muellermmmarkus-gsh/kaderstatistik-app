@@ -9,6 +9,7 @@ export async function createEvent(formData: FormData) {
   const eventDate = String(formData.get("eventDate") ?? "");
   const season = String(formData.get("season") ?? "").trim();
   const opponent = String(formData.get("opponent") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim();
 
   if (!eventDate || !season) return;
 
@@ -20,6 +21,7 @@ export async function createEvent(formData: FormData) {
       event_date: eventDate,
       season,
       opponent: type === "game" ? opponent || null : null,
+      label: type === "event" ? label || null : null,
     })
     .select("id")
     .single();
