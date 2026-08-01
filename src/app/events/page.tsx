@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import { deleteEvent } from "./actions";
 import CreateEventForm from "./CreateEventForm";
 
@@ -24,7 +25,7 @@ type EventRow = {
 
 export default async function EventsPage() {
   const supabase = await createClient();
-  const [{ data: eventsData }, { data: seasons }] = await Promise.all([
+  const [{ data: eventsData }, { data: seasons }, canWrite] = await Promise.all([
     supabase
       .from("events")
       .select(
@@ -35,6 +36,7 @@ export default async function EventsPage() {
       .from("seasons")
       .select("name, is_default")
       .order("name", { ascending: false }),
+    isTrainer(),
   ]);
 
   const events = eventsData as EventRow[] | null;
@@ -46,17 +48,25 @@ export default async function EventsPage() {
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <h1 className="mb-6 text-xl font-semibold">Termine</h1>
 
-      {!seasons?.length ? (
-        <p className="mb-8 text-sm text-zinc-500">
-          Bevor du Termine anlegen kannst, richte unter{" "}
-          <Link href="/seasons" className="underline">
-            Saisonverwaltung
-          </Link>{" "}
-          mindestens eine Saison ein.
+      {!canWrite && (
+        <p className="mb-6 text-sm text-zinc-500">
+          Du hast Nur-Lese-Zugriff. Termine anlegen oder löschen können nur
+          Trainer.
         </p>
-      ) : (
-        <CreateEventForm seasons={seasons} defaultSeason={defaultSeason} />
       )}
+
+      {canWrite &&
+        (!seasons?.length ? (
+          <p className="mb-8 text-sm text-zinc-500">
+            Bevor du Termine anlegen kannst, richte unter{" "}
+            <Link href="/seasons" className="underline">
+              Saisonverwaltung
+            </Link>{" "}
+            mindestens eine Saison ein.
+          </p>
+        ) : (
+          <CreateEventForm seasons={seasons} defaultSeason={defaultSeason} />
+        ))}
 
       <table className="w-full text-left text-sm">
         <thead>
@@ -67,7 +77,7 @@ export default async function EventsPage() {
             <th className="py-2">Event</th>
             <th className="py-2">Trainer (zugesagt)</th>
             <th className="py-2">Saison</th>
-            <th className="py-2" />
+            {canWrite && <th className="py-2" />}
           </tr>
         </thead>
         <tbody>
@@ -92,22 +102,24 @@ export default async function EventsPage() {
                 <td className="py-2 text-zinc-500">{event.label ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{confirmedTrainers || "–"}</td>
                 <td className="py-2 text-zinc-500">{event.season}</td>
-                <td className="py-2 text-right">
-                  <form action={remove}>
-                    <button
-                      type="submit"
-                      className="text-zinc-600 hover:underline dark:text-zinc-400"
-                    >
-                      löschen
-                    </button>
-                  </form>
-                </td>
+                {canWrite && (
+                  <td className="py-2 text-right">
+                    <form action={remove}>
+                      <button
+                        type="submit"
+                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        löschen
+                      </button>
+                    </form>
+                  </td>
+                )}
               </tr>
             );
           })}
           {!events?.length && (
             <tr>
-              <td colSpan={7} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 7 : 6} className="py-4 text-zinc-500">
                 Noch keine Termine angelegt.
               </td>
             </tr>

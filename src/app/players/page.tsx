@@ -1,17 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import { addPlayer, togglePlayerActive } from "./actions";
 
 export default async function PlayersPage() {
   const supabase = await createClient();
-  const { data: players } = await supabase
-    .from("players")
-    .select("id, first_name, last_name, birth_date, active")
-    .order("last_name");
+  const [{ data: players }, canWrite] = await Promise.all([
+    supabase
+      .from("players")
+      .select("id, first_name, last_name, birth_date, active")
+      .order("last_name"),
+    isTrainer(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <h1 className="mb-6 text-xl font-semibold">Spieler</h1>
 
+      {!canWrite && (
+        <p className="mb-6 text-sm text-zinc-500">
+          Du hast Nur-Lese-Zugriff. Änderungen können nur Trainer vornehmen.
+        </p>
+      )}
+
+      {canWrite && (
       <form
         action={addPlayer}
         className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
@@ -56,6 +67,7 @@ export default async function PlayersPage() {
           Hinzufügen
         </button>
       </form>
+      )}
 
       <table className="w-full text-left text-sm">
         <thead>
@@ -63,7 +75,7 @@ export default async function PlayersPage() {
             <th className="py-2">Name</th>
             <th className="py-2">Geburtsdatum</th>
             <th className="py-2">Status</th>
-            <th className="py-2" />
+            {canWrite && <th className="py-2" />}
           </tr>
         </thead>
         <tbody>
@@ -87,22 +99,24 @@ export default async function PlayersPage() {
                 <td className="py-2">
                   {player.active ? "aktiv" : "inaktiv"}
                 </td>
-                <td className="py-2 text-right">
-                  <form action={toggle}>
-                    <button
-                      type="submit"
-                      className="text-zinc-600 hover:underline dark:text-zinc-400"
-                    >
-                      {player.active ? "deaktivieren" : "aktivieren"}
-                    </button>
-                  </form>
-                </td>
+                {canWrite && (
+                  <td className="py-2 text-right">
+                    <form action={toggle}>
+                      <button
+                        type="submit"
+                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        {player.active ? "deaktivieren" : "aktivieren"}
+                      </button>
+                    </form>
+                  </td>
+                )}
               </tr>
             );
           })}
           {!players?.length && (
             <tr>
-              <td colSpan={4} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 4 : 3} className="py-4 text-zinc-500">
                 Noch keine Spieler angelegt.
               </td>
             </tr>

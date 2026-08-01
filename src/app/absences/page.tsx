@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import { addAbsence, updateAbsence, deleteAbsence } from "./actions";
 
 type Absence = {
@@ -11,7 +12,7 @@ type Absence = {
 
 export default async function AbsencesPage() {
   const supabase = await createClient();
-  const [{ data: trainers }, { data: absences }] = await Promise.all([
+  const [{ data: trainers }, { data: absences }, canWrite] = await Promise.all([
     supabase
       .from("trainers")
       .select("id, first_name, last_name")
@@ -21,6 +22,7 @@ export default async function AbsencesPage() {
       .from("trainer_absences")
       .select("id, trainer_id, reason, start_date, end_date")
       .order("start_date"),
+    isTrainer(),
   ]);
 
   const absencesByTrainer = new Map<string, Absence[]>();
@@ -36,6 +38,7 @@ export default async function AbsencesPage() {
       <p className="mb-6 text-sm text-zinc-500">
         Zeiträume eintragen, in denen ein Trainer nicht verfügbar ist. Die
         Abwesenheiten erscheinen automatisch im Kalender.
+        {!canWrite && " Du hast Nur-Lese-Zugriff, Änderungen können nur Trainer vornehmen."}
       </p>
 
       {!trainers?.length && (
@@ -57,7 +60,7 @@ export default async function AbsencesPage() {
                   <th className="py-2">Abwesenheit</th>
                   <th className="py-2">Von</th>
                   <th className="py-2">Bis</th>
-                  <th className="py-2" />
+                  {canWrite && <th className="py-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -74,6 +77,7 @@ export default async function AbsencesPage() {
                           form={formId}
                           name="reason"
                           defaultValue={absence.reason}
+                          disabled={!canWrite}
                           className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
                         >
                           <option value="Abwesenheit">Abwesenheit</option>
@@ -86,6 +90,7 @@ export default async function AbsencesPage() {
                           name="startDate"
                           required
                           defaultValue={absence.start_date}
+                          disabled={!canWrite}
                           className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
                         />
                       </td>
@@ -96,78 +101,93 @@ export default async function AbsencesPage() {
                           name="endDate"
                           required
                           defaultValue={absence.end_date}
+                          disabled={!canWrite}
                           className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
                         />
                       </td>
-                      <td className="py-2 text-right whitespace-nowrap">
-                        <button
-                          form={formId}
-                          type="submit"
-                          className="mr-3 text-zinc-600 hover:underline dark:text-zinc-400"
-                        >
-                          ändern
-                        </button>
-                        <form action={remove} className="inline">
+                      {canWrite && (
+                        <td className="py-2 text-right whitespace-nowrap">
                           <button
+                            form={formId}
                             type="submit"
-                            className="text-zinc-600 hover:underline dark:text-zinc-400"
+                            className="mr-3 text-zinc-600 hover:underline dark:text-zinc-400"
                           >
-                            löschen
+                            ändern
                           </button>
-                        </form>
-                      </td>
+                          <form action={remove} className="inline">
+                            <button
+                              type="submit"
+                              className="text-zinc-600 hover:underline dark:text-zinc-400"
+                            >
+                              löschen
+                            </button>
+                          </form>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
-                <tr>
-                  <td className="py-2">
-                    <select
-                      form={newFormId}
-                      name="reason"
-                      defaultValue="Abwesenheit"
-                      className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
-                    >
-                      <option value="Abwesenheit">Abwesenheit</option>
-                    </select>
-                  </td>
-                  <td className="py-2">
-                    <input
-                      form={newFormId}
-                      type="date"
-                      name="startDate"
-                      required
-                      className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
-                    />
-                  </td>
-                  <td className="py-2">
-                    <input
-                      form={newFormId}
-                      type="date"
-                      name="endDate"
-                      required
-                      className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
-                    />
-                  </td>
-                  <td className="py-2 text-right">
-                    <button
-                      form={newFormId}
-                      type="submit"
-                      className="text-zinc-600 hover:underline dark:text-zinc-400"
-                    >
-                      speichern
-                    </button>
-                  </td>
-                </tr>
+                {canWrite && (
+                  <tr>
+                    <td className="py-2">
+                      <select
+                        form={newFormId}
+                        name="reason"
+                        defaultValue="Abwesenheit"
+                        className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <option value="Abwesenheit">Abwesenheit</option>
+                      </select>
+                    </td>
+                    <td className="py-2">
+                      <input
+                        form={newFormId}
+                        type="date"
+                        name="startDate"
+                        required
+                        className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        form={newFormId}
+                        type="date"
+                        name="endDate"
+                        required
+                        className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        form={newFormId}
+                        type="submit"
+                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        speichern
+                      </button>
+                    </td>
+                  </tr>
+                )}
+                {!trainerAbsences.length && !canWrite && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-zinc-500">
+                      Keine Abwesenheiten eingetragen.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-            {trainerAbsences.map((absence) => (
-              <form
-                key={absence.id}
-                id={`abs-${absence.id}`}
-                action={updateAbsence.bind(null, absence.id)}
-              />
-            ))}
-            <form id={newFormId} action={addAbsence.bind(null, trainer.id)} />
+            {canWrite &&
+              trainerAbsences.map((absence) => (
+                <form
+                  key={absence.id}
+                  id={`abs-${absence.id}`}
+                  action={updateAbsence.bind(null, absence.id)}
+                />
+              ))}
+            {canWrite && (
+              <form id={newFormId} action={addAbsence.bind(null, trainer.id)} />
+            )}
           </section>
         );
       })}

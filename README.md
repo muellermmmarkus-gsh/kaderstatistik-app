@@ -67,10 +67,19 @@ Damit das funktioniert, im Supabase-Dashboard einmalig einstellen:
    (ersetzt die Standard-Variable `{{ .ConfirmationURL }}`).
 
 Rolle ("Trainer" oder "Eltern/Spieler") wird bei der Registrierung erfasst
-und in der Tabelle `profiles` gespeichert, aktuell aber **nicht** für
-Berechtigungen ausgewertet – jeder bestätigte Nutzer hat weiterhin
-Vollzugriff auf die App, wie es vorher auch bei manuell angelegten Nutzern
-der Fall war.
+und in der Tabelle `profiles` gespeichert. **Eltern/Spieler haben reinen
+Lesezugriff**, nur Trainer dürfen Daten anlegen/ändern/löschen – siehe
+Abschnitt "Rechte" unten.
+
+### Rechte
+
+- **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche.
+- **Eltern/Spieler**: nur Lesezugriff. Schreibgeschützt sowohl in der
+  Datenbank (Row-Level-Security anhand der Rolle in `profiles`) als auch
+  im UI (Formulare/Buttons werden ausgeblendet bzw. Felder deaktiviert).
+
+Damit das greift, [`supabase/migration_010_role_permissions.sql`](supabase/migration_010_role_permissions.sql)
+ausführen (setzt `migration_009_profiles.sql` voraus).
 
 ### Datenmodell
 

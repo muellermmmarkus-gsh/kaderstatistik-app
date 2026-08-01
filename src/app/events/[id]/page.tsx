@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import { saveAttendance } from "./actions";
 
 export default async function EventDetailPage({
@@ -24,6 +25,7 @@ export default async function EventDetailPage({
     { data: goals },
     { data: trainers },
     { data: trainerAttendance },
+    canWrite,
   ] = await Promise.all([
     supabase
       .from("players")
@@ -41,6 +43,7 @@ export default async function EventDetailPage({
       .from("trainer_attendance")
       .select("trainer_id, present, confirmed")
       .eq("event_id", id),
+    isTrainer(),
   ]);
 
   const presentByPlayer = new Map(
@@ -76,6 +79,12 @@ export default async function EventDetailPage({
         {event.label ? ` · ${event.label}` : ""}
       </p>
 
+      {!canWrite && (
+        <p className="mb-6 text-sm text-zinc-500">
+          Du hast Nur-Lese-Zugriff. Änderungen können nur Trainer vornehmen.
+        </p>
+      )}
+
       <form action={save}>
         <section className="mb-8">
           <h2 className="mb-3 font-medium">Spieler</h2>
@@ -101,6 +110,7 @@ export default async function EventDetailPage({
                       type="checkbox"
                       name={`present_player_${player.id}`}
                       defaultChecked={presentByPlayer.get(player.id) ?? false}
+                      disabled={!canWrite}
                       className="h-4 w-4"
                     />
                   </td>
@@ -111,6 +121,7 @@ export default async function EventDetailPage({
                         min={0}
                         name={`goals_${player.id}`}
                         defaultValue={goalsByPlayer.get(player.id) ?? 0}
+                        disabled={!canWrite}
                         className="w-16 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
                       />
                     </td>
@@ -152,6 +163,7 @@ export default async function EventDetailPage({
                       type="checkbox"
                       name={`confirmed_trainer_${trainer.id}`}
                       defaultChecked={confirmedByTrainer.get(trainer.id) ?? false}
+                      disabled={!canWrite}
                       className="h-4 w-4"
                     />
                   </td>
@@ -160,6 +172,7 @@ export default async function EventDetailPage({
                       type="checkbox"
                       name={`present_trainer_${trainer.id}`}
                       defaultChecked={presentByTrainer.get(trainer.id) ?? false}
+                      disabled={!canWrite}
                       className="h-4 w-4"
                     />
                   </td>
@@ -176,7 +189,7 @@ export default async function EventDetailPage({
           </table>
         </section>
 
-        {(!!players?.length || !!trainers?.length) && (
+        {canWrite && (!!players?.length || !!trainers?.length) && (
           <button
             type="submit"
             className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"

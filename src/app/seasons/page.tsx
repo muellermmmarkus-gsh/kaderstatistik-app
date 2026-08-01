@@ -1,12 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import { addSeason, deleteSeason, setDefaultSeason } from "./actions";
 
 export default async function SeasonsPage() {
   const supabase = await createClient();
-  const { data: seasons } = await supabase
-    .from("seasons")
-    .select("id, name, is_default")
-    .order("name", { ascending: false });
+  const [{ data: seasons }, canWrite] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("id, name, is_default")
+      .order("name", { ascending: false }),
+    isTrainer(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
@@ -14,38 +18,41 @@ export default async function SeasonsPage() {
       <p className="mb-6 text-sm text-zinc-500">
         Hier legst du die Saisons an, die bei Terminen zur Auswahl stehen.
         Die als Standard markierte Saison ist bei neuen Terminen vorausgewählt.
+        {!canWrite && " Du hast Nur-Lese-Zugriff, Änderungen können nur Trainer vornehmen."}
       </p>
 
-      <form
-        action={addSeason}
-        className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-      >
-        <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="name">
-            Saison
-          </label>
-          <input
-            id="name"
-            name="name"
-            required
-            placeholder="2026/2027"
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
-        <button
-          type="submit"
-          className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+      {canWrite && (
+        <form
+          action={addSeason}
+          className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
         >
-          Anlegen
-        </button>
-      </form>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="name">
+              Saison
+            </label>
+            <input
+              id="name"
+              name="name"
+              required
+              placeholder="2026/2027"
+              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Anlegen
+          </button>
+        </form>
+      )}
 
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
             <th className="py-2">Saison</th>
             <th className="py-2">Standard</th>
-            <th className="py-2" />
+            {canWrite && <th className="py-2" />}
           </tr>
         </thead>
         <tbody>
@@ -63,7 +70,7 @@ export default async function SeasonsPage() {
                     <span className="rounded bg-zinc-900 px-2 py-0.5 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900">
                       Standard
                     </span>
-                  ) : (
+                  ) : canWrite ? (
                     <form action={makeDefault}>
                       <button
                         type="submit"
@@ -72,24 +79,28 @@ export default async function SeasonsPage() {
                         als Standard markieren
                       </button>
                     </form>
+                  ) : (
+                    "–"
                   )}
                 </td>
-                <td className="py-2 text-right">
-                  <form action={remove}>
-                    <button
-                      type="submit"
-                      className="text-zinc-600 hover:underline dark:text-zinc-400"
-                    >
-                      löschen
-                    </button>
-                  </form>
-                </td>
+                {canWrite && (
+                  <td className="py-2 text-right">
+                    <form action={remove}>
+                      <button
+                        type="submit"
+                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        löschen
+                      </button>
+                    </form>
+                  </td>
+                )}
               </tr>
             );
           })}
           {!seasons?.length && (
             <tr>
-              <td colSpan={3} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 3 : 2} className="py-4 text-zinc-500">
                 Noch keine Saison angelegt.
               </td>
             </tr>

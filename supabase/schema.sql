@@ -237,10 +237,27 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Prueft, ob der aktuell eingeloggte Nutzer die Rolle 'trainer' hat.
+-- security definer, damit die Abfrage nicht selbst an der RLS von
+-- profiles scheitert.
+create or replace function public.is_trainer()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'trainer'
+  );
+$$;
+
 -- ─────────────────────────────────────────────
 -- Row Level Security
--- Jeder eingeloggte Nutzer (Trainer/Betreuer) darf lesen und schreiben.
--- Fuer den Anfang reicht ein gemeinsames Team-Konto ohne feinere Rollen.
+-- Alle eingeloggten Nutzer duerfen lesen. Schreiben (anlegen, aendern,
+-- loeschen) duerfen nur Nutzer mit der Rolle 'trainer'; 'parent_player'
+-- hat reinen Lesezugriff.
 -- ─────────────────────────────────────────────
 
 alter table players enable row level security;
@@ -259,71 +276,71 @@ create policy "authenticated read profiles" on profiles
 create policy "authenticated read trainer_absences" on trainer_absences
   for select to authenticated using (true);
 create policy "authenticated write trainer_absences" on trainer_absences
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update trainer_absences" on trainer_absences
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete trainer_absences" on trainer_absences
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read seasons" on seasons
   for select to authenticated using (true);
 create policy "authenticated write seasons" on seasons
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update seasons" on seasons
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete seasons" on seasons
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read players" on players
   for select to authenticated using (true);
 create policy "authenticated write players" on players
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update players" on players
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete players" on players
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read events" on events
   for select to authenticated using (true);
 create policy "authenticated write events" on events
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update events" on events
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete events" on events
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read attendance" on attendance
   for select to authenticated using (true);
 create policy "authenticated write attendance" on attendance
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update attendance" on attendance
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete attendance" on attendance
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read goals" on goals
   for select to authenticated using (true);
 create policy "authenticated write goals" on goals
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update goals" on goals
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete goals" on goals
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read trainers" on trainers
   for select to authenticated using (true);
 create policy "authenticated write trainers" on trainers
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update trainers" on trainers
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete trainers" on trainers
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
 
 create policy "authenticated read trainer_attendance" on trainer_attendance
   for select to authenticated using (true);
 create policy "authenticated write trainer_attendance" on trainer_attendance
-  for insert to authenticated with check (true);
+  for insert to authenticated with check (is_trainer());
 create policy "authenticated update trainer_attendance" on trainer_attendance
-  for update to authenticated using (true);
+  for update to authenticated using (is_trainer());
 create policy "authenticated delete trainer_attendance" on trainer_attendance
-  for delete to authenticated using (true);
+  for delete to authenticated using (is_trainer());
