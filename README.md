@@ -13,7 +13,7 @@ Web-App zur Erfassung von Trainings-/Spielanwesenheit und Toren der E-Jugend-Man
 1. Im [Supabase-Dashboard](https://supabase.com/dashboard) ein neues Projekt anlegen (eigenes Projekt fuer diese App, nicht das bestehende wiederverwenden).
 2. Unter **SQL Editor** die Datei [`supabase/schema.sql`](supabase/schema.sql) einfuegen und ausfuehren. Das legt Tabellen (`players`, `trainers`, `seasons`, `events`, `attendance`, `trainer_attendance`, `goals`), Statistik-Views und Row-Level-Security-Policies an.
    - Falls du schon ein bestehendes Projekt hast, reichen die passenden `supabase/migration_00X_*.sql`-Dateien der Reihe nach aus, statt das komplette Schema neu auszufuehren.
-3. Unter **Authentication -> Users** die Nutzer (Trainer/Betreuer) anlegen, die Zugriff bekommen sollen (z.B. per E-Mail-Einladung).
+3. Nutzer registrieren sich jetzt selbst über `/register` (siehe Abschnitt "Registrierung mit E-Mail-Bestätigung" unten) – ein manuelles Anlegen unter **Authentication -> Users** ist nicht mehr noetig.
 4. Unter **Project Settings -> API** die **Project URL** und den **anon public key** notieren.
 
 ### 2. Lokale Umgebung einrichten
@@ -45,8 +45,36 @@ App laeuft unter [http://localhost:3000](http://localhost:3000).
 3. In den Vercel-Projekteinstellungen unter **Environment Variables** dieselben zwei Variablen (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) eintragen.
 4. Deploy anstossen – danach ist die App unter der Vercel-URL fuer alle Nutzer erreichbar (PC und mobil, kein separates Programm noetig).
 
+### Registrierung mit E-Mail-Bestätigung
+
+Neue Nutzer registrieren sich selbst unter `/register` (Vorname, Nachname,
+E-Mail, Rolle, Passwort) und müssen den Bestätigungslink aus der
+automatisch verschickten E-Mail anklicken, bevor sie sich einloggen können.
+Damit das funktioniert, im Supabase-Dashboard einmalig einstellen:
+
+1. **Authentication -> Providers -> Email**: "Confirm email" muss aktiviert
+   sein (bei neueren Projekten meist schon Standard).
+2. **Authentication -> URL Configuration**: **Site URL** auf die tatsächlich
+   genutzte App-URL setzen (z.B. deine Vercel-URL, für lokales Testen
+   `http://localhost:3000`).
+3. **Authentication -> Email Templates -> Confirm signup**: Der Link im
+   Template muss auf unsere eigene Bestätigungs-Route zeigen, damit die
+   Bestätigung serverseitig in der App verarbeitet wird. Den Link-`href` im
+   Template ändern zu:
+   ```
+   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email
+   ```
+   (ersetzt die Standard-Variable `{{ .ConfirmationURL }}`).
+
+Rolle ("Trainer" oder "Eltern/Spieler") wird bei der Registrierung erfasst
+und in der Tabelle `profiles` gespeichert, aktuell aber **nicht** für
+Berechtigungen ausgewertet – jeder bestätigte Nutzer hat weiterhin
+Vollzugriff auf die App, wie es vorher auch bei manuell angelegten Nutzern
+der Fall war.
+
 ### Datenmodell
 
+- **profiles** – Vorname, Nachname, Rolle je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt)
 - **players** – Spieler-Stammdaten
 - **trainers** – Trainer-Stammdaten
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"

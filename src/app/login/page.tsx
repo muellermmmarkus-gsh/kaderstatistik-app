@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { signIn } from "./actions";
 
@@ -47,6 +48,13 @@ export default function LoginPage() {
         >
           {pending ? "Anmelden…" : "Anmelden"}
         </button>
+
+        <p className="mt-4 text-center text-sm text-zinc-500">
+          Noch kein Konto?{" "}
+          <Link href="/register" className="underline">
+            Registrieren
+          </Link>
+        </p>
       </form>
     </div>
   );

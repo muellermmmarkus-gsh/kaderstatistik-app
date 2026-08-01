@@ -5,6 +5,17 @@
 -- Tabellen
 -- ─────────────────────────────────────────────
 
+-- Profildaten zu jedem Auth-Nutzer (Vorname, Nachname, Rolle).
+-- Wird automatisch per Trigger befuellt, siehe Abschnitt weiter unten.
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  first_name text not null,
+  last_name text not null,
+  role text not null check (role in ('trainer', 'parent_player')),
+  email text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists players (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
@@ -198,6 +209,35 @@ join events e on e.id = ta.event_id
 group by t.id, t.first_name, t.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- ─────────────────────────────────────────────
+-- Trigger: bei Registrierung automatisch ein Profil anlegen
+-- Liest Vorname/Nachname/Rolle aus den Metadaten, die die App beim
+-- signUp() mitschickt (options.data).
+-- ─────────────────────────────────────────────
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, first_name, last_name, role, email)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'first_name', ''),
+    coalesce(new.raw_user_meta_data->>'last_name', ''),
+    coalesce(new.raw_user_meta_data->>'role', 'parent_player'),
+    new.email
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- ─────────────────────────────────────────────
 -- Row Level Security
 -- Jeder eingeloggte Nutzer (Trainer/Betreuer) darf lesen und schreiben.
 -- Fuer den Anfang reicht ein gemeinsames Team-Konto ohne feinere Rollen.
@@ -211,6 +251,10 @@ alter table trainers enable row level security;
 alter table trainer_attendance enable row level security;
 alter table trainer_absences enable row level security;
 alter table seasons enable row level security;
+alter table profiles enable row level security;
+
+create policy "authenticated read profiles" on profiles
+  for select to authenticated using (true);
 
 create policy "authenticated read trainer_absences" on trainer_absences
   for select to authenticated using (true);
