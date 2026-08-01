@@ -27,6 +27,7 @@ export async function saveAttendance(
     trainer_id: trainerId,
     event_id: eventId,
     present: formData.get(`present_trainer_${trainerId}`) === "on",
+    confirmed: formData.get(`confirmed_trainer_${trainerId}`) === "on",
   }));
 
   if (trainerAttendanceRows.length) {

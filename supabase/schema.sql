@@ -66,7 +66,8 @@ create table if not exists trainer_attendance (
   id uuid primary key default gen_random_uuid(),
   trainer_id uuid not null references trainers(id) on delete cascade,
   event_id uuid not null references events(id) on delete cascade,
-  present boolean not null default true,
+  present boolean not null default true, -- war der Trainer tatsaechlich da
+  confirmed boolean not null default false, -- hat der Trainer vorab zugesagt
   created_at timestamptz not null default now(),
   unique (trainer_id, event_id)
 );

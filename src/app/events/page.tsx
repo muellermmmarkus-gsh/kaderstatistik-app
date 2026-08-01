@@ -17,7 +17,7 @@ type EventRow = {
   label: string | null;
   season: string;
   trainer_attendance: {
-    present: boolean;
+    confirmed: boolean;
     trainers: { first_name: string; last_name: string } | null;
   }[];
 };
@@ -28,7 +28,7 @@ export default async function EventsPage() {
     supabase
       .from("events")
       .select(
-        "id, type, event_date, opponent, label, season, trainer_attendance(present, trainers(first_name, last_name))",
+        "id, type, event_date, opponent, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
       )
       .order("event_date", { ascending: false }),
     supabase
@@ -65,7 +65,7 @@ export default async function EventsPage() {
             <th className="py-2">Art</th>
             <th className="py-2">Gegner</th>
             <th className="py-2">Event</th>
-            <th className="py-2">Trainer</th>
+            <th className="py-2">Trainer (zugesagt)</th>
             <th className="py-2">Saison</th>
             <th className="py-2" />
           </tr>
@@ -74,7 +74,7 @@ export default async function EventsPage() {
           {events?.map((event) => {
             const remove = deleteEvent.bind(null, event.id);
             const confirmedTrainers = event.trainer_attendance
-              .filter((a) => a.present && a.trainers)
+              .filter((a) => a.confirmed && a.trainers)
               .map((a) => `${a.trainers!.first_name} ${a.trainers!.last_name}`)
               .join(", ");
             return (

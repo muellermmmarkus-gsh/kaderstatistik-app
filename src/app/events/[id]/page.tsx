@@ -39,7 +39,7 @@ export default async function EventDetailPage({
       .order("last_name"),
     supabase
       .from("trainer_attendance")
-      .select("trainer_id, present")
+      .select("trainer_id, present, confirmed")
       .eq("event_id", id),
   ]);
 
@@ -51,6 +51,9 @@ export default async function EventDetailPage({
   );
   const presentByTrainer = new Map(
     trainerAttendance?.map((a) => [a.trainer_id, a.present]),
+  );
+  const confirmedByTrainer = new Map(
+    trainerAttendance?.map((a) => [a.trainer_id, a.confirmed]),
   );
 
   const playerIds = players?.map((p) => p.id) ?? [];
@@ -131,6 +134,7 @@ export default async function EventDetailPage({
             <thead>
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
                 <th className="py-2">Trainer</th>
+                <th className="py-2">Zugesagt</th>
                 <th className="py-2">Anwesend</th>
               </tr>
             </thead>
@@ -146,6 +150,14 @@ export default async function EventDetailPage({
                   <td className="py-2">
                     <input
                       type="checkbox"
+                      name={`confirmed_trainer_${trainer.id}`}
+                      defaultChecked={confirmedByTrainer.get(trainer.id) ?? false}
+                      className="h-4 w-4"
+                    />
+                  </td>
+                  <td className="py-2">
+                    <input
+                      type="checkbox"
                       name={`present_trainer_${trainer.id}`}
                       defaultChecked={presentByTrainer.get(trainer.id) ?? false}
                       className="h-4 w-4"
@@ -155,7 +167,7 @@ export default async function EventDetailPage({
               ))}
               {!trainers?.length && (
                 <tr>
-                  <td colSpan={2} className="py-4 text-zinc-500">
+                  <td colSpan={3} className="py-4 text-zinc-500">
                     Keine aktiven Trainer vorhanden.
                   </td>
                 </tr>

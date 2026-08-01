@@ -52,7 +52,7 @@ type CalendarEvent = {
   event_date: string;
   opponent: string | null;
   label: string | null;
-  trainer_attendance: { present: boolean }[];
+  trainer_attendance: { confirmed: boolean }[];
 };
 
 type CalendarAbsence = {
@@ -116,7 +116,7 @@ function eventLabel(event: CalendarEvent, totalTrainers: number) {
         : (event.label ?? "Event");
 
   if (!totalTrainers) return base;
-  const confirmed = event.trainer_attendance.filter((a) => a.present).length;
+  const confirmed = event.trainer_attendance.filter((a) => a.confirmed).length;
   return `${base} (${confirmed}/${totalTrainers})`;
 }
 
@@ -140,7 +140,7 @@ export default async function CalendarPage({
     await Promise.all([
       supabase
         .from("events")
-        .select("id, type, event_date, opponent, label, trainer_attendance(present)")
+        .select("id, type, event_date, opponent, label, trainer_attendance(confirmed)")
         .gte("event_date", rangeStart)
         .lte("event_date", rangeEnd)
         .order("event_date"),
