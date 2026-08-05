@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
@@ -78,7 +79,14 @@ export default async function TrainingDetailPage({
     <div className="w-full max-w-6xl flex-1 px-4 py-8">
       <BackButton href="/trainings" />
       <h1 className="mb-1 text-xl font-semibold">Training – {event.event_date}</h1>
-      <p className="mb-6 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
+      <p className="mb-4 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
+
+      <Link
+        href={`/events/${event.id}`}
+        className="mb-6 inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+      >
+        Zum Termin (Anwesenheit eintragen)
+      </Link>
 
       {!canWrite && (
         <p className="mb-6 text-sm text-zinc-500">
