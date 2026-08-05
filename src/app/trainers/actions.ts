@@ -10,10 +10,11 @@ export async function addTrainer(formData: FormData) {
   if (!firstName || !lastName) return;
 
   const supabase = await createClient();
-  await supabase.from("trainers").insert({
+  const { error } = await supabase.from("trainers").insert({
     first_name: firstName,
     last_name: lastName,
   });
+  if (error) throw new Error(`Trainer konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/trainers");
 }

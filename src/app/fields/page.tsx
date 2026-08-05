@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { createField, deleteField } from "./actions";
 import BackButton from "@/components/BackButton";
+import SaveNotice from "@/components/SaveNotice";
 
 export default async function FieldsPage() {
   const supabase = await createClient();
@@ -70,6 +71,7 @@ export default async function FieldsPage() {
           >
             Anlegen
           </button>
+          <SaveNotice />
         </form>
       )}
 

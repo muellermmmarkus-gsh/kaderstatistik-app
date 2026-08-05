@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addSeason, deleteSeason, setDefaultSeason } from "./actions";
 import BackButton from "@/components/BackButton";
+import SaveNotice from "@/components/SaveNotice";
 
 export default async function SeasonsPage() {
   const supabase = await createClient();
@@ -46,6 +47,7 @@ export default async function SeasonsPage() {
           >
             Anlegen
           </button>
+          <SaveNotice />
         </form>
       )}
 

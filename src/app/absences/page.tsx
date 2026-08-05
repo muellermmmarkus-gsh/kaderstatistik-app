@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addAbsence, updateAbsence, deleteAbsence } from "./actions";
 import BackButton from "@/components/BackButton";
+import SaveNotice from "@/components/SaveNotice";
 
 type Absence = {
   id: string;
@@ -185,10 +186,14 @@ export default async function AbsencesPage() {
                   key={absence.id}
                   id={`abs-${absence.id}`}
                   action={updateAbsence.bind(null, absence.id)}
-                />
+                >
+                  <SaveNotice />
+                </form>
               ))}
             {canWrite && (
-              <form id={newFormId} action={addAbsence.bind(null, trainer.id)} />
+              <form id={newFormId} action={addAbsence.bind(null, trainer.id)}>
+                <SaveNotice />
+              </form>
             )}
           </section>
         );

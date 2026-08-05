@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addPlayer, togglePlayerActive } from "./actions";
 import BackButton from "@/components/BackButton";
+import SaveNotice from "@/components/SaveNotice";
 
 export default async function PlayersPage() {
   const supabase = await createClient();
@@ -68,6 +69,7 @@ export default async function PlayersPage() {
         >
           Hinzufügen
         </button>
+        <SaveNotice />
       </form>
       )}
 

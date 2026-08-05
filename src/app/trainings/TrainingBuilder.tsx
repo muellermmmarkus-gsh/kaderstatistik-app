@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
+import SaveNotice from "@/components/SaveNotice";
 
 type Exercise = {
   id: string;
@@ -221,6 +222,7 @@ export default function TrainingBuilder({
         >
           {submitLabel}
         </button>
+        <SaveNotice />
       </form>
 
       <aside className="w-full shrink-0 rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800 md:w-56">

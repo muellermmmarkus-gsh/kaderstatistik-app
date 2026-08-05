@@ -51,11 +51,12 @@ export async function createExercise(formData: FormData) {
   if (!exercise.name || !exercise.min_players || !exercise.max_players) return;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("exercises")
     .insert(exercise)
     .select("id")
     .single();
+  if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
 
   if (data) {
     const imageUrl = await uploadImage(supabase, data.id, formData);
@@ -65,7 +66,7 @@ export async function createExercise(formData: FormData) {
   }
 
   revalidatePath("/exercises");
-  redirect("/exercises");
+  redirect("/exercises?saved=1");
 }
 
 export async function updateExercise(exerciseId: string, formData: FormData) {
@@ -76,7 +77,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
   const removeImage = formData.get("removeImage") === "on";
   const imageUrl = await uploadImage(supabase, exerciseId, formData);
 
-  await supabase
+  const { error } = await supabase
     .from("exercises")
     .update({
       ...exercise,
@@ -87,10 +88,11 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
           : {}),
     })
     .eq("id", exerciseId);
+  if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/exercises");
   revalidatePath(`/exercises/${exerciseId}`);
-  redirect("/exercises");
+  redirect("/exercises?saved=1");
 }
 
 export async function deleteExercise(exerciseId: string) {

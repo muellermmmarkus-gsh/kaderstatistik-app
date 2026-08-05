@@ -11,7 +11,7 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
 
   const supabase = await createClient();
 
-  const { data: training } = await supabase
+  const { data: training, error: upsertError } = await supabase
     .from("trainings")
     .upsert(
       { event_id: eventId, focus: focus || null, notes: notes || null },
@@ -19,7 +19,7 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
     )
     .select("id")
     .single();
-
+  if (upsertError) throw new Error(`Trainingsplan konnte nicht gespeichert werden: ${upsertError.message}`);
   if (!training) return;
 
   const rows = exerciseIds
@@ -34,7 +34,8 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
   // Bestehenden Plan ersetzen, damit entfernte Uebungen nicht stehen bleiben.
   await supabase.from("training_exercises").delete().eq("training_id", training.id);
   if (rows.length) {
-    await supabase.from("training_exercises").insert(rows);
+    const { error } = await supabase.from("training_exercises").insert(rows);
+    if (error) throw new Error(`Übungen konnten nicht gespeichert werden: ${error.message}`);
   }
 
   revalidatePath(`/trainings/${eventId}`);

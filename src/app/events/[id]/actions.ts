@@ -23,9 +23,10 @@ export async function saveAttendance(
   }));
 
   if (attendanceRows.length) {
-    await supabase
+    const { error } = await supabase
       .from("attendance")
       .upsert(attendanceRows, { onConflict: "player_id,event_id" });
+    if (error) throw new Error(`Anwesenheit konnte nicht gespeichert werden: ${error.message}`);
   }
 
   const trainerAttendanceRows = trainerIds.map((trainerId) => ({
@@ -36,9 +37,10 @@ export async function saveAttendance(
   }));
 
   if (trainerAttendanceRows.length) {
-    await supabase
+    const { error } = await supabase
       .from("trainer_attendance")
       .upsert(trainerAttendanceRows, { onConflict: "trainer_id,event_id" });
+    if (error) throw new Error(`Trainer-Anwesenheit konnte nicht gespeichert werden: ${error.message}`);
   }
 
   const goalsRows = playerIds

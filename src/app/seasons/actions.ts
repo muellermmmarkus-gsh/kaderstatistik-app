@@ -8,7 +8,8 @@ export async function addSeason(formData: FormData) {
   if (!name) return;
 
   const supabase = await createClient();
-  await supabase.from("seasons").insert({ name });
+  const { error } = await supabase.from("seasons").insert({ name });
+  if (error) throw new Error(`Saison konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/seasons");
   revalidatePath("/events");

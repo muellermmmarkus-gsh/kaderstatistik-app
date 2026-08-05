@@ -15,12 +15,13 @@ export async function addAbsence(trainerId: string, formData: FormData) {
   if (!startDate || !endDate) return;
 
   const supabase = await createClient();
-  await supabase.from("trainer_absences").insert({
+  const { error } = await supabase.from("trainer_absences").insert({
     trainer_id: trainerId,
     reason,
     start_date: startDate,
     end_date: endDate,
   });
+  if (error) throw new Error(`Abwesenheit konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/absences");
   revalidatePath("/calendar");
@@ -31,10 +32,11 @@ export async function updateAbsence(absenceId: string, formData: FormData) {
   if (!startDate || !endDate) return;
 
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("trainer_absences")
     .update({ reason, start_date: startDate, end_date: endDate })
     .eq("id", absenceId);
+  if (error) throw new Error(`Abwesenheit konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/absences");
   revalidatePath("/calendar");

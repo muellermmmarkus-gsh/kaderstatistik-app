@@ -11,11 +11,12 @@ export async function addPlayer(formData: FormData) {
   if (!firstName || !lastName) return;
 
   const supabase = await createClient();
-  await supabase.from("players").insert({
+  const { error } = await supabase.from("players").insert({
     first_name: firstName,
     last_name: lastName,
     birth_date: birthDate || null,
   });
+  if (error) throw new Error(`Spieler konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/players");
 }

@@ -11,7 +11,10 @@ export async function createField(formData: FormData) {
   if (!name || !lengthM || !widthM) return;
 
   const supabase = await createClient();
-  await supabase.from("fields").insert({ name, length_m: lengthM, width_m: widthM });
+  const { error } = await supabase
+    .from("fields")
+    .insert({ name, length_m: lengthM, width_m: widthM });
+  if (error) throw new Error(`Spielfläche konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/fields");
 }

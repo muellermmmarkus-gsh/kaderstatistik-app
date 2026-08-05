@@ -14,7 +14,7 @@ export async function createEvent(formData: FormData) {
   if (!eventDate || !season) return;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("events")
     .insert({
       type,
@@ -25,9 +25,10 @@ export async function createEvent(formData: FormData) {
     })
     .select("id")
     .single();
+  if (error) throw new Error(`Termin konnte nicht gespeichert werden: ${error.message}`);
 
   revalidatePath("/events");
-  if (data) redirect(`/events/${data.id}`);
+  if (data) redirect(`/events/${data.id}?saved=1`);
 }
 
 export async function deleteEvent(eventId: string) {

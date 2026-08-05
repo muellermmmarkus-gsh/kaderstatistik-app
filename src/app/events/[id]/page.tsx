@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { saveAttendance } from "./actions";
 import BackButton from "@/components/BackButton";
+import SaveNotice from "@/components/SaveNotice";
+import SavedQueryNotice from "@/components/SavedQueryNotice";
 
 export default async function EventDetailPage({
   params,
@@ -86,6 +88,7 @@ export default async function EventDetailPage({
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <BackButton href="/events" />
+      <SavedQueryNotice />
       <h1 className="mb-1 text-xl font-semibold">
         {event.type === "training"
           ? "Training"
@@ -290,6 +293,7 @@ export default async function EventDetailPage({
             Speichern
           </button>
         )}
+        <SaveNotice />
       </form>
     </div>
   );
