@@ -18,6 +18,8 @@ export default async function NavBar() {
         <Link href="/trainers">Trainer</Link>
         <Link href="/absences">Abwesenheiten</Link>
         <Link href="/events">Termine</Link>
+        <Link href="/exercises">Übungen</Link>
+        <Link href="/trainings">Trainingsplanung</Link>
         <Link href="/calendar">Kalender</Link>
         <Link href="/seasons">Saisonverwaltung</Link>
         <Link href="/stats">Statistik</Link>

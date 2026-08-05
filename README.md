@@ -92,6 +92,11 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin
 - **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
 - **goals** – erzielte Tore pro Spieler und Spiel
+- **exercises** – Uebungsdatenbank: Aufbau, Ablauf, Haupt-/Nebenzweck, Mindest-/Hoechstzahl Spieler, Anzahl Kleinfeldtore/Mini-Tore, verwaltet unter „Übungen"
+- **trainings** – ein geplantes Training pro Datum, verwaltet unter „Trainingsplanung"
+- **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
+
+Ausfuehren fuer bestehende Projekte: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql) (setzt `migration_010_role_permissions.sql` voraus). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
 
 Statistiken (Anwesenheit pro Monat/Saison, Tore pro Saison) stehen als SQL-Views zur Verfuegung: `attendance_by_month`, `attendance_by_season`, `goals_by_season` (Spieler), `trainer_attendance_by_season` (Trainer) sowie `attendance_overall_by_season` (Team-Gesamtwert fuers Dashboard).
 
