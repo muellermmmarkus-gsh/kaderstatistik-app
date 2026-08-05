@@ -42,7 +42,7 @@ export default async function TrainingDetailPage({
         .maybeSingle(),
       supabase
         .from("exercises")
-        .select("id, name, hauptzweck, min_players, max_players, image_url")
+        .select("id, name, hauptzweck, min_players, max_players, category, image_url")
         .order("name"),
       isTrainer(),
     ]);
@@ -59,7 +59,7 @@ export default async function TrainingDetailPage({
   const save = saveTrainingPlan.bind(null, id);
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <h1 className="mb-1 text-xl font-semibold">Training – {event.event_date}</h1>
       <p className="mb-6 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
 
