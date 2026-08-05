@@ -7,7 +7,7 @@ export default async function NewTrainingPage() {
   const supabase = await createClient();
   const { data: exercises } = await supabase
     .from("exercises")
-    .select("id, name, hauptzweck, min_players, max_players")
+    .select("id, name, hauptzweck, min_players, max_players, image_url")
     .order("name");
 
   return (

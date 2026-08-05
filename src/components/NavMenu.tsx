@@ -29,6 +29,7 @@ const menu: MenuGroup[] = [
     items: [
       { label: "Übungen", href: "/exercises" },
       { label: "Trainingsplanung", href: "/trainings" },
+      { label: "Flächenplanung", href: "/fields" },
     ],
   },
   { label: "Statistik", href: "/stats" },

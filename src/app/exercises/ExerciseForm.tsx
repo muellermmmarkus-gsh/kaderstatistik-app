@@ -8,15 +8,29 @@ type ExerciseValues = {
   max_players: number;
   small_goals: number;
   mini_goals: number;
+  category: string;
+  field_id: string | null;
+  image_url: string | null;
 };
+
+type FieldOption = { id: string; name: string; length_m: number; width_m: number };
+
+const categoryOptions = [
+  { value: "aufwaermen", label: "Aufwärmen" },
+  { value: "spielen", label: "Spielen" },
+  { value: "ueben", label: "Üben" },
+  { value: "cooldown", label: "Cool-down" },
+];
 
 export default function ExerciseForm({
   action,
   initial,
+  fields,
   submitLabel,
 }: {
   action: (formData: FormData) => void;
   initial?: ExerciseValues;
+  fields: FieldOption[];
   submitLabel: string;
 }) {
   return (
@@ -84,6 +98,74 @@ export default function ExerciseForm({
             className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1">
+          <label className="mb-1 block text-sm font-medium" htmlFor="category">
+            Kategorie
+          </label>
+          <select
+            id="category"
+            name="category"
+            required
+            defaultValue={initial?.category ?? "ueben"}
+            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            {categoryOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1">
+          <label className="mb-1 block text-sm font-medium" htmlFor="fieldId">
+            Spielfeld/Übungsfläche
+          </label>
+          <select
+            id="fieldId"
+            name="fieldId"
+            defaultValue={initial?.field_id ?? ""}
+            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="">– keine Auswahl –</option>
+            {fields.map((field) => (
+              <option key={field.id} value={field.id}>
+                {field.name} ({field.length_m}×{field.width_m} m)
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium" htmlFor="image">
+          Bild
+        </label>
+        {initial?.image_url && (
+          <div className="mb-2 flex items-center gap-3">
+            <a href={initial.image_url} target="_blank" rel="noreferrer">
+              {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL, next/image benoetigt bekannte Domains */}
+              <img
+                src={initial.image_url}
+                alt=""
+                className="h-16 w-16 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+              />
+            </a>
+            <label className="flex items-center gap-2 text-sm text-zinc-500">
+              <input type="checkbox" name="removeImage" className="h-4 w-4" />
+              Bild entfernen
+            </label>
+          </div>
+        )}
+        <input
+          id="image"
+          name="image"
+          type="file"
+          accept="image/*"
+          className="block w-full text-sm"
+        />
       </div>
 
       <div className="flex flex-wrap gap-3">

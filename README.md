@@ -92,11 +92,14 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin
 - **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
 - **goals** – erzielte Tore pro Spieler und Spiel
-- **exercises** – Uebungsdatenbank: Aufbau, Ablauf, Haupt-/Nebenzweck, Mindest-/Hoechstzahl Spieler, Anzahl Kleinfeldtore/Mini-Tore, verwaltet unter „Übungen"
+- **exercises** – Uebungsdatenbank: Aufbau, Ablauf, Haupt-/Nebenzweck, Mindest-/Hoechstzahl Spieler, Anzahl Kleinfeldtore/Mini-Tore, Kategorie (`aufwaermen`/`spielen`/`ueben`/`cooldown`), optionale Spielfeld-Zuordnung (`field_id`) und optionales Bild (`image_url`), verwaltet unter „Übungen"
 - **trainings** – ein geplantes Training pro Datum, verwaltet unter „Trainingsplanung"
 - **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
+- **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
 
-Ausfuehren fuer bestehende Projekte: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql) (setzt `migration_010_role_permissions.sql` voraus). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql) und danach [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql) (setzt migration_011 voraus). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+
+Migration_012 legt zusaetzlich einen **Supabase-Storage-Bucket** `exercise-images` an (public, fuer die Bild-Vorschau/den Bild-Link bei Uebungen). Hochladen/Aendern/Loeschen von Bildern ist per Storage-Policy auf Trainer beschraenkt, Lesen ist oeffentlich ueber die Bild-URL moeglich.
 
 Statistiken (Anwesenheit pro Monat/Saison, Tore pro Saison) stehen als SQL-Views zur Verfuegung: `attendance_by_month`, `attendance_by_season`, `goals_by_season` (Spieler), `trainer_attendance_by_season` (Trainer) sowie `attendance_overall_by_season` (Team-Gesamtwert fuers Dashboard).
 

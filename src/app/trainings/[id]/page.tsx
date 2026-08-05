@@ -13,6 +13,7 @@ type TrainingExerciseRow = {
     hauptzweck: string;
     min_players: number;
     max_players: number;
+    image_url: string | null;
   } | null;
 };
 
@@ -28,13 +29,13 @@ export default async function TrainingDetailPage({
     supabase
       .from("trainings")
       .select(
-        "id, training_date, notes, training_exercises(duration_minutes, sort_order, exercises(id, name, hauptzweck, min_players, max_players))",
+        "id, training_date, notes, training_exercises(duration_minutes, sort_order, exercises(id, name, hauptzweck, min_players, max_players, image_url))",
       )
       .eq("id", id)
       .single(),
     supabase
       .from("exercises")
-      .select("id, name, hauptzweck, min_players, max_players")
+      .select("id, name, hauptzweck, min_players, max_players, image_url")
       .order("name"),
     isTrainer(),
   ]);
@@ -90,15 +91,27 @@ export default async function TrainingDetailPage({
             {items.map((item, index) => (
               <li
                 key={index}
-                className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                className="flex items-start gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
               >
-                <span className="font-medium">
-                  {item.exercises?.name ?? "Übung entfernt"}
-                </span>{" "}
-                <span className="text-zinc-500">– {item.duration_minutes} min</span>
-                {item.exercises && (
-                  <p className="text-xs text-zinc-500">{item.exercises.hauptzweck}</p>
+                {item.exercises?.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                  <img
+                    src={item.exercises.image_url}
+                    alt=""
+                    className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                  />
+                ) : (
+                  <div className="h-12 w-12 shrink-0 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                 )}
+                <div>
+                  <span className="font-medium">
+                    {item.exercises?.name ?? "Übung entfernt"}
+                  </span>{" "}
+                  <span className="text-zinc-500">– {item.duration_minutes} min</span>
+                  {item.exercises && (
+                    <p className="text-xs text-zinc-500">{item.exercises.hauptzweck}</p>
+                  )}
+                </div>
               </li>
             ))}
             {!items.length && <li className="text-zinc-500">Noch keine Übungen geplant.</li>}

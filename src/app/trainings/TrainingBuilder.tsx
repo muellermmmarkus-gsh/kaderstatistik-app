@@ -8,6 +8,7 @@ type Exercise = {
   hauptzweck: string;
   min_players: number;
   max_players: number;
+  image_url?: string | null;
 };
 
 type Row = { key: string; exerciseId: string; duration: number };
@@ -94,6 +95,16 @@ export default function TrainingBuilder({
               className="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
             >
               <div className="flex flex-wrap items-end gap-3">
+                {exercise?.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                  <img
+                    src={exercise.image_url}
+                    alt=""
+                    className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+                )}
                 <div className="flex-1">
                   <label className="mb-1 block text-sm font-medium">Übung</label>
                   <select
