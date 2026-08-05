@@ -48,11 +48,17 @@ create table if not exists events (
   created_at timestamptz not null default now()
 );
 
+-- performance/motivation/discipline/player_notes sind nur bei Terminen vom
+-- Typ 'training' im UI sichtbar und relevant.
 create table if not exists attendance (
   id uuid primary key default gen_random_uuid(),
   player_id uuid not null references players(id) on delete cascade,
   event_id uuid not null references events(id) on delete cascade,
   present boolean not null default true,
+  performance text check (performance in ('stark', 'mittel', 'schwach')),
+  motivation text check (motivation in ('hoch', 'mittel', 'niedrig')),
+  discipline text check (discipline in ('sehr gut', 'mittel', 'gering')),
+  player_notes text check (char_length(player_notes) <= 50),
   created_at timestamptz not null default now(),
   unique (player_id, event_id)
 );

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addTrainer, toggleTrainerActive } from "./actions";
+import BackButton from "@/components/BackButton";
 
 export default async function TrainersPage() {
   const supabase = await createClient();
@@ -14,6 +15,7 @@ export default async function TrainersPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <h1 className="mb-6 text-xl font-semibold">Trainer</h1>
 
       {!canWrite && (

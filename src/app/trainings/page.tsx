@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import BackButton from "@/components/BackButton";
 
 type EventRow = { id: string; event_date: string };
 type TrainingRow = {
@@ -28,6 +29,7 @@ export default async function TrainingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <h1 className="mb-2 text-xl font-semibold">Trainingsplanung</h1>
       <p className="mb-6 text-sm text-zinc-500">
         Neue Trainings werden unter{" "}

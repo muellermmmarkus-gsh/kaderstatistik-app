@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import BackButton from "@/components/BackButton";
 
 const WEEKDAY_LABELS = [
   "Montag",
@@ -175,6 +176,7 @@ export default async function CalendarPage({
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">
           Kalender – {MONTH_LABELS[month - 1]} {year}

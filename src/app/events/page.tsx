@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { deleteEvent } from "./actions";
 import CreateEventForm from "./CreateEventForm";
+import BackButton from "@/components/BackButton";
 
 const typeLabels: Record<string, string> = {
   training: "Training",
@@ -46,6 +47,7 @@ export default async function EventsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <h1 className="mb-6 text-xl font-semibold">Termine</h1>
 
       {!canWrite && (

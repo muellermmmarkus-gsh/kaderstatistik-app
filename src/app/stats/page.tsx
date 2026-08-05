@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import BackButton from "@/components/BackButton";
 
 type AttendanceRow = {
   player_id: string;
@@ -279,6 +280,7 @@ export default async function StatsPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <div className="mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Statistik</h1>

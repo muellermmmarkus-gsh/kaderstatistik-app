@@ -4,6 +4,7 @@ import { isTrainer } from "@/lib/supabase/profile";
 import { updateExercise, deleteExercise } from "../actions";
 import ExerciseForm from "../ExerciseForm";
 import { categoryLabels } from "../categoryLabels";
+import BackButton from "@/components/BackButton";
 
 export default async function ExerciseDetailPage({
   params,
@@ -36,6 +37,7 @@ export default async function ExerciseDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <BackButton href="/exercises" />
       <h1 className="mb-6 text-xl font-semibold">{exercise.name}</h1>
 
       {canWrite ? (

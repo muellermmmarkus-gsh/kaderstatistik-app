@@ -58,6 +58,12 @@ export default function TrainingBuilder({
     );
   }
 
+  const usedFields = new Map<string, { name: string; length_m: number; width_m: number }>();
+  for (const row of rows) {
+    const field = exerciseById.get(row.exerciseId)?.fields;
+    if (field) usedFields.set(`${field.name}-${field.length_m}-${field.width_m}`, field);
+  }
+
   function addRow() {
     setRows((prev) => [...prev, makeRow()]);
   }
@@ -231,6 +237,36 @@ export default function TrainingBuilder({
           <span>Gesamt</span>
           <span>{totalMinutes} min</span>
         </div>
+
+        <h2 className="mb-3 mt-6 font-medium">Benötigte Übungsflächen</h2>
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-zinc-200 dark:border-zinc-800">
+              <th className="py-1">Name</th>
+              <th className="py-1">Länge</th>
+              <th className="py-1">Breite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...usedFields.values()].map((field) => (
+              <tr
+                key={field.name}
+                className="border-b border-zinc-100 dark:border-zinc-900"
+              >
+                <td className="py-1">{field.name}</td>
+                <td className="py-1 text-zinc-500">{field.length_m} m</td>
+                <td className="py-1 text-zinc-500">{field.width_m} m</td>
+              </tr>
+            ))}
+            {!usedFields.size && (
+              <tr>
+                <td colSpan={3} className="py-2 text-zinc-500">
+                  Keine Übungsfläche hinterlegt.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </aside>
     </div>
   );

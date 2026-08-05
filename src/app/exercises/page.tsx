@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { categoryLabels } from "./categoryLabels";
+import BackButton from "@/components/BackButton";
 
 type ExerciseRow = {
   id: string;
@@ -32,6 +33,7 @@ export default async function ExercisesPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Übungen</h1>
         {canWrite && (

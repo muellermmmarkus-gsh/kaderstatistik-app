@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addAbsence, updateAbsence, deleteAbsence } from "./actions";
+import BackButton from "@/components/BackButton";
 
 type Absence = {
   id: string;
@@ -34,6 +35,7 @@ export default async function AbsencesPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <h1 className="mb-2 text-xl font-semibold">Abwesenheiten</h1>
       <p className="mb-6 text-sm text-zinc-500">
         Zeiträume eintragen, in denen ein Trainer nicht verfügbar ist. Die

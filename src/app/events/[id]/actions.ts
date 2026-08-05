@@ -15,6 +15,11 @@ export async function saveAttendance(
     player_id: playerId,
     event_id: eventId,
     present: formData.get(`present_player_${playerId}`) === "on",
+    performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
+    motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
+    discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
+    player_notes:
+      String(formData.get(`notes_${playerId}`) ?? "").trim().slice(0, 50) || null,
   }));
 
   if (attendanceRows.length) {

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { addPlayer, togglePlayerActive } from "./actions";
+import BackButton from "@/components/BackButton";
 
 export default async function PlayersPage() {
   const supabase = await createClient();
@@ -14,6 +15,7 @@ export default async function PlayersPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+      <BackButton href="/" />
       <h1 className="mb-6 text-xl font-semibold">Spieler</h1>
 
       {!canWrite && (

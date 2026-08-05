@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { saveTrainingPlan } from "./actions";
 import TrainingBuilder from "../TrainingBuilder";
+import BackButton from "@/components/BackButton";
 
 type ExerciseOption = {
   id: string;
@@ -75,6 +76,7 @@ export default async function TrainingDetailPage({
 
   return (
     <div className="w-full max-w-6xl flex-1 px-4 py-8">
+      <BackButton href="/trainings" />
       <h1 className="mb-1 text-xl font-semibold">Training – {event.event_date}</h1>
       <p className="mb-6 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
 

@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { saveAttendance } from "./actions";
+import BackButton from "@/components/BackButton";
 
 export default async function EventDetailPage({
   params,
@@ -32,7 +34,10 @@ export default async function EventDetailPage({
       .select("id, first_name, last_name")
       .eq("active", true)
       .order("last_name"),
-    supabase.from("attendance").select("player_id, present").eq("event_id", id),
+    supabase
+      .from("attendance")
+      .select("player_id, present, performance, motivation, discipline, player_notes")
+      .eq("event_id", id),
     supabase.from("goals").select("player_id, goal_count").eq("event_id", id),
     supabase
       .from("trainers")
@@ -49,6 +54,18 @@ export default async function EventDetailPage({
   const presentByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.present]),
   );
+  const performanceByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.performance]),
+  );
+  const motivationByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.motivation]),
+  );
+  const disciplineByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.discipline]),
+  );
+  const notesByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.player_notes]),
+  );
   const goalsByPlayer = new Map(
     goals?.map((g) => [g.player_id, g.goal_count]),
   );
@@ -63,8 +80,12 @@ export default async function EventDetailPage({
   const trainerIds = trainers?.map((t) => t.id) ?? [];
   const save = saveAttendance.bind(null, id, playerIds, trainerIds);
 
+  const playerColSpan =
+    2 + (event.type === "game" ? 1 : 0) + (event.type === "training" ? 4 : 0);
+
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+      <BackButton href="/events" />
       <h1 className="mb-1 text-xl font-semibold">
         {event.type === "training"
           ? "Training"
@@ -79,6 +100,15 @@ export default async function EventDetailPage({
         {event.label ? ` · ${event.label}` : ""}
       </p>
 
+      {event.type === "training" && (
+        <Link
+          href={`/trainings/${event.id}`}
+          className="mb-6 inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          Zum Trainingsplan
+        </Link>
+      )}
+
       {!canWrite && (
         <p className="mb-6 text-sm text-zinc-500">
           Du hast Nur-Lese-Zugriff. Änderungen können nur Trainer vornehmen.
@@ -88,55 +118,118 @@ export default async function EventDetailPage({
       <form action={save}>
         <section className="mb-8">
           <h2 className="mb-3 font-medium">Spieler</h2>
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                <th className="py-2">Spieler</th>
-                <th className="py-2">Anwesend</th>
-                {event.type === "game" && <th className="py-2">Tore</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {players?.map((player) => (
-                <tr
-                  key={player.id}
-                  className="border-b border-zinc-100 dark:border-zinc-900"
-                >
-                  <td className="py-2">
-                    {player.first_name} {player.last_name}
-                  </td>
-                  <td className="py-2">
-                    <input
-                      type="checkbox"
-                      name={`present_player_${player.id}`}
-                      defaultChecked={presentByPlayer.get(player.id) ?? false}
-                      disabled={!canWrite}
-                      className="h-4 w-4"
-                    />
-                  </td>
-                  {event.type === "game" && (
-                    <td className="py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        name={`goals_${player.id}`}
-                        defaultValue={goalsByPlayer.get(player.id) ?? 0}
-                        disabled={!canWrite}
-                        className="w-16 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
-                      />
-                    </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="py-2">Spieler</th>
+                  <th className="py-2">Anwesend</th>
+                  {event.type === "game" && <th className="py-2">Tore</th>}
+                  {event.type === "training" && (
+                    <>
+                      <th className="py-2">Leistung</th>
+                      <th className="py-2">Motivation</th>
+                      <th className="py-2">Disziplin</th>
+                      <th className="py-2">Notizen</th>
+                    </>
                   )}
                 </tr>
-              ))}
-              {!players?.length && (
-                <tr>
-                  <td colSpan={3} className="py-4 text-zinc-500">
-                    Keine aktiven Spieler vorhanden.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {players?.map((player) => (
+                  <tr
+                    key={player.id}
+                    className="border-b border-zinc-100 dark:border-zinc-900"
+                  >
+                    <td className="py-2 whitespace-nowrap">
+                      {player.first_name} {player.last_name}
+                    </td>
+                    <td className="py-2">
+                      <input
+                        type="checkbox"
+                        name={`present_player_${player.id}`}
+                        defaultChecked={presentByPlayer.get(player.id) ?? false}
+                        disabled={!canWrite}
+                        className="h-4 w-4"
+                      />
+                    </td>
+                    {event.type === "game" && (
+                      <td className="py-2">
+                        <input
+                          type="number"
+                          min={0}
+                          name={`goals_${player.id}`}
+                          defaultValue={goalsByPlayer.get(player.id) ?? 0}
+                          disabled={!canWrite}
+                          className="w-16 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                        />
+                      </td>
+                    )}
+                    {event.type === "training" && (
+                      <>
+                        <td className="py-2">
+                          <select
+                            name={`performance_${player.id}`}
+                            defaultValue={performanceByPlayer.get(player.id) ?? ""}
+                            disabled={!canWrite}
+                            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                          >
+                            <option value="">–</option>
+                            <option value="stark">stark</option>
+                            <option value="mittel">mittel</option>
+                            <option value="schwach">schwach</option>
+                          </select>
+                        </td>
+                        <td className="py-2">
+                          <select
+                            name={`motivation_${player.id}`}
+                            defaultValue={motivationByPlayer.get(player.id) ?? ""}
+                            disabled={!canWrite}
+                            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                          >
+                            <option value="">–</option>
+                            <option value="hoch">hoch</option>
+                            <option value="mittel">mittel</option>
+                            <option value="niedrig">niedrig</option>
+                          </select>
+                        </td>
+                        <td className="py-2">
+                          <select
+                            name={`discipline_${player.id}`}
+                            defaultValue={disciplineByPlayer.get(player.id) ?? ""}
+                            disabled={!canWrite}
+                            className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                          >
+                            <option value="">–</option>
+                            <option value="sehr gut">sehr gut</option>
+                            <option value="mittel">mittel</option>
+                            <option value="gering">gering</option>
+                          </select>
+                        </td>
+                        <td className="py-2">
+                          <input
+                            type="text"
+                            name={`notes_${player.id}`}
+                            maxLength={50}
+                            defaultValue={notesByPlayer.get(player.id) ?? ""}
+                            disabled={!canWrite}
+                            className="w-40 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                          />
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+                {!players?.length && (
+                  <tr>
+                    <td colSpan={playerColSpan} className="py-4 text-zinc-500">
+                      Keine aktiven Spieler vorhanden.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="mb-8">
