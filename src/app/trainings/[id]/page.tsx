@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
-import { updateTraining, deleteTrainingAction } from "./actions";
+import { saveTrainingPlan } from "./actions";
 import TrainingBuilder from "../TrainingBuilder";
 
 type TrainingExerciseRow = {
@@ -25,36 +25,42 @@ export default async function TrainingDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: training }, { data: exercises }, canWrite] = await Promise.all([
-    supabase
-      .from("trainings")
-      .select(
-        "id, training_date, notes, training_exercises(duration_minutes, sort_order, exercises(id, name, hauptzweck, min_players, max_players, image_url))",
-      )
-      .eq("id", id)
-      .single(),
-    supabase
-      .from("exercises")
-      .select("id, name, hauptzweck, min_players, max_players, image_url")
-      .order("name"),
-    isTrainer(),
-  ]);
+  const [{ data: event }, { data: training }, { data: exercises }, canWrite] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select("id, event_date, season")
+        .eq("id", id)
+        .eq("type", "training")
+        .maybeSingle(),
+      supabase
+        .from("trainings")
+        .select(
+          "focus, notes, training_exercises(duration_minutes, sort_order, exercises(id, name, hauptzweck, min_players, max_players, image_url))",
+        )
+        .eq("event_id", id)
+        .maybeSingle(),
+      supabase
+        .from("exercises")
+        .select("id, name, hauptzweck, min_players, max_players, image_url")
+        .order("name"),
+      isTrainer(),
+    ]);
 
-  if (!training) notFound();
+  if (!event) notFound();
 
   const items = (
-    (training.training_exercises ?? []) as unknown as TrainingExerciseRow[]
+    (training?.training_exercises ?? []) as unknown as TrainingExerciseRow[]
   )
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order);
   const totalMinutes = items.reduce((sum, i) => sum + i.duration_minutes, 0);
 
-  const update = updateTraining.bind(null, id);
-  const remove = deleteTrainingAction.bind(null, id);
+  const save = saveTrainingPlan.bind(null, id);
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <h1 className="mb-1 text-xl font-semibold">Training – {training.training_date}</h1>
+      <h1 className="mb-1 text-xl font-semibold">Training – {event.event_date}</h1>
       <p className="mb-6 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
 
       {!canWrite && (
@@ -64,29 +70,24 @@ export default async function TrainingDetailPage({
       )}
 
       {canWrite ? (
-        <>
-          <TrainingBuilder
-            exercises={exercises ?? []}
-            action={update}
-            initialDate={training.training_date}
-            initialNotes={training.notes ?? undefined}
-            initialRows={items
-              .filter((i) => i.exercises)
-              .map((i) => ({ exerciseId: i.exercises!.id, duration: i.duration_minutes }))}
-            submitLabel="Änderungen speichern"
-          />
-          <form action={remove} className="mt-6">
-            <button
-              type="submit"
-              className="text-sm text-red-600 hover:underline dark:text-red-400"
-            >
-              Training löschen
-            </button>
-          </form>
-        </>
+        <TrainingBuilder
+          exercises={exercises ?? []}
+          action={save}
+          initialFocus={training?.focus ?? undefined}
+          initialNotes={training?.notes ?? undefined}
+          initialRows={items
+            .filter((i) => i.exercises)
+            .map((i) => ({ exerciseId: i.exercises!.id, duration: i.duration_minutes }))}
+          submitLabel="Änderungen speichern"
+        />
       ) : (
         <>
-          {training.notes && <p className="mb-4 text-sm">{training.notes}</p>}
+          {training?.focus && (
+            <p className="mb-2 text-sm">
+              <span className="font-medium">Schwerpunkt:</span> {training.focus}
+            </p>
+          )}
+          {training?.notes && <p className="mb-4 text-sm">{training.notes}</p>}
           <ol className="space-y-2 text-sm">
             {items.map((item, index) => (
               <li

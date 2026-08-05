@@ -119,13 +119,20 @@ create table if not exists exercises (
   created_at timestamptz not null default now()
 );
 
+-- Ein Training wird als Termin (events, type = 'training') angelegt; die
+-- Trainingsplanung (Uebungen, Dauer, Schwerpunkt) haengt per event_id daran
+-- und wird beim ersten Speichern in der Detailplanung automatisch angelegt.
 create table if not exists trainings (
   id uuid primary key default gen_random_uuid(),
-  training_date date not null,
+  event_id uuid references events(id) on delete cascade,
+  training_date date,
   notes text,
+  focus text,
   created_by uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+create unique index if not exists trainings_event_id_key on trainings(event_id);
 
 -- exercise_id bewusst "restrict" statt "cascade": eine Uebung, die in einem
 -- gespeicherten Trainingsplan verwendet wird, soll nicht geloescht werden

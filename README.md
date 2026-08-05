@@ -93,11 +93,13 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
 - **goals** – erzielte Tore pro Spieler und Spiel
 - **exercises** – Uebungsdatenbank: Aufbau, Ablauf, Haupt-/Nebenzweck, Mindest-/Hoechstzahl Spieler, Anzahl Kleinfeldtore/Mini-Tore, Kategorie (`aufwaermen`/`spielen`/`ueben`/`cooldown`), optionale Spielfeld-Zuordnung (`field_id`) und optionales Bild (`image_url`), verwaltet unter „Übungen"
-- **trainings** – ein geplantes Training pro Datum, verwaltet unter „Trainingsplanung"
+- **trainings** – die Uebungsplanung (Schwerpunkt, Notizen, ausgewaehlte Uebungen) zu einem Termin vom Typ `training`, 1:1 verknuepft ueber `event_id` (`unique`); wird beim ersten Speichern in der Detailplanung unter „Trainingsplanung" automatisch angelegt (Upsert per `event_id`)
 - **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
 - **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
 
-Ausfuehren fuer bestehende Projekte: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql) und danach [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql) (setzt migration_011 voraus). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+
+**Trainings anlegen:** Ein neues Training wird ausschliesslich unter „Termine" (Termin vom Typ „Training") angelegt. Unter „Trainingsplanung" erscheinen automatisch alle so angelegten Trainings; ein Klick auf ein Training oeffnet die Detailplanung (Schwerpunkt, Uebungen, Dauer je Uebung). Loeschen eines Trainings erfolgt ebenfalls unter „Termine" – dabei wird die zugehoerige Uebungsplanung automatisch mit geloescht (`on delete cascade`).
 
 Migration_012 legt zusaetzlich einen **Supabase-Storage-Bucket** `exercise-images` an (public, fuer die Bild-Vorschau/den Bild-Link bei Uebungen). Hochladen/Aendern/Loeschen von Bildern ist per Storage-Policy auf Trainer beschraenkt, Lesen ist oeffentlich ueber die Bild-URL moeglich.
 

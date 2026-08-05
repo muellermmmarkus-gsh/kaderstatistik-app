@@ -24,14 +24,14 @@ function makeRow(exercises: Exercise[]): Row {
 export default function TrainingBuilder({
   exercises,
   action,
-  initialDate,
+  initialFocus,
   initialNotes,
   initialRows,
   submitLabel,
 }: {
   exercises: Exercise[];
   action: (formData: FormData) => void;
-  initialDate?: string;
+  initialFocus?: string;
   initialNotes?: string;
   initialRows?: { exerciseId: string; duration: number }[];
   submitLabel: string;
@@ -60,17 +60,15 @@ export default function TrainingBuilder({
   return (
     <form action={action} className="space-y-6">
       <div className="flex flex-wrap gap-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="trainingDate">
-            Datum
+        <div className="flex-1">
+          <label className="mb-1 block text-sm font-medium" htmlFor="focus">
+            Schwerpunkt Training
           </label>
           <input
-            id="trainingDate"
-            name="trainingDate"
-            type="date"
-            required
-            defaultValue={initialDate}
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            id="focus"
+            name="focus"
+            defaultValue={initialFocus}
+            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>
         <div className="flex-1">
