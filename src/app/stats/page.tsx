@@ -33,6 +33,33 @@ type GoalsRow = {
   goals: number;
 };
 
+type AssessmentAttendanceRow = {
+  player_id: string;
+  performance: string | null;
+  motivation: string | null;
+  discipline: string | null;
+};
+
+const PERFORMANCE_ORDER = ["stark", "mittel", "schwach"];
+const MOTIVATION_ORDER = ["hoch", "mittel", "niedrig"];
+const DISCIPLINE_ORDER = ["sehr gut", "mittel", "gering"];
+
+function countByPlayer(rows: AssessmentAttendanceRow[], field: "performance" | "motivation" | "discipline") {
+  const byPlayer = new Map<string, Record<string, number>>();
+  for (const row of rows) {
+    const value = row[field];
+    if (!value) continue;
+    const counts = byPlayer.get(row.player_id) ?? {};
+    counts[value] = (counts[value] ?? 0) + 1;
+    byPlayer.set(row.player_id, counts);
+  }
+  return byPlayer;
+}
+
+function formatCounts(counts: Record<string, number> | undefined, order: string[]) {
+  return order.map((key) => counts?.[key] ?? 0).join("/");
+}
+
 type PivotRow = {
   first_name: string;
   last_name: string;
@@ -45,11 +72,11 @@ type PivotRow = {
 type View = "season" | "month";
 
 function pivotById<T extends PivotRow>(rows: T[], idOf: (row: T) => string) {
-  const byId = new Map<string, { name: string; training?: T; game?: T }>();
+  const byId = new Map<string, { id: string; name: string; training?: T; game?: T }>();
 
   for (const row of rows) {
     const id = idOf(row);
-    const entry = byId.get(id) ?? { name: `${row.first_name} ${row.last_name}` };
+    const entry = byId.get(id) ?? { id, name: `${row.first_name} ${row.last_name}` };
     entry[row.type] = row;
     byId.set(id, entry);
   }
@@ -90,40 +117,70 @@ function toMonthMatrix(
 function AttendanceTable({
   caption,
   rows,
+  performanceByPlayer,
+  motivationByPlayer,
+  disciplineByPlayer,
 }: {
   caption: string;
-  rows: { name: string; training?: PivotRow; game?: PivotRow }[];
+  rows: { id: string; name: string; training?: PivotRow; game?: PivotRow }[];
+  performanceByPlayer?: Map<string, Record<string, number>>;
+  motivationByPlayer?: Map<string, Record<string, number>>;
+  disciplineByPlayer?: Map<string, Record<string, number>>;
 }) {
+  const showAssessment = !!performanceByPlayer;
+
   return (
-    <table className="w-full text-left text-sm">
-      <caption className="sr-only">{caption}</caption>
-      <thead>
-        <tr className="border-b border-zinc-200 dark:border-zinc-800">
-          <th className="py-2">Name</th>
-          <th className="py-2">Training</th>
-          <th className="py-2">Spiel</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((entry) => (
-          <tr
-            key={entry.name}
-            className="border-b border-zinc-100 dark:border-zinc-900"
-          >
-            <td className="py-2">{entry.name}</td>
-            <td className="py-2">{formatPct(entry.training)}</td>
-            <td className="py-2">{formatPct(entry.game)}</td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <caption className="sr-only">{caption}</caption>
+        <thead>
+          <tr className="border-b border-zinc-200 dark:border-zinc-800">
+            <th className="py-2">Name</th>
+            <th className="py-2">Training</th>
+            <th className="py-2">Spiel</th>
+            {showAssessment && (
+              <>
+                <th className="whitespace-nowrap py-2">Leistung (stark/mittel/schwach)</th>
+                <th className="whitespace-nowrap py-2">Motivation (hoch/mittel/niedrig)</th>
+                <th className="whitespace-nowrap py-2">Disziplin (sehr gut/mittel/gering)</th>
+              </>
+            )}
           </tr>
-        ))}
-        {!rows.length && (
-          <tr>
-            <td colSpan={3} className="py-4 text-zinc-500">
-              Keine Daten fuer diese Saison.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((entry) => (
+            <tr
+              key={entry.name}
+              className="border-b border-zinc-100 dark:border-zinc-900"
+            >
+              <td className="py-2 whitespace-nowrap">{entry.name}</td>
+              <td className="py-2">{formatPct(entry.training)}</td>
+              <td className="py-2">{formatPct(entry.game)}</td>
+              {showAssessment && (
+                <>
+                  <td className="py-2">
+                    {formatCounts(performanceByPlayer?.get(entry.id), PERFORMANCE_ORDER)}
+                  </td>
+                  <td className="py-2">
+                    {formatCounts(motivationByPlayer?.get(entry.id), MOTIVATION_ORDER)}
+                  </td>
+                  <td className="py-2">
+                    {formatCounts(disciplineByPlayer?.get(entry.id), DISCIPLINE_ORDER)}
+                  </td>
+                </>
+              )}
+            </tr>
+          ))}
+          {!rows.length && (
+            <tr>
+              <td colSpan={showAssessment ? 6 : 3} className="py-4 text-zinc-500">
+                Keine Daten fuer diese Saison.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -203,6 +260,7 @@ export default async function StatsPage({
     { data: byMonth },
     { data: trainerByMonth },
     { data: byGoals },
+    { data: assessmentRows },
   ] = await Promise.all([
     season && view === "season"
       ? supabase
@@ -245,7 +303,19 @@ export default async function StatsPage({
           .eq("season", season)
           .order("goals", { ascending: false })
       : Promise.resolve({ data: [] as GoalsRow[] }),
+    season && view === "season"
+      ? supabase
+          .from("attendance")
+          .select("player_id, performance, motivation, discipline, events!inner(season, type)")
+          .eq("events.season", season)
+          .eq("events.type", "training")
+      : Promise.resolve({ data: [] as AssessmentAttendanceRow[] }),
   ]);
+
+  const assessmentData = (assessmentRows as AssessmentAttendanceRow[] | null) ?? [];
+  const performanceByPlayer = countByPlayer(assessmentData, "performance");
+  const motivationByPlayer = countByPlayer(assessmentData, "motivation");
+  const disciplineByPlayer = countByPlayer(assessmentData, "discipline");
 
   const seasonPivot = pivotById(
     (bySeason as AttendanceRow[]) ?? [],
@@ -362,6 +432,9 @@ export default async function StatsPage({
                 <AttendanceTable
                   caption="Spieler-Anwesenheit gesamte Saison"
                   rows={seasonPivot}
+                  performanceByPlayer={performanceByPlayer}
+                  motivationByPlayer={motivationByPlayer}
+                  disciplineByPlayer={disciplineByPlayer}
                 />
               </section>
 
