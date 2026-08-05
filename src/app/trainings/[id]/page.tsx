@@ -4,6 +4,17 @@ import { isTrainer } from "@/lib/supabase/profile";
 import { saveTrainingPlan } from "./actions";
 import TrainingBuilder from "../TrainingBuilder";
 
+type ExerciseOption = {
+  id: string;
+  name: string;
+  hauptzweck: string;
+  min_players: number;
+  max_players: number;
+  category: string;
+  image_url: string | null;
+  fields: { name: string; length_m: number; width_m: number } | null;
+};
+
 type TrainingExerciseRow = {
   duration_minutes: number;
   sort_order: number;
@@ -42,12 +53,16 @@ export default async function TrainingDetailPage({
         .maybeSingle(),
       supabase
         .from("exercises")
-        .select("id, name, hauptzweck, min_players, max_players, category, image_url")
+        .select(
+          "id, name, hauptzweck, min_players, max_players, category, image_url, fields(name, length_m, width_m)",
+        )
         .order("name"),
       isTrainer(),
     ]);
 
   if (!event) notFound();
+
+  const exerciseOptions = (exercises ?? []) as unknown as ExerciseOption[];
 
   const items = (
     (training?.training_exercises ?? []) as unknown as TrainingExerciseRow[]
@@ -59,7 +74,7 @@ export default async function TrainingDetailPage({
   const save = saveTrainingPlan.bind(null, id);
 
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+    <div className="w-full max-w-6xl flex-1 px-4 py-8">
       <h1 className="mb-1 text-xl font-semibold">Training – {event.event_date}</h1>
       <p className="mb-6 text-sm text-zinc-500">Gesamtdauer: {totalMinutes} min</p>
 
@@ -71,7 +86,7 @@ export default async function TrainingDetailPage({
 
       {canWrite ? (
         <TrainingBuilder
-          exercises={exercises ?? []}
+          exercises={exerciseOptions}
           action={save}
           initialFocus={training?.focus ?? undefined}
           initialNotes={training?.notes ?? undefined}

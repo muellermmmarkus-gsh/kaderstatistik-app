@@ -11,6 +11,7 @@ type Exercise = {
   max_players: number;
   category: string;
   image_url?: string | null;
+  fields?: { name: string; length_m: number; width_m: number } | null;
 };
 
 type Row = { key: string; category: string; exerciseId: string; duration: number };
@@ -139,7 +140,7 @@ export default function TrainingBuilder({
                   ) : (
                     <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                   )}
-                  <div className="flex-1">
+                  <div className="min-w-[220px] flex-[2]">
                     <label className="mb-1 block text-sm font-medium">Übung</label>
                     <select
                       name="exercise_id"
@@ -156,6 +157,16 @@ export default function TrainingBuilder({
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="min-w-[140px] flex-1">
+                    <label className="mb-1 block text-sm font-medium">
+                      Übungsfläche
+                    </label>
+                    <p className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
+                      {exercise?.fields
+                        ? `${exercise.fields.name} (${exercise.fields.length_m}×${exercise.fields.width_m} m)`
+                        : "–"}
+                    </p>
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium">Dauer (min)</label>
