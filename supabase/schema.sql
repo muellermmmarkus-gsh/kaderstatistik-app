@@ -43,6 +43,8 @@ create table if not exists events (
   type event_type not null,
   event_date date not null,
   opponent text, -- nur relevant bei type = 'game'
+  event_time time, -- nur relevant bei type = 'game'
+  location text, -- nur relevant bei type = 'game'
   label text, -- nur relevant bei type = 'event'
   season text not null, -- z.B. '2025/2026'
   created_at timestamptz not null default now()

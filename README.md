@@ -87,7 +87,7 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **players** – Spieler-Stammdaten
 - **trainers** – Trainer-Stammdaten
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
-- **events** – Termine (`type`: `training`/`game`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`)
+- **events** – Termine (`type`: `training`/`game`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`, `event_time`/`location` fuer Uhrzeit/Spielort bei `game`)
 - **attendance** – Anwesenheit pro Spieler und Termin; bei Terminen vom Typ `training` zusaetzlich Leistung (`stark`/`mittel`/`schwach`), Motivation (`hoch`/`mittel`/`niedrig`), Disziplin (`sehr gut`/`mittel`/`gering`) und ein Freitext-Notizfeld (`player_notes`, max. 50 Zeichen) je Spieler
 - **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin
 - **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
@@ -97,7 +97,7 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
 - **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
 
-Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
 
 ### Navigation
 

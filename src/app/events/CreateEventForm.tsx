@@ -46,16 +46,39 @@ export default function CreateEventForm({
         />
       </div>
       {type === "game" && (
-        <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="opponent">
-            Gegner
-          </label>
-          <input
-            id="opponent"
-            name="opponent"
-            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
+        <>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="opponent">
+              Gegner
+            </label>
+            <input
+              id="opponent"
+              name="opponent"
+              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="eventTime">
+              Uhrzeit
+            </label>
+            <input
+              id="eventTime"
+              name="eventTime"
+              type="time"
+              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="location">
+              Spielort
+            </label>
+            <input
+              id="location"
+              name="location"
+              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </div>
+        </>
       )}
       {type === "event" && (
         <div>

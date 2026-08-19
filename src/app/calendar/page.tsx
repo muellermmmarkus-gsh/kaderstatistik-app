@@ -52,6 +52,8 @@ type CalendarEvent = {
   type: EventType;
   event_date: string;
   opponent: string | null;
+  event_time: string | null;
+  location: string | null;
   label: string | null;
   trainer_attendance: { confirmed: boolean }[];
 };
@@ -107,18 +109,24 @@ function getMonthWeeks(year: number, month: number) {
 }
 
 function eventLabel(event: CalendarEvent, totalTrainers: number) {
+  const time = event.event_time ? `${event.event_time.slice(0, 5)} ` : "";
   const base =
     event.type === "training"
       ? "Training"
       : event.type === "game"
         ? event.opponent
-          ? `Spiel vs ${event.opponent}`
-          : "Spiel"
+          ? `${time}Spiel vs ${event.opponent}`
+          : `${time}Spiel`
         : (event.label ?? "Event");
 
   if (!totalTrainers) return base;
   const confirmed = event.trainer_attendance.filter((a) => a.confirmed).length;
   return `${base} (${confirmed}/${totalTrainers})`;
+}
+
+function eventTitle(event: CalendarEvent, totalTrainers: number) {
+  const label = eventLabel(event, totalTrainers);
+  return event.type === "game" && event.location ? `${label} · ${event.location}` : label;
 }
 
 export default async function CalendarPage({
@@ -141,7 +149,9 @@ export default async function CalendarPage({
     await Promise.all([
       supabase
         .from("events")
-        .select("id, type, event_date, opponent, label, trainer_attendance(confirmed)")
+        .select(
+          "id, type, event_date, opponent, event_time, location, label, trainer_attendance(confirmed)",
+        )
         .gte("event_date", rangeStart)
         .lte("event_date", rangeEnd)
         .order("event_date"),
@@ -263,7 +273,7 @@ export default async function CalendarPage({
                 return (
                   <div
                     key={dateKey}
-                    className={`min-h-[6rem] border-r border-zinc-100 p-1.5 last:border-r-0 dark:border-zinc-900 ${
+                    className={`h-28 min-w-0 overflow-y-auto border-r border-zinc-100 p-1.5 last:border-r-0 dark:border-zinc-900 ${
                       isWeekend ? "bg-slate-50 dark:bg-zinc-900/40" : ""
                     } ${!inMonth ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
                   >
@@ -289,8 +299,8 @@ export default async function CalendarPage({
                         <Link
                           key={event.id}
                           href={`/events/${event.id}`}
-                          className={`truncate rounded px-1.5 py-0.5 text-xs ${typeStyles[event.type]}`}
-                          title={eventLabel(event, totalTrainers ?? 0)}
+                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${typeStyles[event.type]}`}
+                          title={eventTitle(event, totalTrainers ?? 0)}
                         >
                           {eventLabel(event, totalTrainers ?? 0)}
                         </Link>
@@ -299,7 +309,7 @@ export default async function CalendarPage({
                         <Link
                           key={absence.id}
                           href="/absences"
-                          className={`truncate rounded px-1.5 py-0.5 text-xs ${absenceColorByTrainer.get(absence.trainer_id) ?? ABSENCE_COLORS[0]} text-white`}
+                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${absenceColorByTrainer.get(absence.trainer_id) ?? ABSENCE_COLORS[0]} text-white`}
                           title={`${absence.trainers?.first_name ?? ""} ${absence.trainers?.last_name ?? ""} abwesend`}
                         >
                           {absence.trainers?.first_name} {absence.trainers?.last_name}

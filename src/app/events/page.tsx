@@ -16,6 +16,8 @@ type EventRow = {
   type: string;
   event_date: string;
   opponent: string | null;
+  event_time: string | null;
+  location: string | null;
   label: string | null;
   season: string;
   trainer_attendance: {
@@ -30,7 +32,7 @@ export default async function EventsPage() {
     supabase
       .from("events")
       .select(
-        "id, type, event_date, opponent, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
+        "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
       )
       .order("event_date", { ascending: false }),
     supabase
@@ -76,6 +78,8 @@ export default async function EventsPage() {
             <th className="py-2">Datum</th>
             <th className="py-2">Art</th>
             <th className="py-2">Gegner</th>
+            <th className="py-2">Uhrzeit</th>
+            <th className="py-2">Ort</th>
             <th className="py-2">Event</th>
             <th className="py-2">Trainer (zugesagt)</th>
             <th className="py-2">Saison</th>
@@ -101,6 +105,10 @@ export default async function EventsPage() {
                 </td>
                 <td className="py-2">{typeLabels[event.type]}</td>
                 <td className="py-2 text-zinc-500">{event.opponent ?? "–"}</td>
+                <td className="py-2 text-zinc-500">
+                  {event.event_time ? event.event_time.slice(0, 5) : "–"}
+                </td>
+                <td className="py-2 text-zinc-500">{event.location ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{event.label ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{confirmedTrainers || "–"}</td>
                 <td className="py-2 text-zinc-500">{event.season}</td>
@@ -121,7 +129,7 @@ export default async function EventsPage() {
           })}
           {!events?.length && (
             <tr>
-              <td colSpan={canWrite ? 7 : 6} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 9 : 8} className="py-4 text-zinc-500">
                 Noch keine Termine angelegt.
               </td>
             </tr>

@@ -17,7 +17,7 @@ export default async function EventDetailPage({
 
   const { data: event } = await supabase
     .from("events")
-    .select("id, type, event_date, opponent, label, season")
+    .select("id, type, event_date, opponent, event_time, location, label, season")
     .eq("id", id)
     .single();
 
@@ -100,6 +100,8 @@ export default async function EventDetailPage({
       <p className="mb-6 text-sm text-zinc-500">
         Saison {event.season}
         {event.opponent ? ` · gegen ${event.opponent}` : ""}
+        {event.event_time ? ` · ${event.event_time.slice(0, 5)} Uhr` : ""}
+        {event.location ? ` · ${event.location}` : ""}
         {event.label ? ` · ${event.label}` : ""}
       </p>
 
