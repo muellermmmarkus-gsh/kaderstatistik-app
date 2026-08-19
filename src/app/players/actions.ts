@@ -7,6 +7,7 @@ export async function addPlayer(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const birthDate = String(formData.get("birthDate") ?? "").trim();
+  const passnummer = String(formData.get("passnummer") ?? "").trim();
 
   if (!firstName || !lastName) return;
 
@@ -15,6 +16,7 @@ export async function addPlayer(formData: FormData) {
     first_name: firstName,
     last_name: lastName,
     birth_date: birthDate || null,
+    passnummer: passnummer || null,
   });
   if (error) throw new Error(`Spieler konnte nicht gespeichert werden: ${error.message}`);
 

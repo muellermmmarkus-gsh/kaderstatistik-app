@@ -21,6 +21,7 @@ create table if not exists players (
   first_name text not null,
   last_name text not null,
   birth_date date,
+  passnummer text,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );

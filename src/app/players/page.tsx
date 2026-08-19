@@ -9,7 +9,7 @@ export default async function PlayersPage() {
   const [{ data: players }, canWrite] = await Promise.all([
     supabase
       .from("players")
-      .select("id, first_name, last_name, birth_date, active")
+      .select("id, first_name, last_name, birth_date, passnummer, active")
       .order("last_name"),
     isTrainer(),
   ]);
@@ -63,6 +63,16 @@ export default async function PlayersPage() {
             className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="passnummer">
+            Passnummer
+          </label>
+          <input
+            id="passnummer"
+            name="passnummer"
+            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
         <button
           type="submit"
           className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
@@ -78,6 +88,7 @@ export default async function PlayersPage() {
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
             <th className="py-2">Name</th>
             <th className="py-2">Geburtsdatum</th>
+            <th className="py-2">Passnummer</th>
             <th className="py-2">Status</th>
             {canWrite && <th className="py-2" />}
           </tr>
@@ -100,6 +111,9 @@ export default async function PlayersPage() {
                 <td className="py-2 text-zinc-500">
                   {player.birth_date ?? "–"}
                 </td>
+                <td className="py-2 text-zinc-500">
+                  {player.passnummer ?? "–"}
+                </td>
                 <td className="py-2">
                   {player.active ? "aktiv" : "inaktiv"}
                 </td>
@@ -120,7 +134,7 @@ export default async function PlayersPage() {
           })}
           {!players?.length && (
             <tr>
-              <td colSpan={canWrite ? 4 : 3} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 5 : 4} className="py-4 text-zinc-500">
                 Noch keine Spieler angelegt.
               </td>
             </tr>
