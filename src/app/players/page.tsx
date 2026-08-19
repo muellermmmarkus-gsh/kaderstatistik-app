@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
-import { addPlayer, togglePlayerActive } from "./actions";
+import { addPlayer, deletePlayer, togglePlayerActive } from "./actions";
 import BackButton from "@/components/BackButton";
+import DeleteButton from "@/components/DeleteButton";
 import SaveNotice from "@/components/SaveNotice";
 
 export default async function PlayersPage() {
@@ -100,6 +101,7 @@ export default async function PlayersPage() {
               player.id,
               !player.active,
             );
+            const remove = deletePlayer.bind(null, player.id);
             return (
               <tr
                 key={player.id}
@@ -119,13 +121,21 @@ export default async function PlayersPage() {
                 </td>
                 {canWrite && (
                   <td className="py-2 text-right">
-                    <form action={toggle}>
+                    <form action={toggle} className="inline">
                       <button
                         type="submit"
                         className="text-zinc-600 hover:underline dark:text-zinc-400"
                       >
                         {player.active ? "deaktivieren" : "aktivieren"}
                       </button>
+                    </form>
+                    <form action={remove} className="ml-3 inline">
+                      <DeleteButton
+                        confirmMessage={`${player.first_name} ${player.last_name} wirklich löschen? Alle Anwesenheits- und Tordaten dieses Spielers werden unwiderruflich mitgelöscht.`}
+                        className="text-red-600 hover:underline dark:text-red-400"
+                      >
+                        löschen
+                      </DeleteButton>
                     </form>
                   </td>
                 )}

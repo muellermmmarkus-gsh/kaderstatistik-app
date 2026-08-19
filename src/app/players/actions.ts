@@ -28,3 +28,9 @@ export async function togglePlayerActive(playerId: string, active: boolean) {
   await supabase.from("players").update({ active }).eq("id", playerId);
   revalidatePath("/players");
 }
+
+export async function deletePlayer(playerId: string) {
+  const supabase = await createClient();
+  await supabase.from("players").delete().eq("id", playerId);
+  revalidatePath("/players");
+}
