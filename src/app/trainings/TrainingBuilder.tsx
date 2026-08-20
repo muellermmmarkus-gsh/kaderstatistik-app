@@ -392,7 +392,7 @@ export default function TrainingBuilder({
                         </button>
                       </div>
                       <div className="mt-3 flex items-end gap-3">
-                        <div className="max-w-xs flex-1">
+                        <div className="flex-1">
                           <label className="mb-1 block text-sm font-medium">Übung</label>
                           <select
                             name="exercise_id"
