@@ -111,13 +111,41 @@ export default function TrainingBuilder({
     0,
   );
 
+  // Zeilen ohne eigene Dauer (nicht erste Übung im Block) übernehmen die Dauer
+  // der ersten Übung des Blocks – dieselbe Regel wie beim ausgegrauten Feld.
+  const effectiveDuration = new Map<string, number>();
+  for (const block of blockOrder) {
+    const blockRows = rowsByBlock.get(block)!;
+    const duration = blockRows[0]?.duration || 0;
+    for (const r of blockRows) effectiveDuration.set(r.key, duration);
+  }
+
   const totalsByCategory = new Map<string, number>();
   for (const row of rows) {
     if (!row.category) continue;
     totalsByCategory.set(
       row.category,
-      (totalsByCategory.get(row.category) ?? 0) + (row.duration || 0),
+      (totalsByCategory.get(row.category) ?? 0) + (effectiveDuration.get(row.key) ?? 0),
     );
+  }
+
+  // Sind mehrere Gruppen angelegt, Kategorie-Summen zusaetzlich je Gruppe aufschluesseln.
+  // Uebungen ohne eigene Gruppenauswahl gelten fuer alle Gruppen.
+  const categoryTotalsByGroup = new Map<string, Map<string, number>>();
+  if (availableGroups.length > 1) {
+    for (const row of rows) {
+      if (!row.category) continue;
+      const duration = effectiveDuration.get(row.key) ?? 0;
+      const rowGroups = row.groups.filter((g): g is string => Boolean(g));
+      const targetGroups = rowGroups.length
+        ? rowGroups.filter((g) => (availableGroups as readonly string[]).includes(g))
+        : availableGroups;
+      const catMap = categoryTotalsByGroup.get(row.category) ?? new Map<string, number>();
+      for (const g of targetGroups) {
+        catMap.set(g, (catMap.get(g) ?? 0) + duration);
+      }
+      categoryTotalsByGroup.set(row.category, catMap);
+    }
   }
 
   const usedFields = new Map<string, { name: string; length_m: number; width_m: number }>();
@@ -426,14 +454,59 @@ export default function TrainingBuilder({
 
       <aside className="w-full shrink-0 rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800 md:w-72">
         <h2 className="mb-3 font-medium">Dauer nach Kategorie</h2>
-        <ul className="space-y-1">
-          {Object.entries(categoryLabels).map(([value, label]) => (
-            <li key={value} className="flex justify-between">
-              <span className="text-zinc-500">{label}</span>
-              <span>{totalsByCategory.get(value) ?? 0} min</span>
-            </li>
-          ))}
-        </ul>
+        {availableGroups.length > 1 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="py-1 pr-2">Kategorie</th>
+                  {availableGroups.map((g) => (
+                    <th key={g} className="py-1 pr-2 text-right">
+                      {g}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(categoryLabels).map(([value, label]) => (
+                  <tr key={value} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-1 pr-2 text-zinc-500">{label}</td>
+                    {availableGroups.map((g) => (
+                      <td key={g} className="py-1 pr-2 text-right">
+                        {categoryTotalsByGroup.get(value)?.get(g) ?? 0}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-zinc-200 font-medium dark:border-zinc-800">
+                  <td className="py-2 pr-2">Gesamt</td>
+                  {availableGroups.map((g) => {
+                    const groupTotal = Object.keys(categoryLabels).reduce(
+                      (sum, value) => sum + (categoryTotalsByGroup.get(value)?.get(g) ?? 0),
+                      0,
+                    );
+                    return (
+                      <td key={g} className="py-2 pr-2 text-right">
+                        {groupTotal}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {Object.entries(categoryLabels).map(([value, label]) => (
+              <li key={value} className="flex justify-between">
+                <span className="text-zinc-500">{label}</span>
+                <span>{totalsByCategory.get(value) ?? 0} min</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-3 flex justify-between border-t border-zinc-200 pt-2 font-medium dark:border-zinc-800">
           <span>Gesamt</span>
           <span>{totalMinutes} min</span>
