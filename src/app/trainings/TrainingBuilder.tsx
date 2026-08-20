@@ -323,16 +323,6 @@ export default function TrainingBuilder({
                             value={row.groups.filter(Boolean).join(",")}
                           />
                         </div>
-                        {exercise?.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                          <img
-                            src={exercise.image_url}
-                            alt=""
-                            className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-                          />
-                        ) : (
-                          <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
-                        )}
                         <div className="min-w-[140px] flex-1">
                           <label className="mb-1 block text-sm font-medium">
                             Übungsfläche
@@ -373,23 +363,35 @@ export default function TrainingBuilder({
                           entfernen
                         </button>
                       </div>
-                      <div className="mt-3">
-                        <label className="mb-1 block text-sm font-medium">Übung</label>
-                        <select
-                          name="exercise_id"
-                          value={row.exerciseId}
-                          onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
-                          className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                        >
-                          {!row.category && (
-                            <option value="">– zuerst Kategorie wählen –</option>
-                          )}
-                          {categoryExercises.map((ex) => (
-                            <option key={ex.id} value={ex.id}>
-                              {ex.name}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="mt-3 flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="mb-1 block text-sm font-medium">Übung</label>
+                          <select
+                            name="exercise_id"
+                            value={row.exerciseId}
+                            onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
+                            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                          >
+                            {!row.category && (
+                              <option value="">– zuerst Kategorie wählen –</option>
+                            )}
+                            {categoryExercises.map((ex) => (
+                              <option key={ex.id} value={ex.id}>
+                                {ex.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {exercise?.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                          <img
+                            src={exercise.image_url}
+                            alt=""
+                            className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+                        )}
                       </div>
                       {exercise && (
                         <p className="mt-2 text-xs text-zinc-500">
