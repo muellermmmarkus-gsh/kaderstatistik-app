@@ -14,7 +14,7 @@ export default async function ExerciseDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: exercise }, { data: fields }, canWrite] = await Promise.all([
+  const [{ data: exercise }, { data: fields }, { data: focuses }, canWrite] = await Promise.all([
     supabase
       .from("exercises")
       .select(
@@ -23,6 +23,7 @@ export default async function ExerciseDetailPage({
       .eq("id", id)
       .single(),
     supabase.from("fields").select("id, name, length_m, width_m").order("name"),
+    supabase.from("exercise_focuses").select("label").order("sort_order"),
     isTrainer(),
   ]);
 
@@ -46,6 +47,7 @@ export default async function ExerciseDetailPage({
             action={update}
             initial={exercise}
             fields={fields ?? []}
+            focuses={(focuses ?? []).map((f) => f.label)}
             submitLabel="Speichern"
           />
           <form action={remove} className="mt-4">
@@ -89,11 +91,11 @@ export default async function ExerciseDetailPage({
               <dd className="text-zinc-500">{exercise.ablauf || "–"}</dd>
             </div>
             <div>
-              <dt className="font-medium">Hauptzweck</dt>
+              <dt className="font-medium">Übungsschwerpunkt 1</dt>
               <dd className="text-zinc-500">{exercise.hauptzweck || "–"}</dd>
             </div>
             <div>
-              <dt className="font-medium">Nebenzweck</dt>
+              <dt className="font-medium">Übungsschwerpunkt 2</dt>
               <dd className="text-zinc-500">{exercise.nebenzweck || "–"}</dd>
             </div>
             <div>

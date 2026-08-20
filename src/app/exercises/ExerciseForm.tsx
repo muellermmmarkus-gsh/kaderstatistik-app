@@ -26,13 +26,27 @@ export default function ExerciseForm({
   action,
   initial,
   fields,
+  focuses,
   submitLabel,
 }: {
   action: (formData: FormData) => void;
   initial?: ExerciseValues;
   fields: FieldOption[];
+  focuses: string[];
   submitLabel: string;
 }) {
+  // Bereits gespeicherte Werte, die inzwischen aus der Übungsplanung entfernt
+  // wurden, bleiben als Option erhalten, damit die Auswahl beim Speichern
+  // nicht stillschweigend verloren geht.
+  const hauptzweckOptions =
+    initial?.hauptzweck && !focuses.includes(initial.hauptzweck)
+      ? [initial.hauptzweck, ...focuses]
+      : focuses;
+  const nebenzweckOptions =
+    initial?.nebenzweck && !focuses.includes(initial.nebenzweck)
+      ? [initial.nebenzweck, ...focuses]
+      : focuses;
+
   return (
     <form action={action} className="space-y-4">
       <div>
@@ -77,26 +91,40 @@ export default function ExerciseForm({
       <div className="flex flex-wrap gap-3">
         <div className="flex-1">
           <label className="mb-1 block text-sm font-medium" htmlFor="hauptzweck">
-            Hauptzweck
+            Übungsschwerpunkt 1
           </label>
-          <input
+          <select
             id="hauptzweck"
             name="hauptzweck"
             required
-            defaultValue={initial?.hauptzweck}
+            defaultValue={initial?.hauptzweck ?? ""}
             className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
+          >
+            <option value="">– wählen –</option>
+            {hauptzweckOptions.map((focus) => (
+              <option key={focus} value={focus}>
+                {focus}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex-1">
           <label className="mb-1 block text-sm font-medium" htmlFor="nebenzweck">
-            Nebenzweck
+            Übungsschwerpunkt 2
           </label>
-          <input
+          <select
             id="nebenzweck"
             name="nebenzweck"
             defaultValue={initial?.nebenzweck ?? ""}
             className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-          />
+          >
+            <option value="">– keine Auswahl –</option>
+            {nebenzweckOptions.map((focus) => (
+              <option key={focus} value={focus}>
+                {focus}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

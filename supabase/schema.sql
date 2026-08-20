@@ -128,6 +128,17 @@ create table if not exists exercises (
   created_at timestamptz not null default now()
 );
 
+-- Auswaehlbare Werte fuer die Uebungsschwerpunkte 1/2 einer Uebung
+-- (frei gepflegt unter Training -> Uebungsplanung).
+create table if not exists exercise_focuses (
+  id uuid primary key default gen_random_uuid(),
+  label text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists exercise_focuses_label_unique on exercise_focuses (label);
+
 -- Ein Training wird als Termin (events, type = 'training') angelegt; die
 -- Trainingsplanung (Uebungen, Dauer, Schwerpunkt) haengt per event_id daran
 -- und wird beim ersten Speichern in der Detailplanung automatisch angelegt.
@@ -365,6 +376,7 @@ alter table training_exercises enable row level security;
 alter table training_exercise_groups enable row level security;
 alter table training_player_groups enable row level security;
 alter table fields enable row level security;
+alter table exercise_focuses enable row level security;
 
 create policy "authenticated read profiles" on profiles
   for select to authenticated using (true);
@@ -493,6 +505,15 @@ create policy "authenticated write fields" on fields
 create policy "authenticated update fields" on fields
   for update to authenticated using (is_trainer());
 create policy "authenticated delete fields" on fields
+  for delete to authenticated using (is_trainer());
+
+create policy "authenticated read exercise_focuses" on exercise_focuses
+  for select to authenticated using (true);
+create policy "authenticated write exercise_focuses" on exercise_focuses
+  for insert to authenticated with check (is_trainer());
+create policy "authenticated update exercise_focuses" on exercise_focuses
+  for update to authenticated using (is_trainer());
+create policy "authenticated delete exercise_focuses" on exercise_focuses
   for delete to authenticated using (is_trainer());
 
 -- ─────────────────────────────────────────────

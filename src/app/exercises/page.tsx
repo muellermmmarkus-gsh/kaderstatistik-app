@@ -62,7 +62,7 @@ export default async function ExercisesPage() {
             <th className="py-2">Name</th>
             <th className="py-2">Kategorie</th>
             <th className="py-2">Fläche</th>
-            <th className="py-2">Hauptzweck</th>
+            <th className="py-2">Übungsschwerpunkt 1</th>
             <th className="py-2">Spieler</th>
             <th className="py-2">Kleinfeldtore</th>
             <th className="py-2">Minitore</th>
