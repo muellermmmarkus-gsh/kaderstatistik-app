@@ -392,7 +392,7 @@ export default function TrainingBuilder({
                         </button>
                       </div>
                       <div className="mt-3 flex items-end gap-3">
-                        <div className="flex-1">
+                        <div className="max-w-xs flex-1">
                           <label className="mb-1 block text-sm font-medium">Übung</label>
                           <select
                             name="exercise_id"
@@ -415,10 +415,10 @@ export default function TrainingBuilder({
                           <img
                             src={exercise.image_url}
                             alt=""
-                            className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                            className="h-24 w-24 shrink-0 rounded border border-zinc-300 object-cover dark:border-zinc-700"
                           />
                         ) : (
-                          <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+                          <div className="h-24 w-24 shrink-0 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                         )}
                       </div>
                       {exercise && (
