@@ -272,49 +272,51 @@ export default function TrainingBuilder({
                             ))}
                           </select>
                         </div>
-                        <div className="min-w-[140px]">
+                        <div>
                           <label className="mb-1 block text-sm font-medium">Gruppe</label>
-                          {row.groups.map((g, groupIndex) => {
-                            const conflict = !!g && (groupCounts.get(g) ?? 0) > 1;
-                            return (
-                              <div key={groupIndex} className="mb-1 flex items-center gap-1">
-                                <select
-                                  value={g}
-                                  onChange={(e) =>
-                                    updateRowGroup(row.key, groupIndex, e.target.value)
-                                  }
-                                  className={`rounded border px-2 py-2 text-sm dark:bg-zinc-900 ${
-                                    conflict
-                                      ? "border-red-500 ring-1 ring-red-500"
-                                      : "border-zinc-300 dark:border-zinc-700"
-                                  }`}
-                                >
-                                  <option value="">–</option>
-                                  {availableGroups.map((gr) => (
-                                    <option key={gr} value={gr}>
-                                      {gr}
-                                    </option>
-                                  ))}
-                                </select>
-                                {groupIndex > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeGroupSlot(row.key, groupIndex)}
-                                    className="text-xs text-zinc-400 hover:text-zinc-600"
+                          <div className="flex items-center gap-1">
+                            {row.groups.map((g, groupIndex) => {
+                              const conflict = !!g && (groupCounts.get(g) ?? 0) > 1;
+                              return (
+                                <div key={groupIndex} className="flex items-center gap-1">
+                                  <select
+                                    value={g}
+                                    onChange={(e) =>
+                                      updateRowGroup(row.key, groupIndex, e.target.value)
+                                    }
+                                    className={`rounded border px-2 py-2 text-sm dark:bg-zinc-900 ${
+                                      conflict
+                                        ? "border-red-500 ring-1 ring-red-500"
+                                        : "border-zinc-300 dark:border-zinc-700"
+                                    }`}
                                   >
-                                    ×
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                          <button
-                            type="button"
-                            onClick={() => addGroupSlot(row.key)}
-                            className="text-xs text-zinc-500 hover:underline"
-                          >
-                            + weitere Gruppe
-                          </button>
+                                    <option value="">–</option>
+                                    {availableGroups.map((gr) => (
+                                      <option key={gr} value={gr}>
+                                        {gr}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {groupIndex > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeGroupSlot(row.key, groupIndex)}
+                                      className="text-xs text-zinc-400 hover:text-zinc-600"
+                                    >
+                                      ×
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => addGroupSlot(row.key)}
+                              className="whitespace-nowrap text-xs text-zinc-500 hover:underline"
+                            >
+                              + weitere Gruppe
+                            </button>
+                          </div>
                           <input
                             type="hidden"
                             name="groups"
@@ -331,24 +333,6 @@ export default function TrainingBuilder({
                         ) : (
                           <div className="h-12 w-12 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                         )}
-                        <div className="min-w-[220px] flex-[2]">
-                          <label className="mb-1 block text-sm font-medium">Übung</label>
-                          <select
-                            name="exercise_id"
-                            value={row.exerciseId}
-                            onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
-                            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                          >
-                            {!row.category && (
-                              <option value="">– zuerst Kategorie wählen –</option>
-                            )}
-                            {categoryExercises.map((ex) => (
-                              <option key={ex.id} value={ex.id}>
-                                {ex.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
                         <div className="min-w-[140px] flex-1">
                           <label className="mb-1 block text-sm font-medium">
                             Übungsfläche
@@ -388,6 +372,24 @@ export default function TrainingBuilder({
                         >
                           entfernen
                         </button>
+                      </div>
+                      <div className="mt-3">
+                        <label className="mb-1 block text-sm font-medium">Übung</label>
+                        <select
+                          name="exercise_id"
+                          value={row.exerciseId}
+                          onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
+                          className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                          {!row.category && (
+                            <option value="">– zuerst Kategorie wählen –</option>
+                          )}
+                          {categoryExercises.map((ex) => (
+                            <option key={ex.id} value={ex.id}>
+                              {ex.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       {exercise && (
                         <p className="mt-2 text-xs text-zinc-500">
