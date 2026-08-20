@@ -20,6 +20,8 @@ type ExerciseOption = {
 type TrainingExerciseRow = {
   duration_minutes: number;
   sort_order: number;
+  block: number;
+  training_exercise_groups: { group_label: string }[];
   exercises: {
     id: string;
     name: string;
@@ -30,6 +32,8 @@ type TrainingExerciseRow = {
   } | null;
 };
 
+type PlayerOption = { id: string; first_name: string; last_name: string };
+
 export default async function TrainingDetailPage({
   params,
 }: {
@@ -38,7 +42,7 @@ export default async function TrainingDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: training }, { data: exercises }, canWrite] =
+  const [{ data: event }, { data: training }, { data: exercises }, { data: players }, canWrite] =
     await Promise.all([
       supabase
         .from("events")
@@ -49,7 +53,7 @@ export default async function TrainingDetailPage({
       supabase
         .from("trainings")
         .select(
-          "focus, notes, training_exercises(duration_minutes, sort_order, exercises(id, name, hauptzweck, min_players, max_players, image_url))",
+          "focus, notes, training_exercises(duration_minutes, sort_order, block, training_exercise_groups(group_label), exercises(id, name, hauptzweck, min_players, max_players, image_url)), training_player_groups(player_id, group_label)",
         )
         .eq("event_id", id)
         .maybeSingle(),
@@ -59,19 +63,33 @@ export default async function TrainingDetailPage({
           "id, name, hauptzweck, min_players, max_players, category, image_url, fields(name, length_m, width_m)",
         )
         .order("name"),
+      supabase
+        .from("players")
+        .select("id, first_name, last_name")
+        .eq("active", true)
+        .order("last_name"),
       isTrainer(),
     ]);
 
   if (!event) notFound();
 
   const exerciseOptions = (exercises ?? []) as unknown as ExerciseOption[];
+  const playerOptions = (players ?? []) as PlayerOption[];
 
   const items = (
     (training?.training_exercises ?? []) as unknown as TrainingExerciseRow[]
   )
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order);
-  const totalMinutes = items.reduce((sum, i) => sum + i.duration_minutes, 0);
+  const durationByBlock = new Map<number, number>();
+  for (const item of items) {
+    if (!durationByBlock.has(item.block)) durationByBlock.set(item.block, item.duration_minutes);
+  }
+  const totalMinutes = [...durationByBlock.values()].reduce((sum, d) => sum + d, 0);
+  const initialPlayerGroups = (
+    (training as unknown as { training_player_groups?: { player_id: string; group_label: string }[] } | null)
+      ?.training_player_groups ?? []
+  ).map((pg) => ({ playerId: pg.player_id, group: pg.group_label }));
 
   const save = saveTrainingPlan.bind(null, id);
 
@@ -97,12 +115,19 @@ export default async function TrainingDetailPage({
       {canWrite ? (
         <TrainingBuilder
           exercises={exerciseOptions}
+          players={playerOptions}
           action={save}
           initialFocus={training?.focus ?? undefined}
           initialNotes={training?.notes ?? undefined}
           initialRows={items
             .filter((i) => i.exercises)
-            .map((i) => ({ exerciseId: i.exercises!.id, duration: i.duration_minutes }))}
+            .map((i) => ({
+              exerciseId: i.exercises!.id,
+              duration: i.duration_minutes,
+              block: i.block,
+              groups: i.training_exercise_groups.map((g) => g.group_label),
+            }))}
+          initialPlayerGroups={initialPlayerGroups}
           submitLabel="Änderungen speichern"
         />
       ) : (
