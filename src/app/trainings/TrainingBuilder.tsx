@@ -13,6 +13,8 @@ type Exercise = {
   hauptzweck: string;
   min_players: number;
   max_players: number;
+  small_goals: number;
+  mini_goals: number;
   category: string;
   image_url?: string | null;
   fields?: { name: string; length_m: number; width_m: number } | null;
@@ -351,16 +353,6 @@ export default function TrainingBuilder({
                             value={row.groups.filter(Boolean).join(",")}
                           />
                         </div>
-                        <div className="min-w-[140px] flex-1">
-                          <label className="mb-1 block text-sm font-medium">
-                            Übungsfläche
-                          </label>
-                          <p className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
-                            {exercise?.fields
-                              ? `${exercise.fields.name} (${exercise.fields.length_m}×${exercise.fields.width_m} m)`
-                              : "–"}
-                          </p>
-                        </div>
                         <div>
                           <label className="mb-1 block text-sm font-medium">Dauer (min)</label>
                           <input
@@ -382,16 +374,8 @@ export default function TrainingBuilder({
                             }`}
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeRow(row.key)}
-                          disabled={rows.length === 1}
-                          className="text-sm text-zinc-600 hover:underline disabled:opacity-40 dark:text-zinc-400"
-                        >
-                          entfernen
-                        </button>
                       </div>
-                      <div className="mt-3 flex items-end gap-3">
+                      <div className="mt-3 flex items-start gap-3">
                         <div className="flex-1">
                           <label className="mb-1 block text-sm font-medium">Übung</label>
                           <select
@@ -410,16 +394,52 @@ export default function TrainingBuilder({
                             ))}
                           </select>
                         </div>
-                        {exercise?.image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                          <img
-                            src={exercise.image_url}
-                            alt=""
-                            className="h-24 w-24 shrink-0 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-                          />
-                        ) : (
-                          <div className="h-24 w-24 shrink-0 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
-                        )}
+                        <div className="flex flex-col items-end gap-2">
+                          {exercise?.image_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                            <img
+                              src={exercise.image_url}
+                              alt=""
+                              className="h-24 w-24 shrink-0 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                            />
+                          ) : (
+                            <div className="h-24 w-24 shrink-0 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeRow(row.key)}
+                            disabled={rows.length === 1}
+                            className="text-sm text-zinc-600 hover:underline disabled:opacity-40 dark:text-zinc-400"
+                          >
+                            entfernen
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-end gap-3">
+                        <div className="min-w-[140px] flex-1">
+                          <label className="mb-1 block text-sm font-medium">
+                            Übungsfläche
+                          </label>
+                          <p className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
+                            {exercise?.fields
+                              ? `${exercise.fields.name} (${exercise.fields.length_m}×${exercise.fields.width_m} m)`
+                              : "–"}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">
+                            Kleinfeldtore
+                          </label>
+                          <p className="w-24 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
+                            {exercise ? exercise.small_goals : "–"}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-sm font-medium">Minitore</label>
+                          <p className="w-24 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
+                            {exercise ? exercise.mini_goals : "–"}
+                          </p>
+                        </div>
                       </div>
                       {exercise && (
                         <p className="mt-2 text-xs text-zinc-500">
