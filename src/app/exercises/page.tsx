@@ -9,6 +9,7 @@ type ExerciseRow = {
   id: string;
   name: string;
   hauptzweck: string;
+  nebenzweck: string | null;
   min_players: number;
   max_players: number;
   small_goals: number;
@@ -24,7 +25,7 @@ export default async function ExercisesPage() {
     supabase
       .from("exercises")
       .select(
-        "id, name, hauptzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name)",
+        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name)",
       )
       .order("name"),
     isTrainer(),
@@ -63,6 +64,7 @@ export default async function ExercisesPage() {
             <th className="py-2">Kategorie</th>
             <th className="py-2">Fläche</th>
             <th className="py-2">Übungsschwerpunkt 1</th>
+            <th className="py-2">Übungsschwerpunkt 2</th>
             <th className="py-2">Spieler</th>
             <th className="py-2">Kleinfeldtore</th>
             <th className="py-2">Minitore</th>
@@ -96,6 +98,7 @@ export default async function ExercisesPage() {
               </td>
               <td className="py-2 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
               <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
+              <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
               <td className="py-2 text-zinc-500">
                 {exercise.min_players}–{exercise.max_players}
               </td>
@@ -105,7 +108,7 @@ export default async function ExercisesPage() {
           ))}
           {!exercises?.length && (
             <tr>
-              <td colSpan={8} className="py-4 text-zinc-500">
+              <td colSpan={9} className="py-4 text-zinc-500">
                 Noch keine Übungen angelegt.
               </td>
             </tr>
