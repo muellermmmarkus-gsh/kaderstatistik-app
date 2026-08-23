@@ -2,7 +2,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { categoryLabels } from "./categoryLabels";
+import { deleteExercise } from "./actions";
 import BackButton from "@/components/BackButton";
+import DeleteButton from "@/components/DeleteButton";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 
 type ExerciseRow = {
@@ -68,47 +70,69 @@ export default async function ExercisesPage() {
             <th className="py-2">Spieler</th>
             <th className="py-2">Kleinfeldtore</th>
             <th className="py-2">Minitore</th>
+            {canWrite && <th className="py-2" />}
           </tr>
         </thead>
         <tbody>
-          {exercises?.map((exercise) => (
-            <tr
-              key={exercise.id}
-              className="border-b border-zinc-100 dark:border-zinc-900"
-            >
-              <td className="py-2">
-                {exercise.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                  <img
-                    src={exercise.image_url}
-                    alt=""
-                    className="h-10 w-10 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-                  />
-                ) : (
-                  <div className="h-10 w-10 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+          {exercises?.map((exercise) => {
+            const remove = deleteExercise.bind(null, exercise.id);
+            return (
+              <tr
+                key={exercise.id}
+                className="border-b border-zinc-100 dark:border-zinc-900"
+              >
+                <td className="py-2">
+                  {exercise.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                    <img
+                      src={exercise.image_url}
+                      alt=""
+                      className="h-10 w-10 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
+                  )}
+                </td>
+                <td className="py-2">
+                  <Link href={`/exercises/${exercise.id}`} className="hover:underline">
+                    {exercise.name}
+                  </Link>
+                </td>
+                <td className="py-2 text-zinc-500">
+                  {categoryLabels[exercise.category] ?? exercise.category}
+                </td>
+                <td className="py-2 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
+                <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
+                <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
+                <td className="py-2 text-zinc-500">
+                  {exercise.min_players}–{exercise.max_players}
+                </td>
+                <td className="py-2 text-zinc-500">{exercise.small_goals}</td>
+                <td className="py-2 text-zinc-500">{exercise.mini_goals}</td>
+                {canWrite && (
+                  <td className="py-2 text-right whitespace-nowrap">
+                    <Link
+                      href={`/exercises/${exercise.id}`}
+                      className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                    >
+                      ändern
+                    </Link>
+                    <form action={remove} className="ml-3 inline">
+                      <DeleteButton
+                        confirmMessage={`Übung "${exercise.name}" wirklich löschen?`}
+                        className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                      >
+                        löschen
+                      </DeleteButton>
+                    </form>
+                  </td>
                 )}
-              </td>
-              <td className="py-2">
-                <Link href={`/exercises/${exercise.id}`} className="hover:underline">
-                  {exercise.name}
-                </Link>
-              </td>
-              <td className="py-2 text-zinc-500">
-                {categoryLabels[exercise.category] ?? exercise.category}
-              </td>
-              <td className="py-2 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
-              <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
-              <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
-              <td className="py-2 text-zinc-500">
-                {exercise.min_players}–{exercise.max_players}
-              </td>
-              <td className="py-2 text-zinc-500">{exercise.small_goals}</td>
-              <td className="py-2 text-zinc-500">{exercise.mini_goals}</td>
-            </tr>
-          ))}
+              </tr>
+            );
+          })}
           {!exercises?.length && (
             <tr>
-              <td colSpan={9} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 10 : 9} className="py-4 text-zinc-500">
                 Noch keine Übungen angelegt.
               </td>
             </tr>
