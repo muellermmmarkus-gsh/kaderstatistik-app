@@ -126,6 +126,7 @@ create table if not exists exercises (
     check (category in ('aufwaermen', 'spielen', 'ueben', 'cooldown')),
   field_id uuid references fields(id) on delete set null,
   image_url text,
+  source_url text,
   created_at timestamptz not null default now()
 );
 

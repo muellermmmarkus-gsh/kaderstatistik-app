@@ -11,6 +11,7 @@ type ExerciseValues = {
   category: string;
   field_id: string | null;
   image_url: string | null;
+  source_url: string | null;
 };
 
 type FieldOption = { id: string; name: string; length_m: number; width_m: number };
@@ -49,17 +50,32 @@ export default function ExerciseForm({
 
   return (
     <form action={action} className="space-y-4">
-      <div>
-        <label className="mb-1 block text-sm font-medium" htmlFor="name">
-          Name
-        </label>
-        <input
-          id="name"
-          name="name"
-          required
-          defaultValue={initial?.name}
-          className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex-1">
+          <label className="mb-1 block text-sm font-medium" htmlFor="name">
+            Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            required
+            defaultValue={initial?.name}
+            className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="sourceUrl">
+            Quelle (Link, optional)
+          </label>
+          <input
+            id="sourceUrl"
+            name="sourceUrl"
+            type="url"
+            placeholder="https://…"
+            defaultValue={initial?.source_url ?? ""}
+            className="w-56 rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        </div>
       </div>
 
       <div>

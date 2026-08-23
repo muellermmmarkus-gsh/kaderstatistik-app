@@ -18,7 +18,7 @@ export default async function ExerciseDetailPage({
     supabase
       .from("exercises")
       .select(
-        "name, aufbau, ablauf, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, fields(name, length_m, width_m)",
+        "name, aufbau, ablauf, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m)",
       )
       .eq("id", id)
       .single(),
@@ -39,7 +39,19 @@ export default async function ExerciseDetailPage({
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <BackButton href="/exercises" />
-      <h1 className="mb-6 text-xl font-semibold">{exercise.name}</h1>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-xl font-semibold">{exercise.name}</h1>
+        {!canWrite && exercise.source_url && (
+          <a
+            href={exercise.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-zinc-500 hover:underline dark:text-zinc-400"
+          >
+            Quelle ↗
+          </a>
+        )}
+      </div>
 
       {canWrite ? (
         <>

@@ -10,6 +10,7 @@ const categories = ["aufwaermen", "spielen", "ueben", "cooldown"];
 function parseExercise(formData: FormData) {
   const category = String(formData.get("category") ?? "ueben");
   const fieldId = String(formData.get("fieldId") ?? "").trim();
+  const sourceUrl = String(formData.get("sourceUrl") ?? "").trim();
 
   return {
     name: String(formData.get("name") ?? "").trim(),
@@ -23,6 +24,7 @@ function parseExercise(formData: FormData) {
     mini_goals: Number(formData.get("miniGoals") ?? 0),
     category: categories.includes(category) ? category : "ueben",
     field_id: fieldId || null,
+    source_url: sourceUrl || null,
   };
 }
 
