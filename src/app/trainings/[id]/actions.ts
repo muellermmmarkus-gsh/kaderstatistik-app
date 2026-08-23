@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export async function saveTrainingPlan(eventId: string, formData: FormData) {
   const focus = String(formData.get("focus") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const afterSaveRedirect = String(formData.get("afterSaveRedirect") ?? "").trim();
   const exerciseIds = formData.getAll("exercise_id").map(String);
   const durations = formData.getAll("duration_minutes").map(String);
   const blocks = formData.getAll("block").map(String);
@@ -95,4 +97,6 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
 
   revalidatePath(`/trainings/${eventId}`);
   revalidatePath("/trainings");
+
+  if (afterSaveRedirect) redirect(afterSaveRedirect);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
 import SaveNotice from "@/components/SaveNotice";
 
@@ -18,6 +18,7 @@ type Exercise = {
   mini_goals: number;
   category: string;
   image_url?: string | null;
+  source_url?: string | null;
   fields?: { name: string; length_m: number; width_m: number } | null;
 };
 
@@ -85,6 +86,9 @@ export default function TrainingBuilder({
   submitLabel: string;
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
+
+  const formRef = useRef<HTMLFormElement>(null);
+  const redirectInputRef = useRef<HTMLInputElement>(null);
 
   const [trainingFocus, setTrainingFocus] = useState(initialFocus ?? "");
 
@@ -231,6 +235,19 @@ export default function TrainingBuilder({
     );
   }
 
+  function goToExercise(exerciseId: string) {
+    const exercisePath = `/exercises/${exerciseId}`;
+    const shouldSave = window.confirm(
+      "Sollen alle Änderungen in der Trainingsplanung gespeichert werden, bevor du zur Übung wechselst?",
+    );
+    if (shouldSave) {
+      if (redirectInputRef.current) redirectInputRef.current.value = exercisePath;
+      formRef.current?.requestSubmit();
+    } else {
+      window.location.assign(exercisePath);
+    }
+  }
+
   function toggleSameGroup(checked: boolean) {
     if (checked) {
       setPlayerGroups(new Map(players.map((p) => [p.id, "A"])));
@@ -241,7 +258,8 @@ export default function TrainingBuilder({
 
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start">
-      <form action={action} className="flex-1 space-y-6">
+      <form ref={formRef} action={action} className="flex-1 space-y-6">
+        <input type="hidden" name="afterSaveRedirect" ref={redirectInputRef} />
         <div className="flex flex-wrap gap-3">
           <div className="flex-1">
             <label className="mb-1 block text-sm font-medium" htmlFor="focus">
@@ -440,6 +458,27 @@ export default function TrainingBuilder({
                               </option>
                             ))}
                           </select>
+                          {exercise && (
+                            <div className="mt-1 flex gap-3 text-xs">
+                              {exercise.source_url && (
+                                <a
+                                  href={exercise.source_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-zinc-500 hover:underline dark:text-zinc-400"
+                                >
+                                  externe URL
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => goToExercise(exercise.id)}
+                                className="text-zinc-500 hover:underline dark:text-zinc-400"
+                              >
+                                interne URL
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           {exercise?.image_url ? (

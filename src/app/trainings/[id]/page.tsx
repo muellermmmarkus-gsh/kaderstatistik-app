@@ -17,6 +17,7 @@ type ExerciseOption = {
   mini_goals: number;
   category: string;
   image_url: string | null;
+  source_url: string | null;
   fields: { name: string; length_m: number; width_m: number } | null;
 };
 
@@ -63,7 +64,7 @@ export default async function TrainingDetailPage({
       supabase
         .from("exercises")
         .select(
-          "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name, length_m, width_m)",
+          "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m)",
         )
         .order("name"),
       supabase
