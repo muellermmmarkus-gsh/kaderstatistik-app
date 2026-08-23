@@ -11,6 +11,7 @@ type Exercise = {
   id: string;
   name: string;
   hauptzweck: string;
+  nebenzweck: string | null;
   min_players: number;
   max_players: number;
   small_goals: number;
@@ -19,6 +20,12 @@ type Exercise = {
   image_url?: string | null;
   fields?: { name: string; length_m: number; width_m: number } | null;
 };
+
+function exerciseMatchesFocus(exercise: Exercise | undefined, focus: string): boolean {
+  if (!exercise) return false;
+  if (!focus) return true;
+  return exercise.hauptzweck === focus || exercise.nebenzweck === focus;
+}
 
 type Player = { id: string; first_name: string; last_name: string };
 
@@ -53,6 +60,7 @@ function makeRow(block: number): Row {
 export default function TrainingBuilder({
   exercises,
   players,
+  focuses,
   action,
   initialFocus,
   initialNotes,
@@ -62,6 +70,7 @@ export default function TrainingBuilder({
 }: {
   exercises: Exercise[];
   players: Player[];
+  focuses: string[];
   action: (formData: FormData) => void;
   initialFocus?: string;
   initialNotes?: string;
@@ -70,6 +79,8 @@ export default function TrainingBuilder({
   submitLabel: string;
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
+
+  const [trainingFocus, setTrainingFocus] = useState(initialFocus ?? "");
 
   const [rows, setRows] = useState<Row[]>(() =>
     initialRows?.length
@@ -169,8 +180,23 @@ export default function TrainingBuilder({
   }
 
   function changeCategory(key: string, category: string) {
-    const firstMatch = exercises.find((ex) => ex.category === category);
+    const firstMatch = exercises.find(
+      (ex) => ex.category === category && exerciseMatchesFocus(ex, trainingFocus),
+    );
     updateRow(key, { category, exerciseId: firstMatch?.id ?? "" });
+  }
+
+  function changeFocus(focus: string) {
+    setTrainingFocus(focus);
+    setRows((prev) =>
+      prev.map((r) => {
+        if (exerciseMatchesFocus(exerciseById.get(r.exerciseId), focus)) return r;
+        const firstMatch = exercises.find(
+          (ex) => ex.category === r.category && exerciseMatchesFocus(ex, focus),
+        );
+        return { ...r, exerciseId: firstMatch?.id ?? "" };
+      }),
+    );
   }
 
   function updateRowGroup(key: string, index: number, value: string) {
@@ -213,12 +239,20 @@ export default function TrainingBuilder({
             <label className="mb-1 block text-sm font-medium" htmlFor="focus">
               Schwerpunkt Training
             </label>
-            <input
+            <select
               id="focus"
               name="focus"
-              defaultValue={initialFocus}
+              value={trainingFocus}
+              onChange={(e) => changeFocus(e.target.value)}
               className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            />
+            >
+              <option value="">Kein Schwerpunkt</option>
+              {focuses.map((focus) => (
+                <option key={focus} value={focus}>
+                  {focus}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex-1">
             <label className="mb-1 block text-sm font-medium" htmlFor="notes">
@@ -257,7 +291,11 @@ export default function TrainingBuilder({
                 {blockRows.map((row, indexInBlock) => {
                   const exercise = exerciseById.get(row.exerciseId);
                   const categoryExercises = row.category
-                    ? exercises.filter((ex) => ex.category === row.category)
+                    ? exercises.filter(
+                        (ex) =>
+                          ex.category === row.category &&
+                          exerciseMatchesFocus(ex, trainingFocus),
+                      )
                     : [];
                   const isFirstInBlock = indexInBlock === 0;
                   const displayDuration = isFirstInBlock ? row.duration : blockRows[0].duration;

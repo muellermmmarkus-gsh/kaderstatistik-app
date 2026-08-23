@@ -10,6 +10,7 @@ type ExerciseOption = {
   id: string;
   name: string;
   hauptzweck: string;
+  nebenzweck: string | null;
   min_players: number;
   max_players: number;
   small_goals: number;
@@ -44,7 +45,7 @@ export default async function TrainingDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: training }, { data: exercises }, { data: players }, canWrite] =
+  const [{ data: event }, { data: training }, { data: exercises }, { data: players }, { data: focuses }, canWrite] =
     await Promise.all([
       supabase
         .from("events")
@@ -62,7 +63,7 @@ export default async function TrainingDetailPage({
       supabase
         .from("exercises")
         .select(
-          "id, name, hauptzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name, length_m, width_m)",
+          "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name, length_m, width_m)",
         )
         .order("name"),
       supabase
@@ -70,6 +71,7 @@ export default async function TrainingDetailPage({
         .select("id, first_name, last_name")
         .eq("active", true)
         .order("last_name"),
+      supabase.from("exercise_focuses").select("label").order("sort_order"),
       isTrainer(),
     ]);
 
@@ -118,6 +120,7 @@ export default async function TrainingDetailPage({
         <TrainingBuilder
           exercises={exerciseOptions}
           players={playerOptions}
+          focuses={(focuses ?? []).map((f) => f.label)}
           action={save}
           initialFocus={training?.focus ?? undefined}
           initialNotes={training?.notes ?? undefined}
