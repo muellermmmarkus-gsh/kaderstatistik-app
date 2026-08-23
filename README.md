@@ -84,8 +84,8 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 ### Datenmodell
 
 - **profiles** – Vorname, Nachname, Rolle je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt)
-- **players** – Spieler-Stammdaten
-- **trainers** – Trainer-Stammdaten
+- **players** – Spieler-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
+- **trainers** – Trainer-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
 - **events** – Termine (`type`: `training`/`game`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`, `event_time`/`location` fuer Uhrzeit/Spielort bei `game`)
 - **attendance** – Anwesenheit pro Spieler und Termin; bei Terminen vom Typ `training` zusaetzlich Leistung (`stark`/`mittel`/`schwach`), Motivation (`hoch`/`mittel`/`niedrig`), Disziplin (`sehr gut`/`mittel`/`gering`) und ein Freitext-Notizfeld (`player_notes`, max. 50 Zeichen) je Spieler
@@ -97,7 +97,11 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
 - **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
 
-Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+
+### Geburtstage im Kalender
+
+Geburtstage von aktiven Spielern und Trainern (`players.birth_date` / `trainers.birth_date`) werden **nicht** als eigene Termine gespeichert, sondern im Kalender bei jedem Aufruf live aus den Stammdaten berechnet (jahresunabhaengig anhand von Monat/Tag) und in Gelb/Amber dargestellt. Dadurch erscheinen neu angelegte Spieler/Trainer automatisch im Kalender, und geloeschte bzw. deaktivierte Spieler/Trainer verschwinden automatisch wieder – ganz ohne zusaetzliche Pflege.
 
 ### Navigation
 

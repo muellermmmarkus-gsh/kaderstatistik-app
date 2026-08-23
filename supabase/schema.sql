@@ -78,6 +78,7 @@ create table if not exists trainers (
   id uuid primary key default gen_random_uuid(),
   first_name text not null,
   last_name text not null,
+  birth_date date,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );

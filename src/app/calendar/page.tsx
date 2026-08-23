@@ -35,6 +35,8 @@ const typeStyles = {
   event: "bg-purple-600 text-white",
 } as const;
 
+const BIRTHDAY_STYLE = "bg-amber-500 text-zinc-900";
+
 // Verschiedene, aber alle roetliche Farbtoene fuer die Trainer-Abwesenheiten
 const ABSENCE_COLORS = [
   "bg-red-600",
@@ -65,6 +67,15 @@ type CalendarAbsence = {
   end_date: string;
   trainers: { first_name: string; last_name: string } | null;
 };
+
+type BirthdayPerson = {
+  id: string;
+  name: string;
+  birth_date: string;
+  kind: "Spieler" | "Trainer";
+};
+
+type CalendarBirthday = { name: string; age: number; kind: "Spieler" | "Trainer" };
 
 function toDateKey(date: Date) {
   const y = date.getFullYear();
@@ -108,6 +119,36 @@ function getMonthWeeks(year: number, month: number) {
   return weeks;
 }
 
+function isLeapYear(year: number) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+// Berechnet fuer jeden sichtbaren Kalendertag, wer an diesem Tag (jahresunabhaengig
+// vom Geburtsdatum) Geburtstag hat. Ein 29. Februar faellt in Nicht-Schaltjahren auf
+// den 28. Februar.
+function birthdaysByDateForRange(people: BirthdayPerson[], days: Date[]) {
+  const map = new Map<string, CalendarBirthday[]>();
+  for (const day of days) {
+    const year = day.getFullYear();
+    const month = day.getMonth() + 1;
+    const date = day.getDate();
+    for (const person of people) {
+      const [birthYear, birthMonth, birthDate] = person.birth_date
+        .split("-")
+        .map(Number);
+      const isFeb29Fallback =
+        birthMonth === 2 && birthDate === 29 && !isLeapYear(year) && month === 2 && date === 28;
+      if ((birthMonth === month && birthDate === date) || isFeb29Fallback) {
+        const key = toDateKey(day);
+        const list = map.get(key) ?? [];
+        list.push({ name: person.name, age: year - birthYear, kind: person.kind });
+        map.set(key, list);
+      }
+    }
+  }
+  return map;
+}
+
 function eventLabel(event: CalendarEvent, totalTrainers: number) {
   const time = event.event_time ? `${event.event_time.slice(0, 5)} ` : "";
   const base =
@@ -145,24 +186,40 @@ export default async function CalendarPage({
   const rangeEnd = toDateKey(weeks[weeks.length - 1][6]);
 
   const supabase = await createClient();
-  const [{ data: eventsData }, { data: absencesData }, { data: trainerIdRows }, { count: totalTrainers }] =
-    await Promise.all([
-      supabase
-        .from("events")
-        .select(
-          "id, type, event_date, opponent, event_time, location, label, trainer_attendance(confirmed)",
-        )
-        .gte("event_date", rangeStart)
-        .lte("event_date", rangeEnd)
-        .order("event_date"),
-      supabase
-        .from("trainer_absences")
-        .select("id, trainer_id, start_date, end_date, trainers(first_name, last_name)")
-        .lte("start_date", rangeEnd)
-        .gte("end_date", rangeStart),
-      supabase.from("trainers").select("id").order("id"),
-      supabase.from("trainers").select("*", { count: "exact", head: true }).eq("active", true),
-    ]);
+  const [
+    { data: eventsData },
+    { data: absencesData },
+    { data: trainerIdRows },
+    { count: totalTrainers },
+    { data: playerBirthdayRows },
+    { data: trainerBirthdayRows },
+  ] = await Promise.all([
+    supabase
+      .from("events")
+      .select(
+        "id, type, event_date, opponent, event_time, location, label, trainer_attendance(confirmed)",
+      )
+      .gte("event_date", rangeStart)
+      .lte("event_date", rangeEnd)
+      .order("event_date"),
+    supabase
+      .from("trainer_absences")
+      .select("id, trainer_id, start_date, end_date, trainers(first_name, last_name)")
+      .lte("start_date", rangeEnd)
+      .gte("end_date", rangeStart),
+    supabase.from("trainers").select("id").order("id"),
+    supabase.from("trainers").select("*", { count: "exact", head: true }).eq("active", true),
+    supabase
+      .from("players")
+      .select("id, first_name, last_name, birth_date")
+      .eq("active", true)
+      .not("birth_date", "is", null),
+    supabase
+      .from("trainers")
+      .select("id, first_name, last_name, birth_date")
+      .eq("active", true)
+      .not("birth_date", "is", null),
+  ]);
 
   const events = (eventsData as CalendarEvent[] | null) ?? [];
   const absences = (absencesData as CalendarAbsence[] | null) ?? [];
@@ -179,6 +236,22 @@ export default async function CalendarPage({
   trainerOrder.forEach((id, i) => {
     absenceColorByTrainer.set(id, ABSENCE_COLORS[i % ABSENCE_COLORS.length]);
   });
+
+  const birthdayPeople: BirthdayPerson[] = [
+    ...(playerBirthdayRows ?? []).map((p) => ({
+      id: p.id,
+      name: `${p.first_name} ${p.last_name}`,
+      birth_date: p.birth_date as string,
+      kind: "Spieler" as const,
+    })),
+    ...(trainerBirthdayRows ?? []).map((t) => ({
+      id: t.id,
+      name: `${t.first_name} ${t.last_name}`,
+      birth_date: t.birth_date as string,
+      kind: "Trainer" as const,
+    })),
+  ];
+  const birthdaysByDate = birthdaysByDateForRange(birthdayPeople, weeks.flat());
 
   const prevMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
@@ -222,6 +295,9 @@ export default async function CalendarPage({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-purple-600" /> Event
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Geburtstag
         </span>
         {!!absences.length && <span className="text-zinc-400">·</span>}
         {[...new Set(absences.map((a) => a.trainer_id))].map((trainerId) => {
@@ -269,6 +345,7 @@ export default async function CalendarPage({
                 const dayAbsences = absences.filter(
                   (a) => a.start_date <= dateKey && dateKey <= a.end_date,
                 );
+                const dayBirthdays = birthdaysByDate.get(dateKey) ?? [];
 
                 return (
                   <div
@@ -314,6 +391,15 @@ export default async function CalendarPage({
                         >
                           {absence.trainers?.first_name} {absence.trainers?.last_name}
                         </Link>
+                      ))}
+                      {dayBirthdays.map((birthday) => (
+                        <span
+                          key={`${birthday.kind}-${birthday.name}`}
+                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${BIRTHDAY_STYLE}`}
+                          title={`${birthday.name} (${birthday.kind}) wird ${birthday.age}`}
+                        >
+                          🎂 {birthday.name} ({birthday.age})
+                        </span>
                       ))}
                     </div>
                   </div>

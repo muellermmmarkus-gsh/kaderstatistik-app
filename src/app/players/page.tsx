@@ -1,6 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
-import { addPlayer, deletePlayer, togglePlayerActive } from "./actions";
+import {
+  addPlayer,
+  deletePlayer,
+  togglePlayerActive,
+  updatePlayerBirthDate,
+} from "./actions";
 import BackButton from "@/components/BackButton";
 import DeleteButton from "@/components/DeleteButton";
 import SaveNotice from "@/components/SaveNotice";
@@ -102,6 +107,7 @@ export default async function PlayersPage() {
               !player.active,
             );
             const remove = deletePlayer.bind(null, player.id);
+            const saveBirthDate = updatePlayerBirthDate.bind(null, player.id);
             return (
               <tr
                 key={player.id}
@@ -111,7 +117,24 @@ export default async function PlayersPage() {
                   {player.first_name} {player.last_name}
                 </td>
                 <td className="py-2 text-zinc-500">
-                  {player.birth_date ?? "–"}
+                  {canWrite ? (
+                    <form action={saveBirthDate} className="flex items-center gap-1">
+                      <input
+                        type="date"
+                        name="birthDate"
+                        defaultValue={player.birth_date ?? ""}
+                        className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      />
+                      <button
+                        type="submit"
+                        className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        speichern
+                      </button>
+                    </form>
+                  ) : (
+                    (player.birth_date ?? "–")
+                  )}
                 </td>
                 <td className="py-2 text-zinc-500">
                   {player.passnummer ?? "–"}

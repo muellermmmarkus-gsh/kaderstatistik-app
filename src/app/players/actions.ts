@@ -23,6 +23,19 @@ export async function addPlayer(formData: FormData) {
   revalidatePath("/players");
 }
 
+export async function updatePlayerBirthDate(playerId: string, formData: FormData) {
+  const birthDate = String(formData.get("birthDate") ?? "").trim();
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("players")
+    .update({ birth_date: birthDate || null })
+    .eq("id", playerId);
+  if (error) throw new Error(`Geburtsdatum konnte nicht gespeichert werden: ${error.message}`);
+
+  revalidatePath("/players");
+}
+
 export async function togglePlayerActive(playerId: string, active: boolean) {
   const supabase = await createClient();
   await supabase.from("players").update({ active }).eq("id", playerId);
