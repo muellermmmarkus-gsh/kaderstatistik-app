@@ -21,6 +21,12 @@ type Exercise = {
   fields?: { name: string; length_m: number; width_m: number } | null;
 };
 
+// Die Schwerpunkt-Eingrenzung gilt nur fuer Uebungs-/Spielformen, nicht fuer
+// Aufwaermen/Cool-down, da dort Schwerpunkte selten trennscharf gepflegt sind.
+function focusAppliesToCategory(category: string): boolean {
+  return category === "ueben" || category === "spielen";
+}
+
 function exerciseMatchesFocus(exercise: Exercise | undefined, focus: string): boolean {
   if (!exercise) return false;
   if (!focus) return true;
@@ -180,8 +186,9 @@ export default function TrainingBuilder({
   }
 
   function changeCategory(key: string, category: string) {
+    const applyFocus = focusAppliesToCategory(category);
     const firstMatch = exercises.find(
-      (ex) => ex.category === category && exerciseMatchesFocus(ex, trainingFocus),
+      (ex) => ex.category === category && (!applyFocus || exerciseMatchesFocus(ex, trainingFocus)),
     );
     updateRow(key, { category, exerciseId: firstMatch?.id ?? "" });
   }
@@ -190,6 +197,7 @@ export default function TrainingBuilder({
     setTrainingFocus(focus);
     setRows((prev) =>
       prev.map((r) => {
+        if (!focusAppliesToCategory(r.category)) return r;
         if (exerciseMatchesFocus(exerciseById.get(r.exerciseId), focus)) return r;
         const firstMatch = exercises.find(
           (ex) => ex.category === r.category && exerciseMatchesFocus(ex, focus),
@@ -294,7 +302,8 @@ export default function TrainingBuilder({
                     ? exercises.filter(
                         (ex) =>
                           ex.category === row.category &&
-                          exerciseMatchesFocus(ex, trainingFocus),
+                          (!focusAppliesToCategory(row.category) ||
+                            exerciseMatchesFocus(ex, trainingFocus)),
                       )
                     : [];
                   const isFirstInBlock = indexInBlock === 0;
