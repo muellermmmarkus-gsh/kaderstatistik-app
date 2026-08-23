@@ -31,7 +31,6 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
   const rows = exerciseIds
     .map((exerciseId, index) => ({
       exercise_id: exerciseId,
-      sort_order: index,
       duration_minutes: Number(durations[index] ?? 0),
       block: Number(blocks[index] ?? 1),
       groups: (groupsPerRow[index] ?? "")
@@ -39,7 +38,10 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
         .map((g) => g.trim())
         .filter(Boolean),
     }))
-    .filter((row) => row.exercise_id && row.duration_minutes > 0);
+    .filter((row) => row.exercise_id && row.duration_minutes > 0)
+    // sort_order erst nach dem Filtern vergeben, sonst entstehen Luecken,
+    // sobald eine Zeile ohne gewaehlte Uebung uebersprungen wird.
+    .map((row, index) => ({ ...row, sort_order: index }));
 
   // Bestehenden Plan ersetzen, damit entfernte Uebungen nicht stehen bleiben.
   await supabase.from("training_exercises").delete().eq("training_id", training.id);

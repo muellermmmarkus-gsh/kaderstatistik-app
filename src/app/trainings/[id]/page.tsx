@@ -98,6 +98,28 @@ export default async function TrainingDetailPage({
 
   const save = saveTrainingPlan.bind(null, id);
 
+  // TrainingBuilder haelt seinen Zustand in useState, das bei einem erneuten
+  // Server-Render mit neuen initialRows/initialFocus NICHT automatisch
+  // zurueckgesetzt wird (React-useState-Initializer laeuft nur beim Mount).
+  // Ohne diesen Key blieb nach dem Speichern kurzzeitig der alte
+  // Client-Zustand sichtbar, bis ein manueller Reload die Komponente neu
+  // mountete. Der Key wird aus den gespeicherten Daten abgeleitet, damit
+  // TrainingBuilder nach jedem erfolgreichen Speichern remountet und die
+  // frisch geladenen Werte uebernimmt.
+  const builderKey = JSON.stringify({
+    focus: training?.focus ?? null,
+    notes: training?.notes ?? null,
+    players: initialPlayerGroups,
+    items: items
+      .filter((i) => i.exercises)
+      .map((i) => ({
+        id: i.exercises!.id,
+        duration: i.duration_minutes,
+        block: i.block,
+        groups: i.training_exercise_groups.map((g) => g.group_label),
+      })),
+  });
+
   return (
     <div className="w-full max-w-6xl flex-1 px-4 py-8">
       <BackButton href="/trainings" />
@@ -119,6 +141,7 @@ export default async function TrainingDetailPage({
 
       {canWrite ? (
         <TrainingBuilder
+          key={builderKey}
           exercises={exerciseOptions}
           players={playerOptions}
           focuses={(focuses ?? []).map((f) => f.label)}

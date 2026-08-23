@@ -449,8 +449,12 @@ export default function TrainingBuilder({
                             onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
                             className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
                           >
-                            {!row.category && (
-                              <option value="">– zuerst Kategorie wählen –</option>
+                            {!categoryExercises.some((ex) => ex.id === row.exerciseId) && (
+                              <option value="">
+                                {!row.category
+                                  ? "– zuerst Kategorie wählen –"
+                                  : "– keine passende Übung –"}
+                              </option>
                             )}
                             {categoryExercises.map((ex) => (
                               <option key={ex.id} value={ex.id}>
