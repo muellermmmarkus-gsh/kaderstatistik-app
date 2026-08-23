@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
-import { categoryLabels } from "./categoryLabels";
-import { deleteExercise } from "./actions";
+import ExercisesTable from "./ExercisesTable";
 import BackButton from "@/components/BackButton";
-import DeleteButton from "@/components/DeleteButton";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 
 type ExerciseRow = {
@@ -33,7 +31,7 @@ export default async function ExercisesPage() {
     isTrainer(),
   ]);
 
-  const exercises = exercisesData as unknown as ExerciseRow[] | null;
+  const exercises = (exercisesData as unknown as ExerciseRow[] | null) ?? [];
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
@@ -58,87 +56,7 @@ export default async function ExercisesPage() {
         </p>
       )}
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-800">
-            <th className="py-2" />
-            <th className="py-2">Name</th>
-            <th className="py-2">Kategorie</th>
-            <th className="py-2">Fläche</th>
-            <th className="py-2">Übungsschwerpunkt 1</th>
-            <th className="py-2">Übungsschwerpunkt 2</th>
-            <th className="py-2">Spieler</th>
-            <th className="py-2">Kleinfeldtore</th>
-            <th className="py-2">Minitore</th>
-            {canWrite && <th className="py-2" />}
-          </tr>
-        </thead>
-        <tbody>
-          {exercises?.map((exercise) => {
-            const remove = deleteExercise.bind(null, exercise.id);
-            return (
-              <tr
-                key={exercise.id}
-                className="border-b border-zinc-100 dark:border-zinc-900"
-              >
-                <td className="py-2">
-                  {exercise.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                    <img
-                      src={exercise.image_url}
-                      alt=""
-                      className="h-10 w-10 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
-                  )}
-                </td>
-                <td className="py-2">
-                  <Link href={`/exercises/${exercise.id}`} className="hover:underline">
-                    {exercise.name}
-                  </Link>
-                </td>
-                <td className="py-2 text-zinc-500">
-                  {categoryLabels[exercise.category] ?? exercise.category}
-                </td>
-                <td className="py-2 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
-                <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
-                <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
-                <td className="py-2 text-zinc-500">
-                  {exercise.min_players}–{exercise.max_players}
-                </td>
-                <td className="py-2 text-zinc-500">{exercise.small_goals}</td>
-                <td className="py-2 text-zinc-500">{exercise.mini_goals}</td>
-                {canWrite && (
-                  <td className="py-2 text-right whitespace-nowrap">
-                    <Link
-                      href={`/exercises/${exercise.id}`}
-                      className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                    >
-                      ändern
-                    </Link>
-                    <form action={remove} className="ml-3 inline">
-                      <DeleteButton
-                        confirmMessage={`Übung "${exercise.name}" wirklich löschen?`}
-                        className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                      >
-                        löschen
-                      </DeleteButton>
-                    </form>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-          {!exercises?.length && (
-            <tr>
-              <td colSpan={canWrite ? 10 : 9} className="py-4 text-zinc-500">
-                Noch keine Übungen angelegt.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <ExercisesTable exercises={exercises} canWrite={canWrite} />
     </div>
   );
 }
