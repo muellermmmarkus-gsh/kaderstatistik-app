@@ -28,7 +28,7 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
   if (upsertError) throw new Error(`Trainingsplan konnte nicht gespeichert werden: ${upsertError.message}`);
   if (!training) return;
 
-  const rows = exerciseIds
+  const filteredRows = exerciseIds
     .map((exerciseId, index) => ({
       exercise_id: exerciseId,
       duration_minutes: Number(durations[index] ?? 0),
@@ -38,10 +38,25 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
         .map((g) => g.trim())
         .filter(Boolean),
     }))
-    .filter((row) => row.exercise_id && row.duration_minutes > 0)
+    .filter((row) => row.exercise_id && row.duration_minutes > 0);
+
+  // Trainingsbloecke beim Speichern luecken- und kollisionsfrei aufsteigend von 1
+  // bis x durchnummerieren. So kann eine neu hinzugefuegte Uebung einfach per
+  // Blocknummer vor bestehende Bloecke einsortiert werden, ohne dass der Nutzer
+  // alle nachfolgenden Bloecke manuell hochzaehlen muss. Zeilen mit derselben
+  // (urspruenglichen) Blocknummer bleiben als paralleles Zeitfenster zusammen.
+  const sortedDistinctBlocks = [...new Set(filteredRows.map((row) => row.block))].sort(
+    (a, b) => a - b,
+  );
+  const blockRenumberMap = new Map(sortedDistinctBlocks.map((block, index) => [block, index + 1]));
+
+  const rows = filteredRows.map((row, index) => ({
+    ...row,
+    block: blockRenumberMap.get(row.block) ?? row.block,
     // sort_order erst nach dem Filtern vergeben, sonst entstehen Luecken,
     // sobald eine Zeile ohne gewaehlte Uebung uebersprungen wird.
-    .map((row, index) => ({ ...row, sort_order: index }));
+    sort_order: index,
+  }));
 
   // Bestehenden Plan ersetzen, damit entfernte Uebungen nicht stehen bleiben.
   await supabase.from("training_exercises").delete().eq("training_id", training.id);
