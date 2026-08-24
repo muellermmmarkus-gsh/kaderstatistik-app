@@ -74,6 +74,7 @@ export default function TrainingBuilder({
   initialRows,
   initialPlayerGroups,
   submitLabel,
+  backHref,
 }: {
   exercises: Exercise[];
   players: Player[];
@@ -84,6 +85,7 @@ export default function TrainingBuilder({
   initialRows?: { exerciseId: string; duration: number; block: number; groups: string[] }[];
   initialPlayerGroups?: { playerId: string; group: string }[];
   submitLabel: string;
+  backHref: string;
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
 
@@ -253,17 +255,28 @@ export default function TrainingBuilder({
     );
   }
 
-  function goToExercise(exerciseId: string) {
-    const exercisePath = `/exercises/${exerciseId}`;
-    const shouldSave = window.confirm(
-      "Sollen alle Änderungen in der Trainingsplanung gespeichert werden, bevor du zur Übung wechselst?",
-    );
+  function confirmSaveAndNavigate(path: string, confirmMessage: string) {
+    const shouldSave = window.confirm(confirmMessage);
     if (shouldSave) {
-      if (redirectInputRef.current) redirectInputRef.current.value = exercisePath;
+      if (redirectInputRef.current) redirectInputRef.current.value = path;
       formRef.current?.requestSubmit();
     } else {
-      window.location.assign(exercisePath);
+      window.location.assign(path);
     }
+  }
+
+  function goToExercise(exerciseId: string) {
+    confirmSaveAndNavigate(
+      `/exercises/${exerciseId}`,
+      "Sollen alle Änderungen in der Trainingsplanung gespeichert werden, bevor du zur Übung wechselst?",
+    );
+  }
+
+  function goBack() {
+    confirmSaveAndNavigate(
+      backHref,
+      "Sollen alle Änderungen in der Trainingsplanung gespeichert werden, bevor du zurückgehst?",
+    );
   }
 
   function toggleSameGroup(checked: boolean) {
@@ -275,8 +288,16 @@ export default function TrainingBuilder({
   }
 
   return (
-    <div className="flex flex-col gap-6 md:flex-row md:items-start">
-      <form ref={formRef} action={action} className="flex-1 space-y-6">
+    <div>
+      <button
+        type="button"
+        onClick={goBack}
+        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:underline dark:text-zinc-400"
+      >
+        ← Zurück
+      </button>
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <form ref={formRef} action={action} className="flex-1 space-y-6">
         <input type="hidden" name="afterSaveRedirect" ref={redirectInputRef} />
         <div className="flex flex-wrap gap-3">
           <div className="flex-1">
@@ -581,12 +602,21 @@ export default function TrainingBuilder({
           + Übung hinzufügen
         </button>
 
-        <button
-          type="submit"
-          className="block rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {submitLabel}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            {submitLabel}
+          </button>
+          <button
+            type="button"
+            onClick={goBack}
+            className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+          >
+            Zurück
+          </button>
+        </div>
         <SaveNotice />
       </form>
 
@@ -736,6 +766,7 @@ export default function TrainingBuilder({
           </tbody>
         </table>
       </aside>
+      </div>
     </div>
   );
 }
