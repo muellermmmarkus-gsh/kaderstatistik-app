@@ -182,7 +182,26 @@ export default function TrainingBuilder({
   }
 
   function removeRow(key: string) {
-    setRows((prev) => prev.filter((r) => r.key !== key));
+    setRows((prev) => {
+      const removedRow = prev.find((r) => r.key === key);
+      const next = prev.filter((r) => r.key !== key);
+      if (!removedRow) return next;
+      // Nur wenn dadurch der ganze Block leer wird, rutschen nachfolgende
+      // Bloecke nach - bleiben noch parallele Uebungen im Block, bleibt die
+      // Blocknummer unveraendert.
+      const blockStillUsed = next.some((r) => r.block === removedRow.block);
+      if (blockStillUsed) return next;
+      return next.map((r) => (r.block > removedRow.block ? { ...r, block: r.block - 1 } : r));
+    });
+  }
+
+  function insertBlockAfter(afterBlock: number) {
+    setRows((prev) => {
+      const shifted = prev.map((r) =>
+        r.block > afterBlock ? { ...r, block: r.block + 1 } : r,
+      );
+      return [...shifted, makeRow(afterBlock + 1)];
+    });
   }
 
   function updateRow(key: string, patch: Partial<Row>) {
@@ -306,15 +325,15 @@ export default function TrainingBuilder({
             }
 
             return (
-              <div
-                key={block}
-                className={
-                  grouped
-                    ? "space-y-3 rounded-lg border-2 border-blue-200 bg-blue-50/40 p-3 dark:border-blue-900 dark:bg-blue-950/20"
-                    : "space-y-3"
-                }
-              >
-                {blockRows.map((row, indexInBlock) => {
+              <div key={block} className="space-y-3">
+                <div
+                  className={
+                    grouped
+                      ? "space-y-3 rounded-lg border-2 border-blue-200 bg-blue-50/40 p-3 dark:border-blue-900 dark:bg-blue-950/20"
+                      : "space-y-3"
+                  }
+                >
+                  {blockRows.map((row, indexInBlock) => {
                   const exercise = exerciseById.get(row.exerciseId);
                   const categoryExercises = row.category
                     ? exercises.filter(
@@ -539,7 +558,17 @@ export default function TrainingBuilder({
                       )}
                     </div>
                   );
-                })}
+                  })}
+                </div>
+                {blockOrder.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => insertBlockAfter(block)}
+                    className="w-full rounded border border-dashed border-zinc-300 py-1.5 text-xs text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-200"
+                  >
+                    + Hier Trainingsblock einfügen
+                  </button>
+                )}
               </div>
             );
           })}
