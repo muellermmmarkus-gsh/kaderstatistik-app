@@ -34,7 +34,7 @@ export default async function EventsPage() {
       .select(
         "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
       )
-      .order("event_date", { ascending: false }),
+      .order("event_date", { ascending: true }),
     supabase
       .from("seasons")
       .select("name, is_default")
