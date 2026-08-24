@@ -118,16 +118,15 @@ export default function TrainingBuilder({
       return !!g && g === playerGroups.get(players[0].id);
     });
 
-  // Zeilen nach Trainingsblock gruppieren, Reihenfolge nach erstem Auftreten des Blocks.
-  const blockOrder: number[] = [];
+  // Zeilen nach Trainingsblock gruppieren, Reihenfolge nach Blocknummer (nicht nach
+  // Einfuege-Reihenfolge) - sonst erscheint ein per "Hier einfuegen" neu eingefuegter
+  // Block trotz korrekter Nummer am Ende der Liste statt an seiner Position.
   const rowsByBlock = new Map<number, Row[]>();
   for (const row of rows) {
-    if (!rowsByBlock.has(row.block)) {
-      blockOrder.push(row.block);
-      rowsByBlock.set(row.block, []);
-    }
+    if (!rowsByBlock.has(row.block)) rowsByBlock.set(row.block, []);
     rowsByBlock.get(row.block)!.push(row);
   }
+  const blockOrder = [...rowsByBlock.keys()].sort((a, b) => a - b);
 
   const totalMinutes = blockOrder.reduce(
     (sum, block) => sum + (rowsByBlock.get(block)![0]?.duration || 0),
