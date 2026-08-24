@@ -34,7 +34,7 @@ export default async function ExerciseDetailPage({
     | null;
 
   const update = updateExercise.bind(null, id);
-  const remove = deleteExercise.bind(null, id);
+  const remove = deleteExercise.bind(null, id, "/exercises");
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">

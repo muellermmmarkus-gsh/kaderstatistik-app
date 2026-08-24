@@ -188,7 +188,7 @@ export default function ExercisesTable({
         </thead>
         <tbody>
           {filtered.map((exercise) => {
-            const remove = deleteExercise.bind(null, exercise.id);
+            const remove = deleteExercise.bind(null, exercise.id, undefined);
             return (
               <tr
                 key={exercise.id}

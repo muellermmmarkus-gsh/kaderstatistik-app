@@ -97,10 +97,10 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
   redirect("/exercises?saved=1");
 }
 
-export async function deleteExercise(exerciseId: string) {
+export async function deleteExercise(exerciseId: string, redirectTo?: string) {
   const supabase = await createClient();
   await supabase.from("exercises").delete().eq("id", exerciseId);
   revalidatePath("/exercises");
   revalidatePath(`/exercises/${exerciseId}`);
-  redirect("/exercises");
+  if (redirectTo) redirect(redirectTo);
 }
