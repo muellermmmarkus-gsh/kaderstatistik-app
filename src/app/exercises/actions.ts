@@ -101,4 +101,6 @@ export async function deleteExercise(exerciseId: string) {
   const supabase = await createClient();
   await supabase.from("exercises").delete().eq("id", exerciseId);
   revalidatePath("/exercises");
+  revalidatePath(`/exercises/${exerciseId}`);
+  redirect("/exercises");
 }
