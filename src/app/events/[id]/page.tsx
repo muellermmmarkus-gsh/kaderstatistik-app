@@ -82,8 +82,9 @@ export default async function EventDetailPage({
   const trainerIds = trainers?.map((t) => t.id) ?? [];
   const save = saveAttendance.bind(null, id, playerIds, trainerIds);
 
-  const playerColSpan =
-    2 + (event.type === "game" ? 1 : 0) + (event.type === "training" ? 4 : 0);
+  const hasGoals = event.type === "game" || event.type === "tournament";
+
+  const playerColSpan = 2 + (hasGoals ? 1 : 0) + (event.type === "training" ? 4 : 0);
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
@@ -94,7 +95,9 @@ export default async function EventDetailPage({
           ? "Training"
           : event.type === "game"
             ? "Spiel"
-            : "Event"}{" "}
+            : event.type === "tournament"
+              ? "Turnier"
+              : "Event"}{" "}
         – {event.event_date}
       </h1>
       <p className="mb-6 text-sm text-zinc-500">
@@ -129,7 +132,7 @@ export default async function EventDetailPage({
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="py-2">Spieler</th>
                   <th className="py-2">Anwesend</th>
-                  {event.type === "game" && <th className="py-2">Tore</th>}
+                  {hasGoals && <th className="py-2">Tore</th>}
                   {event.type === "training" && (
                     <>
                       <th className="py-2">Leistung</th>
@@ -158,7 +161,7 @@ export default async function EventDetailPage({
                         className="h-4 w-4"
                       />
                     </td>
-                    {event.type === "game" && (
+                    {hasGoals && (
                       <td className="py-2">
                         <input
                           type="number"

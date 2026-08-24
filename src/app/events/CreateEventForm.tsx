@@ -30,6 +30,7 @@ export default function CreateEventForm({
         >
           <option value="training">Training</option>
           <option value="game">Spiel</option>
+          <option value="tournament">Turnier</option>
           <option value="event">Event</option>
         </select>
       </div>
@@ -45,11 +46,11 @@ export default function CreateEventForm({
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
-      {type === "game" && (
+      {(type === "game" || type === "tournament") && (
         <>
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor="opponent">
-              Gegner
+              {type === "tournament" ? "Gegner/Teilnehmer" : "Gegner"}
             </label>
             <input
               id="opponent"

@@ -27,11 +27,12 @@ const MONTH_LABELS = [
   "Dezember",
 ];
 
-type EventType = "training" | "game" | "event";
+type EventType = "training" | "game" | "event" | "tournament";
 
 const typeStyles = {
   training: "bg-blue-600 text-white",
   game: "bg-green-600 text-white",
+  tournament: "bg-teal-600 text-white",
   event: "bg-purple-600 text-white",
 } as const;
 
@@ -158,7 +159,11 @@ function eventLabel(event: CalendarEvent, totalTrainers: number) {
         ? event.opponent
           ? `${time}Spiel vs ${event.opponent}`
           : `${time}Spiel`
-        : (event.label ?? "Event");
+        : event.type === "tournament"
+          ? event.opponent
+            ? `${time}Turnier: ${event.opponent}`
+            : `${time}Turnier`
+          : (event.label ?? "Event");
 
   if (!totalTrainers) return base;
   const confirmed = event.trainer_attendance.filter((a) => a.confirmed).length;
@@ -167,7 +172,9 @@ function eventLabel(event: CalendarEvent, totalTrainers: number) {
 
 function eventTitle(event: CalendarEvent, totalTrainers: number) {
   const label = eventLabel(event, totalTrainers);
-  return event.type === "game" && event.location ? `${label} · ${event.location}` : label;
+  return (event.type === "game" || event.type === "tournament") && event.location
+    ? `${label} · ${event.location}`
+    : label;
 }
 
 export default async function CalendarPage({
@@ -292,6 +299,9 @@ export default async function CalendarPage({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Spiel
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-teal-600" /> Turnier
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-purple-600" /> Event

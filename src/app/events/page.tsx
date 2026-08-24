@@ -9,6 +9,7 @@ const typeLabels: Record<string, string> = {
   training: "Training",
   game: "Spiel",
   event: "Event",
+  tournament: "Turnier",
 };
 
 type EventRow = {

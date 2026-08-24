@@ -15,6 +15,8 @@ export async function createEvent(formData: FormData) {
 
   if (!eventDate || !season) return;
 
+  const hasOpponentFields = type === "game" || type === "tournament";
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
@@ -22,9 +24,9 @@ export async function createEvent(formData: FormData) {
       type,
       event_date: eventDate,
       season,
-      opponent: type === "game" ? opponent || null : null,
-      event_time: type === "game" ? eventTime || null : null,
-      location: type === "game" ? location || null : null,
+      opponent: hasOpponentFields ? opponent || null : null,
+      event_time: hasOpponentFields ? eventTime || null : null,
+      location: hasOpponentFields ? location || null : null,
       label: type === "event" ? label || null : null,
     })
     .select("id")

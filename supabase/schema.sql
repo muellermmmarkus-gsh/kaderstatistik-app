@@ -37,7 +37,7 @@ create table if not exists seasons (
 create unique index if not exists one_default_season
   on seasons (is_default) where is_default = true;
 
-create type event_type as enum ('training', 'game', 'event');
+create type event_type as enum ('training', 'game', 'event', 'tournament');
 
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
