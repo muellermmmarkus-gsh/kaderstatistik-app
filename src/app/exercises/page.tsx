@@ -21,17 +21,37 @@ type ExerciseRow = {
 
 export default async function ExercisesPage() {
   const supabase = await createClient();
-  const [{ data: exercisesData }, canWrite] = await Promise.all([
+  const [{ data: exercisesData }, { data: trainingsData }, canWrite] = await Promise.all([
     supabase
       .from("exercises")
       .select(
         "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name)",
       )
       .order("name"),
+    supabase
+      .from("trainings")
+      .select("training_exercises(exercise_id)")
+      .not("event_id", "is", null),
     isTrainer(),
   ]);
 
-  const exercises = (exercisesData as unknown as ExerciseRow[] | null) ?? [];
+  // Standardsortierung: absteigend nach Gesamtzahl der Einsätze in der
+  // Trainingsplanung (wie in der Übungshistorie), bei Gleichstand alphabetisch.
+  const usageCount = new Map<string, number>();
+  for (const training of trainingsData ?? []) {
+    const uniqueIds = new Set(
+      (training.training_exercises as { exercise_id: string }[]).map((te) => te.exercise_id),
+    );
+    for (const id of uniqueIds) {
+      usageCount.set(id, (usageCount.get(id) ?? 0) + 1);
+    }
+  }
+
+  const exercises = ((exercisesData as unknown as ExerciseRow[] | null) ?? []).sort(
+    (a, b) =>
+      (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
+      a.name.localeCompare(b.name, "de"),
+  );
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">

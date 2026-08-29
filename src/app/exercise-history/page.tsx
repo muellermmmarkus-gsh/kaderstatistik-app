@@ -21,7 +21,6 @@ export default async function ExerciseHistoryPage() {
         .not("event_id", "is", null),
     ]);
 
-  const exercises = (exercisesData as ExerciseRow[] | null) ?? [];
   const events = (eventsData as EventRow[] | null) ?? [];
   const trainings = trainingsData as unknown as TrainingRow[] | null;
 
@@ -31,6 +30,18 @@ export default async function ExerciseHistoryPage() {
       new Set(t.training_exercises.map((te) => te.exercise_id)),
     ]),
   );
+
+  // Standardsortierung: absteigend nach Gesamtzahl der Einsätze in der
+  // Trainingsplanung, bei Gleichstand alphabetisch.
+  const exercises = ((exercisesData as ExerciseRow[] | null) ?? [])
+    .map((exercise) => ({
+      ...exercise,
+      total: events.reduce(
+        (sum, event) => sum + (exerciseIdsByEvent.get(event.id)?.has(exercise.id) ? 1 : 0),
+        0,
+      ),
+    }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "de"));
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -63,31 +74,24 @@ export default async function ExerciseHistoryPage() {
               </tr>
             </thead>
             <tbody>
-              {exercises.map((exercise) => {
-                const total = events.reduce(
-                  (sum, event) =>
-                    sum + (exerciseIdsByEvent.get(event.id)?.has(exercise.id) ? 1 : 0),
-                  0,
-                );
-                return (
-                  <tr
-                    key={exercise.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900"
-                  >
-                    <td className="whitespace-nowrap py-2 pr-2">
-                      <Link href={`/exercises/${exercise.id}`} className="hover:underline">
-                        {exercise.name}
-                      </Link>
+              {exercises.map((exercise) => (
+                <tr
+                  key={exercise.id}
+                  className="border-b border-zinc-100 dark:border-zinc-900"
+                >
+                  <td className="whitespace-nowrap py-2 pr-2">
+                    <Link href={`/exercises/${exercise.id}`} className="hover:underline">
+                      {exercise.name}
+                    </Link>
+                  </td>
+                  <td className="px-2 py-2 text-center font-medium">{exercise.total}</td>
+                  {events.map((event) => (
+                    <td key={event.id} className="px-2 py-2 text-center">
+                      {exerciseIdsByEvent.get(event.id)?.has(exercise.id) ? "X" : ""}
                     </td>
-                    <td className="px-2 py-2 text-center font-medium">{total}</td>
-                    {events.map((event) => (
-                      <td key={event.id} className="px-2 py-2 text-center">
-                        {exerciseIdsByEvent.get(event.id)?.has(exercise.id) ? "X" : ""}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
