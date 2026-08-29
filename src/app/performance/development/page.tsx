@@ -1,4 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
+import { deletePerformanceUpdate } from "./actions";
+import DeleteButton from "@/components/DeleteButton";
 
 // ISO-8601-Kalenderwoche (Montag-basiert, Woche 1 enthaelt den ersten
 // Donnerstag des Jahres) - Standard in Deutschland.
@@ -16,7 +19,7 @@ function getIsoWeek(dateStr: string): { week: number; year: number } {
 
 export default async function PerformanceDevelopmentPage() {
   const supabase = await createClient();
-  const [{ data: players }, { data: focuses }, { data: updates }, { data: ratings }] =
+  const [{ data: players }, { data: focuses }, { data: updates }, { data: ratings }, canWrite] =
     await Promise.all([
       supabase
         .from("players")
@@ -29,6 +32,7 @@ export default async function PerformanceDevelopmentPage() {
         .select("id, update_date, reason")
         .order("update_date"),
       supabase.from("performance_ratings").select("update_id, player_id, focus, grade"),
+      isTrainer(),
     ]);
 
   const focusLabels = (focuses ?? []).map((f) => f.label);
@@ -61,6 +65,27 @@ export default async function PerformanceDevelopmentPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
+                    {canWrite && (
+                      <tr>
+                        <th className="py-1 pr-2" />
+                        {updates.map((update) => {
+                          const action = deletePerformanceUpdate.bind(null, update.id);
+                          const { week, year } = getIsoWeek(update.update_date);
+                          return (
+                            <th key={update.id} className="px-2 py-1 text-center font-normal">
+                              <form action={action}>
+                                <DeleteButton
+                                  confirmMessage={`Sollen die Noten des Updates KW ${week}/${year} (${update.update_date}) für alle Spieler wirklich unwiderruflich gelöscht werden?`}
+                                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                                >
+                                  Entfernen
+                                </DeleteButton>
+                              </form>
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    )}
                     <tr className="border-b border-zinc-200 dark:border-zinc-800">
                       <th className="py-2 pr-2">Schwerpunkt</th>
                       {updates.map((update) => {
