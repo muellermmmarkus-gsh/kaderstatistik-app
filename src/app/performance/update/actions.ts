@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function savePerformanceUpdate(
+  updateId: string | null,
   playerIds: string[],
   focuses: string[],
   formData: FormData,
@@ -14,19 +15,35 @@ export async function savePerformanceUpdate(
 
   const supabase = await createClient();
 
-  const { data: update, error: updateError } = await supabase
-    .from("performance_updates")
-    .insert({ update_date: updateDate, reason: reason || null })
-    .select("id")
-    .single();
-  if (updateError || !update) {
-    throw new Error(`Update konnte nicht gespeichert werden: ${updateError?.message}`);
+  let resolvedUpdateId = updateId;
+
+  if (resolvedUpdateId) {
+    const { error } = await supabase
+      .from("performance_updates")
+      .update({ update_date: updateDate, reason: reason || null })
+      .eq("id", resolvedUpdateId);
+    if (error) {
+      throw new Error(`Update konnte nicht gespeichert werden: ${error.message}`);
+    }
+    // Bestehende Noten dieses Updates ersetzen, damit auf leer gesetzte
+    // Zellen nicht mit einem alten Wert stehen bleiben.
+    await supabase.from("performance_ratings").delete().eq("update_id", resolvedUpdateId);
+  } else {
+    const { data: update, error: insertError } = await supabase
+      .from("performance_updates")
+      .insert({ update_date: updateDate, reason: reason || null })
+      .select("id")
+      .single();
+    if (insertError || !update) {
+      throw new Error(`Update konnte nicht gespeichert werden: ${insertError?.message}`);
+    }
+    resolvedUpdateId = update.id;
   }
 
   const ratingRows = playerIds
     .flatMap((playerId) =>
       focuses.map((focus) => ({
-        update_id: update.id,
+        update_id: resolvedUpdateId!,
         player_id: playerId,
         focus,
         grade: Number(formData.get(`grade_${playerId}_${focus}`) ?? 0),

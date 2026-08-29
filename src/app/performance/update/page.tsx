@@ -6,39 +6,87 @@ import SaveNotice from "@/components/SaveNotice";
 
 const GRADES = [1, 2, 3, 4, 5, 6];
 
-export default async function PerformanceUpdatePage() {
+export default async function PerformanceUpdatePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ updateId?: string }>;
+}) {
+  const { updateId } = await searchParams;
   const supabase = await createClient();
-  const [{ data: players }, { data: focuses }, { data: currentGrades }, canWrite] =
-    await Promise.all([
-      supabase
-        .from("players")
-        .select("id, first_name, last_name")
-        .eq("active", true)
-        .order("last_name"),
-      supabase.from("exercise_focuses").select("label").order("sort_order"),
-      supabase.from("performance_latest").select("player_id, focus, grade"),
-      isTrainer(),
-    ]);
+
+  const [{ data: players }, { data: focuses }, canWrite] = await Promise.all([
+    supabase
+      .from("players")
+      .select("id, first_name, last_name")
+      .eq("active", true)
+      .order("last_name"),
+    supabase.from("exercise_focuses").select("label").order("sort_order"),
+    isTrainer(),
+  ]);
 
   const focusLabels = (focuses ?? []).map((f) => f.label);
-  const currentGradeMap = new Map(
-    (currentGrades ?? []).map((g) => [`${g.player_id}__${g.focus}`, g.grade]),
-  );
   const playerIds = (players ?? []).map((p) => p.id);
-  const action = savePerformanceUpdate.bind(null, playerIds, focusLabels);
   const today = new Date().toISOString().slice(0, 10);
+
+  let updateDate = today;
+  let reason = "";
+  let gradeMap = new Map<string, number>();
+  let updateNotFound = false;
+
+  if (updateId) {
+    const [{ data: existingUpdate }, { data: existingRatings }] = await Promise.all([
+      supabase
+        .from("performance_updates")
+        .select("id, update_date, reason")
+        .eq("id", updateId)
+        .maybeSingle(),
+      supabase
+        .from("performance_ratings")
+        .select("player_id, focus, grade")
+        .eq("update_id", updateId),
+    ]);
+    if (existingUpdate) {
+      updateDate = existingUpdate.update_date;
+      reason = existingUpdate.reason ?? "";
+      gradeMap = new Map(
+        (existingRatings ?? []).map((r) => [`${r.player_id}__${r.focus}`, r.grade]),
+      );
+    } else {
+      updateNotFound = true;
+    }
+  } else {
+    const { data: currentGrades } = await supabase
+      .from("performance_latest")
+      .select("player_id, focus, grade");
+    gradeMap = new Map(
+      (currentGrades ?? []).map((g) => [`${g.player_id}__${g.focus}`, g.grade]),
+    );
+  }
+
+  const action = savePerformanceUpdate.bind(null, updateId ?? null, playerIds, focusLabels);
+  const backHref = updateId ? "/performance/development" : "/";
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
-      <h1 className="mb-2 text-xl font-semibold">Update</h1>
+      <h1 className="mb-2 text-xl font-semibold">
+        {updateId ? "Update anpassen" : "Update"}
+      </h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Vergib für jeden Spieler und Übungsschwerpunkt eine Note von 1 bis 6. Beim
-        Speichern werden die Werte unter „Entwicklung“ hinterlegt.
+        {updateId
+          ? "Passe Datum, Grund und Noten dieses Updates an."
+          : "Vergib für jeden Spieler und Übungsschwerpunkt eine Note von 1 bis 6. Beim Speichern werden die Werte unter „Entwicklung“ hinterlegt."}
       </p>
 
       {!canWrite ? (
         <p className="text-sm text-zinc-500">
           Du hast Nur-Lese-Zugriff. Updates können nur Trainer vornehmen.
+        </p>
+      ) : updateNotFound ? (
+        <p className="text-sm text-zinc-500">
+          Dieses Update wurde nicht gefunden – es wurde eventuell bereits gelöscht.{" "}
+          <Link href="/performance/development" className="underline">
+            Zurück zur Entwicklung
+          </Link>
         </p>
       ) : !focusLabels.length ? (
         <p className="text-sm text-zinc-500">
@@ -57,7 +105,7 @@ export default async function PerformanceUpdatePage() {
                 id="updateDate"
                 name="updateDate"
                 type="date"
-                defaultValue={today}
+                defaultValue={updateDate}
                 required
                 className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
               />
@@ -70,6 +118,7 @@ export default async function PerformanceUpdatePage() {
                 id="reason"
                 name="reason"
                 type="text"
+                defaultValue={reason}
                 placeholder="z. B. Rückrunden-Zwischenstand"
                 className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
               />
@@ -98,7 +147,7 @@ export default async function PerformanceUpdatePage() {
                       {player.first_name} {player.last_name}
                     </td>
                     {focusLabels.map((focus) => {
-                      const current = currentGradeMap.get(`${player.id}__${focus}`);
+                      const current = gradeMap.get(`${player.id}__${focus}`);
                       return (
                         <td key={focus} className="px-2 py-2">
                           <select
@@ -136,7 +185,7 @@ export default async function PerformanceUpdatePage() {
               Abbrechen
             </button>
             <Link
-              href="/"
+              href={backHref}
               className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
             >
               Zurück

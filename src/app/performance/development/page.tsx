@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { deletePerformanceUpdate } from "./actions";
@@ -73,14 +74,22 @@ export default async function PerformanceDevelopmentPage() {
                           const { week, year } = getIsoWeek(update.update_date);
                           return (
                             <th key={update.id} className="px-2 py-1 text-center font-normal">
-                              <form action={action}>
-                                <DeleteButton
-                                  confirmMessage={`Sollen die Noten des Updates KW ${week}/${year} (${update.update_date}) für alle Spieler wirklich unwiderruflich gelöscht werden?`}
-                                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                              <div className="flex items-center justify-center gap-2">
+                                <Link
+                                  href={`/performance/update?updateId=${update.id}`}
+                                  className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
                                 >
-                                  Entfernen
-                                </DeleteButton>
-                              </form>
+                                  Anpassen
+                                </Link>
+                                <form action={action}>
+                                  <DeleteButton
+                                    confirmMessage={`Sollen die Noten des Updates KW ${week}/${year} (${update.update_date}) für alle Spieler wirklich unwiderruflich gelöscht werden?`}
+                                    className="text-xs text-red-600 hover:underline dark:text-red-400"
+                                  >
+                                    Entfernen
+                                  </DeleteButton>
+                                </form>
+                              </div>
                             </th>
                           );
                         })}
