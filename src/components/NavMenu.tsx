@@ -33,6 +33,13 @@ const menu: MenuGroup[] = [
       { label: "Flächenplanung", href: "/fields" },
     ],
   },
+  {
+    label: "Performance",
+    items: [
+      { label: "Update", href: "/performance/update" },
+      { label: "Entwicklung", href: "/performance/development" },
+    ],
+  },
   { label: "Statistik", href: "/stats" },
 ];
 

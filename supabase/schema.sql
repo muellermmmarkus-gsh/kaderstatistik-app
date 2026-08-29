@@ -141,6 +141,29 @@ create table if not exists exercise_focuses (
 
 create unique index if not exists exercise_focuses_label_unique on exercise_focuses (label);
 
+-- Ein gespeichertes Update im Performance-Tracking (Datum + Grund).
+create table if not exists performance_updates (
+  id uuid primary key default gen_random_uuid(),
+  update_date date not null,
+  reason text,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- focus wird als Text (nicht als Fremdschluessel auf exercise_focuses)
+-- gespeichert, da die Schwerpunktliste unter Uebungsplanung beim Speichern
+-- komplett geloescht und neu angelegt wird (neue IDs) - gleiche Konvention
+-- wie bei exercises.hauptzweck/nebenzweck.
+create table if not exists performance_ratings (
+  id uuid primary key default gen_random_uuid(),
+  update_id uuid not null references performance_updates(id) on delete cascade,
+  player_id uuid not null references players(id) on delete cascade,
+  focus text not null,
+  grade integer not null check (grade between 1 and 6),
+  created_at timestamptz not null default now(),
+  unique (update_id, player_id, focus)
+);
+
 -- Ein Training wird als Termin (events, type = 'training') angelegt; die
 -- Trainingsplanung (Uebungen, Dauer, Schwerpunkt) haengt per event_id daran
 -- und wird beim ersten Speichern in der Detailplanung automatisch angelegt.
@@ -206,6 +229,9 @@ create index if not exists idx_training_exercises_training on training_exercises
 create index if not exists idx_training_exercises_exercise on training_exercises(exercise_id);
 create index if not exists idx_trainings_date on trainings(training_date);
 create index if not exists idx_exercises_field on exercises(field_id);
+create index if not exists idx_performance_updates_date on performance_updates(update_date);
+create index if not exists idx_performance_ratings_update on performance_ratings(update_id);
+create index if not exists idx_performance_ratings_player on performance_ratings(player_id);
 
 -- ─────────────────────────────────────────────
 -- Statistik-Views
@@ -311,6 +337,18 @@ join trainers t on t.id = ta.trainer_id
 join events e on e.id = ta.event_id
 group by t.id, t.first_name, t.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
+-- Aktuellste Note je Spieler und Schwerpunkt (aus dem jeweils neuesten Update).
+-- Dient als Vorbelegung der Dropdowns unter Performance -> Update.
+create or replace view performance_latest as
+select distinct on (pr.player_id, pr.focus)
+  pr.player_id,
+  pr.focus,
+  pr.grade,
+  pu.update_date
+from performance_ratings pr
+join performance_updates pu on pu.id = pr.update_id
+order by pr.player_id, pr.focus, pu.update_date desc, pr.created_at desc;
+
 -- ─────────────────────────────────────────────
 -- Trigger: bei Registrierung automatisch ein Profil anlegen
 -- Liest Vorname/Nachname/Rolle aus den Metadaten, die die App beim
@@ -379,6 +417,8 @@ alter table training_exercise_groups enable row level security;
 alter table training_player_groups enable row level security;
 alter table fields enable row level security;
 alter table exercise_focuses enable row level security;
+alter table performance_updates enable row level security;
+alter table performance_ratings enable row level security;
 
 create policy "authenticated read profiles" on profiles
   for select to authenticated using (true);
@@ -516,6 +556,24 @@ create policy "authenticated write exercise_focuses" on exercise_focuses
 create policy "authenticated update exercise_focuses" on exercise_focuses
   for update to authenticated using (is_trainer());
 create policy "authenticated delete exercise_focuses" on exercise_focuses
+  for delete to authenticated using (is_trainer());
+
+create policy "authenticated read performance_updates" on performance_updates
+  for select to authenticated using (true);
+create policy "authenticated write performance_updates" on performance_updates
+  for insert to authenticated with check (is_trainer());
+create policy "authenticated update performance_updates" on performance_updates
+  for update to authenticated using (is_trainer());
+create policy "authenticated delete performance_updates" on performance_updates
+  for delete to authenticated using (is_trainer());
+
+create policy "authenticated read performance_ratings" on performance_ratings
+  for select to authenticated using (true);
+create policy "authenticated write performance_ratings" on performance_ratings
+  for insert to authenticated with check (is_trainer());
+create policy "authenticated update performance_ratings" on performance_ratings
+  for update to authenticated using (is_trainer());
+create policy "authenticated delete performance_ratings" on performance_ratings
   for delete to authenticated using (is_trainer());
 
 -- ─────────────────────────────────────────────
