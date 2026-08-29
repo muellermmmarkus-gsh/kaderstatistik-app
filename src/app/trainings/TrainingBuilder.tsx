@@ -297,7 +297,22 @@ export default function TrainingBuilder({
         ← Zurück
       </button>
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        <form ref={formRef} action={action} className="flex-1 space-y-6">
+        <form
+          ref={(el) => {
+            formRef.current = el;
+            // React 19 ruft nach einer erfolgreichen Form-Action automatisch
+            // el.reset() auf (wie bei einem klassischen, nicht-JS-Formular).
+            // Das wuerde alle kontrollierten Felder (Kategorie, Uebung,
+            // Gruppe, ...) sichtbar auf ihren Browser-Default zuruecksetzen,
+            // obwohl State und Datenbank weiterhin den richtigen Wert haben
+            // - der Fehler verschwindet erst nach einem manuellen Reload.
+            // Da dieses Formular seinen Zustand komplett selbst verwaltet,
+            // deaktivieren wir das native Reset.
+            if (el) el.reset = () => {};
+          }}
+          action={action}
+          className="flex-1 space-y-6"
+        >
         <input type="hidden" name="afterSaveRedirect" ref={redirectInputRef} />
         <div className="flex flex-wrap gap-3">
           <div className="flex-1">
