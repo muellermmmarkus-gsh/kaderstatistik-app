@@ -278,7 +278,13 @@ export default function TrainingBuilder({
     });
 
     setRows(newRows);
-    if (focusPriority[0]) setTrainingFocus(focusPriority[0]);
+    // "Schwerpunkt Training" bewusst auf "Kein Schwerpunkt" zuruecksetzen:
+    // die Uebungs-/Spielform-Bloecke wurden reihum ueber mehrere
+    // Schwerpunkte hinweg befuellt (nicht auf einen einzigen beschraenkt).
+    // Ein einzelner gesetzter Wert wuerde categoryExercises weiter unten
+    // filtern und Bloecke mit einem anderen Schwerpunkt faelschlich als
+    // "keine passende Uebung" anzeigen, obwohl row.exerciseId korrekt ist.
+    setTrainingFocus("");
     setShowAiModal(false);
   }
 
@@ -386,9 +392,18 @@ export default function TrainingBuilder({
             </select>
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium" htmlFor="notes">
-              Notizen
-            </label>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium" htmlFor="notes">
+                Notizen
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowAiModal(true)}
+                className="rounded border border-zinc-300 px-3 py-1 text-xs whitespace-nowrap dark:border-zinc-700"
+              >
+                KI-Vorschlag erstellen
+              </button>
+            </div>
             <input
               id="notes"
               name="notes"
@@ -397,14 +412,6 @@ export default function TrainingBuilder({
             />
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setShowAiModal(true)}
-          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-        >
-          KI-Vorschlag erstellen
-        </button>
 
         <div className="space-y-3">
           {blockOrder.map((block) => {
