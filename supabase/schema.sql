@@ -54,7 +54,11 @@ insert into event_types (key, label, sort_order) values
   ('training', 'Training', 0),
   ('game', 'Spiel', 1),
   ('tournament', 'Turnier', 2),
-  ('event', 'Event', 3)
+  ('event', 'Event', 3),
+  -- Fangnetz fuer Termine, deren Terminart geloescht wurde. Erscheint
+  -- bewusst nicht in der Terminarten-Verwaltung oder der Auswahl beim
+  -- Anlegen eines neuen Termins.
+  ('unassigned', 'Keine Zuordnung', 9999)
 on conflict (key) do nothing;
 
 create table if not exists events (

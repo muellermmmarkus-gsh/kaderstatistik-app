@@ -52,6 +52,9 @@ export default async function EventsPage({
   const hasActiveFilters = !!(filterType || filterSeason);
   const today = new Date().toISOString().slice(0, 10);
   const typeLabels = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
+  // "unassigned" ist ein internes Fangnetz fuer Termine, deren Terminart
+  // geloescht wurde - nicht zur Auswahl beim Anlegen eines neuen Termins.
+  const creatableEventTypes = (eventTypes ?? []).filter((t) => t.key !== "unassigned");
 
   const defaultSeason =
     seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
@@ -81,7 +84,7 @@ export default async function EventsPage({
           <CreateEventForm
             seasons={seasons}
             defaultSeason={defaultSeason}
-            eventTypes={eventTypes ?? []}
+            eventTypes={creatableEventTypes}
           />
         ))}
 

@@ -61,3 +61,33 @@ export async function saveEventTypes(formData: FormData) {
   revalidatePath("/events");
   revalidatePath("/calendar");
 }
+
+const PROTECTED_KEYS = ["training", "game", "tournament", "event", "unassigned"];
+
+export async function deleteEventType(key: string) {
+  if (PROTECTED_KEYS.includes(key)) {
+    throw new Error("Diese Terminart kann nicht gelöscht werden.");
+  }
+
+  const supabase = await createClient();
+
+  // Betroffene Termine vor dem Loeschen auf "Keine Zuordnung" umstellen, da
+  // events.type per Fremdschluessel auf event_types(key) verweist und daher
+  // immer auf einen bestehenden Wert zeigen muss.
+  const { error: reassignError } = await supabase
+    .from("events")
+    .update({ type: "unassigned" })
+    .eq("type", key);
+  if (reassignError) {
+    throw new Error(`Termine konnten nicht umgestellt werden: ${reassignError.message}`);
+  }
+
+  const { error } = await supabase.from("event_types").delete().eq("key", key);
+  if (error) {
+    throw new Error(`Terminart konnte nicht gelöscht werden: ${error.message}`);
+  }
+
+  revalidatePath("/settings/event-types");
+  revalidatePath("/events");
+  revalidatePath("/calendar");
+}

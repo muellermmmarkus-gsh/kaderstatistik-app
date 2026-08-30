@@ -254,6 +254,9 @@ export default async function CalendarPage({
 
   const defaultSeason = seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
   const typeLabelByKey = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
+  // "unassigned" ist ein internes Fangnetz fuer Termine, deren Terminart
+  // geloescht wurde - nicht zur Auswahl beim Anlegen eines neuen Termins.
+  const creatableEventTypes = (eventTypes ?? []).filter((t) => t.key !== "unassigned");
 
   const typeStyleByKey = new Map<string, string>();
   let extraColorIndex = 0;
@@ -414,7 +417,7 @@ export default async function CalendarPage({
             canWrite={canWrite}
             seasons={seasons ?? []}
             defaultSeason={defaultSeason}
-            eventTypes={eventTypes ?? []}
+            eventTypes={creatableEventTypes}
           />
         </div>
       </div>
