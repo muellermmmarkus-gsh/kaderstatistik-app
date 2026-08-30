@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
+import CalendarGrid, { type DayCell } from "./CalendarGrid";
 
 const WEEKDAY_LABELS = [
   "Montag",
@@ -35,8 +37,6 @@ const typeStyles = {
   tournament: "bg-teal-600 text-white",
   event: "bg-purple-600 text-white",
 } as const;
-
-const BIRTHDAY_STYLE = "bg-amber-500 text-zinc-900";
 
 // Verschiedene, aber alle roetliche Farbtoene fuer die Trainer-Abwesenheiten
 const ABSENCE_COLORS = [
@@ -200,6 +200,8 @@ export default async function CalendarPage({
     { count: totalTrainers },
     { data: playerBirthdayRows },
     { data: trainerBirthdayRows },
+    { data: seasons },
+    canWrite,
   ] = await Promise.all([
     supabase
       .from("events")
@@ -226,7 +228,11 @@ export default async function CalendarPage({
       .select("id, first_name, last_name, birth_date")
       .eq("active", true)
       .not("birth_date", "is", null),
+    supabase.from("seasons").select("name, is_default").order("name", { ascending: false }),
+    isTrainer(),
   ]);
+
+  const defaultSeason = seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
 
   const events = (eventsData as CalendarEvent[] | null) ?? [];
   const absences = (absencesData as CalendarAbsence[] | null) ?? [];
@@ -263,6 +269,45 @@ export default async function CalendarPage({
   const prevMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
   const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
   const todayKey = toDateKey(today);
+
+  // Praesentationsdaten fuer die (clientseitig interaktive) Kalendergrafik
+  // vollstaendig serverseitig aufbereiten, damit CalendarGrid keine
+  // Geschaeftslogik duplizieren muss.
+  const weekRows = weeks.map((week) => ({
+    isoWeek: getIsoWeek(week[0]),
+    days: week.map((day): DayCell => {
+      const dateKey = toDateKey(day);
+      const dayEvents = eventsByDate.get(dateKey) ?? [];
+      const dayAbsences = absences.filter(
+        (a) => a.start_date <= dateKey && dateKey <= a.end_date,
+      );
+      const dayBirthdays = birthdaysByDate.get(dateKey) ?? [];
+      return {
+        dateKey,
+        dayNumber: day.getDate(),
+        inMonth: day.getMonth() + 1 === month,
+        isWeekend: day.getDay() === 0 || day.getDay() === 6,
+        isToday: dateKey === todayKey,
+        events: dayEvents.map((event) => ({
+          id: event.id,
+          colorClass: typeStyles[event.type],
+          label: eventLabel(event, totalTrainers ?? 0),
+          title: eventTitle(event, totalTrainers ?? 0),
+        })),
+        absences: dayAbsences.map((absence) => ({
+          id: absence.id,
+          colorClass: absenceColorByTrainer.get(absence.trainer_id) ?? ABSENCE_COLORS[0],
+          label: `${absence.trainers?.first_name ?? ""} ${absence.trainers?.last_name ?? ""}`,
+          title: `${absence.trainers?.first_name ?? ""} ${absence.trainers?.last_name ?? ""} abwesend`,
+        })),
+        birthdays: dayBirthdays.map((birthday) => ({
+          key: `${birthday.kind}-${birthday.name}`,
+          label: `🎂 ${birthday.name} (${birthday.age})`,
+          title: `${birthday.name} (${birthday.kind}) wird ${birthday.age}`,
+        })),
+      };
+    }),
+  }));
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
@@ -338,85 +383,12 @@ export default async function CalendarPage({
             ))}
           </div>
 
-          {weeks.map((week) => (
-            <div
-              key={week[0].toISOString()}
-              className="grid grid-cols-[3rem_repeat(7,1fr)] border-b border-zinc-100 last:border-b-0 dark:border-zinc-900"
-            >
-              <div className="border-r border-zinc-100 px-2 py-2 text-xs font-semibold text-zinc-500 dark:border-zinc-900">
-                KW {getIsoWeek(week[0])}
-              </div>
-              {week.map((day) => {
-                const dateKey = toDateKey(day);
-                const inMonth = day.getMonth() + 1 === month;
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                const isToday = dateKey === todayKey;
-                const dayEvents = eventsByDate.get(dateKey) ?? [];
-                const dayAbsences = absences.filter(
-                  (a) => a.start_date <= dateKey && dateKey <= a.end_date,
-                );
-                const dayBirthdays = birthdaysByDate.get(dateKey) ?? [];
-
-                return (
-                  <div
-                    key={dateKey}
-                    className={`h-28 min-w-0 overflow-y-auto border-r border-zinc-100 p-1.5 last:border-r-0 dark:border-zinc-900 ${
-                      isWeekend ? "bg-slate-50 dark:bg-zinc-900/40" : ""
-                    } ${!inMonth ? "bg-zinc-50 dark:bg-zinc-950" : ""}`}
-                  >
-                    <div
-                      className={`mb-1 text-right text-xs ${
-                        !inMonth
-                          ? "text-zinc-400 dark:text-zinc-600"
-                          : isToday
-                            ? "font-semibold text-zinc-900 dark:text-zinc-100"
-                            : "text-zinc-600 dark:text-zinc-400"
-                      }`}
-                    >
-                      {isToday ? (
-                        <span className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-white dark:bg-zinc-100 dark:text-zinc-900">
-                          {day.getDate()}
-                        </span>
-                      ) : (
-                        String(day.getDate()).padStart(2, "0")
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {dayEvents.map((event) => (
-                        <Link
-                          key={event.id}
-                          href={`/events/${event.id}`}
-                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${typeStyles[event.type]}`}
-                          title={eventTitle(event, totalTrainers ?? 0)}
-                        >
-                          {eventLabel(event, totalTrainers ?? 0)}
-                        </Link>
-                      ))}
-                      {dayAbsences.map((absence) => (
-                        <Link
-                          key={absence.id}
-                          href="/absences"
-                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${absenceColorByTrainer.get(absence.trainer_id) ?? ABSENCE_COLORS[0]} text-white`}
-                          title={`${absence.trainers?.first_name ?? ""} ${absence.trainers?.last_name ?? ""} abwesend`}
-                        >
-                          {absence.trainers?.first_name} {absence.trainers?.last_name}
-                        </Link>
-                      ))}
-                      {dayBirthdays.map((birthday) => (
-                        <span
-                          key={`${birthday.kind}-${birthday.name}`}
-                          className={`block rounded px-1.5 py-0.5 text-xs break-words ${BIRTHDAY_STYLE}`}
-                          title={`${birthday.name} (${birthday.kind}) wird ${birthday.age}`}
-                        >
-                          🎂 {birthday.name} ({birthday.age})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+          <CalendarGrid
+            weekRows={weekRows}
+            canWrite={canWrite}
+            seasons={seasons ?? []}
+            defaultSeason={defaultSeason}
+          />
         </div>
       </div>
     </div>
