@@ -20,16 +20,26 @@ type EventRow = {
   }[];
 };
 
-export default async function EventsPage() {
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; season?: string }>;
+}) {
+  const { type: filterType, season: filterSeason } = await searchParams;
+
   const supabase = await createClient();
+  let eventsQuery = supabase
+    .from("events")
+    .select(
+      "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
+    )
+    .order("event_date", { ascending: true });
+  if (filterType) eventsQuery = eventsQuery.eq("type", filterType);
+  if (filterSeason) eventsQuery = eventsQuery.eq("season", filterSeason);
+
   const [{ data: eventsData }, { data: seasons }, { data: eventTypes }, canWrite] =
     await Promise.all([
-      supabase
-        .from("events")
-        .select(
-          "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
-        )
-        .order("event_date", { ascending: true }),
+      eventsQuery,
       supabase
         .from("seasons")
         .select("name, is_default")
@@ -39,6 +49,7 @@ export default async function EventsPage() {
     ]);
 
   const events = eventsData as EventRow[] | null;
+  const hasActiveFilters = !!(filterType || filterSeason);
   const today = new Date().toISOString().slice(0, 10);
   const typeLabels = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
 
@@ -73,6 +84,62 @@ export default async function EventsPage() {
             eventTypes={eventTypes ?? []}
           />
         ))}
+
+      <form
+        method="get"
+        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      >
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="filterType">
+            Art
+          </label>
+          <select
+            id="filterType"
+            name="type"
+            defaultValue={filterType ?? ""}
+            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="">Alle</option>
+            {(eventTypes ?? []).map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="filterSeason">
+            Saison
+          </label>
+          <select
+            id="filterSeason"
+            name="season"
+            defaultValue={filterSeason ?? ""}
+            className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="">Alle</option>
+            {(seasons ?? []).map((s) => (
+              <option key={s.name} value={s.name}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="submit"
+          className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          Filtern
+        </button>
+        {hasActiveFilters && (
+          <Link
+            href="/events"
+            className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+          >
+            Filter löschen
+          </Link>
+        )}
+      </form>
 
       <table className="w-full text-left text-sm">
         <thead>
