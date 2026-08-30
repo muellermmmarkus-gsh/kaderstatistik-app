@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
 import SaveNotice from "@/components/SaveNotice";
+import AiPlanModal from "./AiPlanModal";
 
 const GROUP_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 const BLOCK_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -68,6 +69,7 @@ export default function TrainingBuilder({
   exercises,
   players,
   focuses,
+  focusPriority,
   action,
   initialFocus,
   initialNotes,
@@ -79,6 +81,7 @@ export default function TrainingBuilder({
   exercises: Exercise[];
   players: Player[];
   focuses: string[];
+  focusPriority: string[];
   action: (formData: FormData) => void;
   initialFocus?: string;
   initialNotes?: string;
@@ -93,6 +96,7 @@ export default function TrainingBuilder({
   const redirectInputRef = useRef<HTMLInputElement>(null);
 
   const [trainingFocus, setTrainingFocus] = useState(initialFocus ?? "");
+  const [showAiModal, setShowAiModal] = useState(false);
 
   const [rows, setRows] = useState<Row[]>(() =>
     initialRows?.length
@@ -231,6 +235,53 @@ export default function TrainingBuilder({
     );
   }
 
+  // Ersetzt den kompletten Trainingsplan durch einen Vorschlag: pro
+  // vorgegebenem Block wird - bei Uebungs-/Spielformen - reihum der
+  // schwaechste noch nicht verplante Schwerpunkt (aus "Performance")
+  // mit einer passenden, moeglichst noch nicht verwendeten Uebung belegt.
+  // Ohne Treffer faellt der Block auf irgendeine Uebung der Kategorie zurueck.
+  function generateAiPlan(blocks: { category: string; duration: number }[]) {
+    const usedExerciseIds = new Set<string>();
+    let priorityPointer = 0;
+
+    const newRows: Row[] = blocks.map((block, index) => {
+      const categoryExercises = exercises.filter((ex) => ex.category === block.category);
+      let chosen: Exercise | undefined;
+
+      if (focusAppliesToCategory(block.category) && focusPriority.length) {
+        for (let p = 0; p < focusPriority.length && !chosen; p++) {
+          const idx = (priorityPointer + p) % focusPriority.length;
+          const focus = focusPriority[idx];
+          const match = categoryExercises.find(
+            (ex) => !usedExerciseIds.has(ex.id) && exerciseMatchesFocus(ex, focus),
+          );
+          if (match) {
+            chosen = match;
+            priorityPointer = (idx + 1) % focusPriority.length;
+          }
+        }
+      }
+
+      if (!chosen) {
+        chosen = categoryExercises.find((ex) => !usedExerciseIds.has(ex.id)) ?? categoryExercises[0];
+      }
+      if (chosen) usedExerciseIds.add(chosen.id);
+
+      return {
+        key: crypto.randomUUID(),
+        category: block.category,
+        exerciseId: chosen?.id ?? "",
+        duration: block.duration,
+        block: index + 1,
+        groups: [""],
+      };
+    });
+
+    setRows(newRows);
+    if (focusPriority[0]) setTrainingFocus(focusPriority[0]);
+    setShowAiModal(false);
+  }
+
   function updateRowGroup(key: string, index: number, value: string) {
     setRows((prev) =>
       prev.map((r) =>
@@ -346,6 +397,14 @@ export default function TrainingBuilder({
             />
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAiModal(true)}
+          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          KI-Vorschlag erstellen
+        </button>
 
         <div className="space-y-3">
           {blockOrder.map((block) => {
@@ -782,6 +841,11 @@ export default function TrainingBuilder({
         </table>
       </aside>
       </div>
+      <AiPlanModal
+        open={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        onGenerate={generateAiPlan}
+      />
     </div>
   );
 }

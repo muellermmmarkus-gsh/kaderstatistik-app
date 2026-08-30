@@ -46,40 +46,70 @@ export default async function TrainingDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: training }, { data: exercises }, { data: players }, { data: focuses }, canWrite] =
-    await Promise.all([
-      supabase
-        .from("events")
-        .select("id, event_date, season")
-        .eq("id", id)
-        .eq("type", "training")
-        .maybeSingle(),
-      supabase
-        .from("trainings")
-        .select(
-          "focus, notes, training_exercises(duration_minutes, sort_order, block, training_exercise_groups(group_label), exercises(id, name, hauptzweck, min_players, max_players, image_url)), training_player_groups(player_id, group_label)",
-        )
-        .eq("event_id", id)
-        .maybeSingle(),
-      supabase
-        .from("exercises")
-        .select(
-          "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m)",
-        )
-        .order("name"),
-      supabase
-        .from("players")
-        .select("id, first_name, last_name")
-        .eq("active", true)
-        .order("last_name"),
-      supabase.from("exercise_focuses").select("label").order("sort_order"),
-      isTrainer(),
-    ]);
+  const [
+    { data: event },
+    { data: training },
+    { data: exercises },
+    { data: players },
+    { data: focuses },
+    { data: latestGrades },
+    canWrite,
+  ] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, event_date, season")
+      .eq("id", id)
+      .eq("type", "training")
+      .maybeSingle(),
+    supabase
+      .from("trainings")
+      .select(
+        "focus, notes, training_exercises(duration_minutes, sort_order, block, training_exercise_groups(group_label), exercises(id, name, hauptzweck, min_players, max_players, image_url)), training_player_groups(player_id, group_label)",
+      )
+      .eq("event_id", id)
+      .maybeSingle(),
+    supabase
+      .from("exercises")
+      .select(
+        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m)",
+      )
+      .order("name"),
+    supabase
+      .from("players")
+      .select("id, first_name, last_name")
+      .eq("active", true)
+      .order("last_name"),
+    supabase.from("exercise_focuses").select("label").order("sort_order"),
+    supabase.from("performance_latest").select("player_id, focus, grade"),
+    isTrainer(),
+  ]);
 
   if (!event) notFound();
 
   const exerciseOptions = (exercises ?? []) as unknown as ExerciseOption[];
   const playerOptions = (players ?? []) as PlayerOption[];
+  const focusLabels = (focuses ?? []).map((f) => f.label);
+
+  // Schwerpunkte, absteigend nach Dringlichkeit (schwaechste Durchschnittsnote
+  // zuerst) sortiert - Grundlage fuer den "KI-Vorschlag" im Trainingsbuilder.
+  // Noten folgen dem Schulnotensystem (1 = sehr gut, 6 = ungenuegend), daher
+  // ist eine hohe Durchschnittsnote gleichbedeutend mit hohem Trainingsbedarf.
+  const activePlayerIds = new Set(playerOptions.map((p) => p.id));
+  const gradeSums = new Map<string, { sum: number; count: number }>();
+  for (const g of latestGrades ?? []) {
+    if (!activePlayerIds.has(g.player_id)) continue;
+    const entry = gradeSums.get(g.focus) ?? { sum: 0, count: 0 };
+    entry.sum += g.grade;
+    entry.count += 1;
+    gradeSums.set(g.focus, entry);
+  }
+  const rankedFocuses = [...gradeSums.entries()]
+    .sort((a, b) => b[1].sum / b[1].count - a[1].sum / a[1].count)
+    .map(([focus]) => focus);
+  const focusPriority = [
+    ...rankedFocuses,
+    ...focusLabels.filter((f) => !gradeSums.has(f)),
+  ];
 
   const items = (
     (training?.training_exercises ?? []) as unknown as TrainingExerciseRow[]
@@ -145,7 +175,8 @@ export default async function TrainingDetailPage({
           backHref="/trainings"
           exercises={exerciseOptions}
           players={playerOptions}
-          focuses={(focuses ?? []).map((f) => f.label)}
+          focuses={focusLabels}
+          focusPriority={focusPriority}
           action={save}
           initialFocus={training?.focus ?? undefined}
           initialNotes={training?.notes ?? undefined}
