@@ -25,11 +25,89 @@ insert into event_types (key, label, sort_order) values
   ('event', 'Event', 3)
 on conflict (key) do nothing;
 
+-- Diese Views lesen events.type direkt und muessen vor dem Spaltentyp-Wechsel
+-- entfernt und danach unveraendert neu angelegt werden (Postgres erlaubt
+-- kein ALTER COLUMN TYPE auf eine Spalte, von der eine View abhaengt).
+drop view if exists attendance_by_month;
+drop view if exists attendance_by_season;
+drop view if exists trainer_attendance_by_season;
+drop view if exists trainer_attendance_by_month;
+
 alter table events alter column type type text using type::text;
 drop type if exists event_type;
 
 alter table events
   add constraint events_type_fkey foreign key (type) references event_types(key);
+
+create or replace view attendance_by_month as
+select
+  p.id as player_id,
+  p.first_name,
+  p.last_name,
+  e.season,
+  date_trunc('month', e.event_date)::date as month,
+  e.type,
+  count(*) filter (where a.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where a.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from attendance a
+join players p on p.id = a.player_id
+join events e on e.id = a.event_id
+group by p.id, p.first_name, p.last_name, e.season, date_trunc('month', e.event_date), e.type;
+
+create or replace view attendance_by_season as
+select
+  p.id as player_id,
+  p.first_name,
+  p.last_name,
+  e.season,
+  e.type,
+  count(*) filter (where a.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where a.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from attendance a
+join players p on p.id = a.player_id
+join events e on e.id = a.event_id
+group by p.id, p.first_name, p.last_name, e.season, e.type;
+
+create or replace view trainer_attendance_by_season as
+select
+  t.id as trainer_id,
+  t.first_name,
+  t.last_name,
+  e.season,
+  e.type,
+  count(*) filter (where ta.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where ta.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from trainer_attendance ta
+join trainers t on t.id = ta.trainer_id
+join events e on e.id = ta.event_id
+group by t.id, t.first_name, t.last_name, e.season, e.type;
+
+create or replace view trainer_attendance_by_month as
+select
+  t.id as trainer_id,
+  t.first_name,
+  t.last_name,
+  e.season,
+  date_trunc('month', e.event_date)::date as month,
+  e.type,
+  count(*) filter (where ta.present) as attended,
+  count(*) as total,
+  round(
+    100.0 * count(*) filter (where ta.present) / nullif(count(*), 0), 1
+  ) as attendance_pct
+from trainer_attendance ta
+join trainers t on t.id = ta.trainer_id
+join events e on e.id = ta.event_id
+group by t.id, t.first_name, t.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 alter table event_types enable row level security;
 
