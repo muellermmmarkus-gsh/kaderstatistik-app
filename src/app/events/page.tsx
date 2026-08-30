@@ -44,6 +44,7 @@ export default async function EventsPage() {
   ]);
 
   const events = eventsData as EventRow[] | null;
+  const today = new Date().toISOString().slice(0, 10);
 
   const defaultSeason =
     seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
@@ -90,6 +91,11 @@ export default async function EventsPage() {
         <tbody>
           {events?.map((event) => {
             const remove = deleteEvent.bind(null, event.id);
+            // Vergangene Trainingstermine (inkl. heute) duerfen nicht
+            // geloescht werden, damit Trainingsplaene und bereits erfasste
+            // Anwesenheiten erhalten bleiben. Spiele/Events/Turniere sind
+            // davon nicht betroffen.
+            const canDelete = !(event.type === "training" && event.event_date <= today);
             const confirmedTrainers = event.trainer_attendance
               .filter((a) => a.confirmed && a.trainers)
               .map((a) => `${a.trainers!.first_name} ${a.trainers!.last_name}`)
@@ -115,14 +121,23 @@ export default async function EventsPage() {
                 <td className="py-2 text-zinc-500">{event.season}</td>
                 {canWrite && (
                   <td className="py-2 text-right">
-                    <form action={remove}>
-                      <button
-                        type="submit"
-                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                    {canDelete ? (
+                      <form action={remove}>
+                        <button
+                          type="submit"
+                          className="text-zinc-600 hover:underline dark:text-zinc-400"
+                        >
+                          löschen
+                        </button>
+                      </form>
+                    ) : (
+                      <span
+                        className="text-xs text-zinc-400"
+                        title="Vergangene Trainingstermine können nicht gelöscht werden."
                       >
-                        löschen
-                      </button>
-                    </form>
+                        –
+                      </span>
+                    )}
                   </td>
                 )}
               </tr>

@@ -39,6 +39,25 @@ export async function createEvent(formData: FormData) {
 
 export async function deleteEvent(eventId: string) {
   const supabase = await createClient();
-  await supabase.from("events").delete().eq("id", eventId);
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("type, event_date")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!event) return;
+
+  // Vergangene Trainingstermine (inkl. heute) duerfen nicht geloescht werden,
+  // damit Trainingsplaene und bereits erfasste Anwesenheiten erhalten
+  // bleiben. Spiele/Events/Turniere sind davon nicht betroffen.
+  const today = new Date().toISOString().slice(0, 10);
+  if (event.type === "training" && event.event_date <= today) {
+    throw new Error("Vergangene Trainingstermine können nicht gelöscht werden.");
+  }
+
+  const { error } = await supabase.from("events").delete().eq("id", eventId);
+  if (error) throw new Error(`Termin konnte nicht gelöscht werden: ${error.message}`);
+
   revalidatePath("/events");
+  revalidatePath("/trainings");
 }
