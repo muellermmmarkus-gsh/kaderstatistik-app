@@ -16,6 +16,10 @@ export async function createEvent(formData: FormData) {
   if (!eventDate || !season) return;
 
   const hasOpponentFields = type === "game" || type === "tournament";
+  // Terminarten ohne eigene Sonderfelder (also nicht Training/Spiel/Turnier)
+  // verhalten sich wie "Event": nur eine Bezeichnung - gilt automatisch auch
+  // fuer neu unter Einstellungen angelegte Terminarten.
+  const needsLabel = type !== "training" && !hasOpponentFields;
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -27,7 +31,7 @@ export async function createEvent(formData: FormData) {
       opponent: hasOpponentFields ? opponent || null : null,
       event_time: hasOpponentFields ? eventTime || null : null,
       location: hasOpponentFields ? location || null : null,
-      label: type === "event" ? label || null : null,
+      label: needsLabel ? label || null : null,
     })
     .select("id")
     .single();

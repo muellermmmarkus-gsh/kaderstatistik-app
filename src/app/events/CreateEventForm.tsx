@@ -7,12 +7,19 @@ export default function CreateEventForm({
   seasons,
   defaultSeason,
   defaultDate,
+  eventTypes,
 }: {
   seasons: { name: string }[];
   defaultSeason?: string;
   defaultDate?: string;
+  eventTypes: { key: string; label: string }[];
 }) {
-  const [type, setType] = useState("training");
+  const [type, setType] = useState(eventTypes[0]?.key ?? "");
+  const needsOpponentFields = type === "game" || type === "tournament";
+  // Terminarten ohne eigene Sonderfelder (also nicht Training/Spiel/Turnier)
+  // verhalten sich wie "Event": nur eine Bezeichnung noetig - das gilt
+  // automatisch auch fuer neu unter Einstellungen angelegte Terminarten.
+  const needsLabel = type !== "training" && !needsOpponentFields;
 
   return (
     <form
@@ -30,10 +37,11 @@ export default function CreateEventForm({
           onChange={(e) => setType(e.target.value)}
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="training">Training</option>
-          <option value="game">Spiel</option>
-          <option value="tournament">Turnier</option>
-          <option value="event">Event</option>
+          {eventTypes.map((t) => (
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
+          ))}
         </select>
       </div>
       <div>
@@ -49,7 +57,7 @@ export default function CreateEventForm({
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
-      {(type === "game" || type === "tournament") && (
+      {needsOpponentFields && (
         <>
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor="opponent">
@@ -84,10 +92,10 @@ export default function CreateEventForm({
           </div>
         </>
       )}
-      {type === "event" && (
+      {needsLabel && (
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="label">
-            Bezeichnung Event
+            Bezeichnung
           </label>
           <input
             id="label"

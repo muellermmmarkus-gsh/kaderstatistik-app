@@ -22,11 +22,13 @@ export default function CalendarGrid({
   canWrite,
   seasons,
   defaultSeason,
+  eventTypes,
 }: {
   weekRows: WeekRow[];
   canWrite: boolean;
   seasons: { name: string; is_default: boolean }[];
   defaultSeason?: string;
+  eventTypes: { key: string; label: string }[];
 }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
@@ -139,6 +141,7 @@ export default function CalendarGrid({
                 seasons={seasons}
                 defaultSeason={defaultSeason}
                 defaultDate={selectedDate}
+                eventTypes={eventTypes}
               />
             )}
           </div>

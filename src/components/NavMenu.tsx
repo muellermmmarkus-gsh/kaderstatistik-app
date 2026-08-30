@@ -42,6 +42,10 @@ const menu: MenuGroup[] = [
     ],
   },
   { label: "Statistik", href: "/stats" },
+  {
+    label: "Einstellungen",
+    items: [{ label: "Termine", href: "/settings/event-types" }],
+  },
 ];
 
 export default function NavMenu() {

@@ -29,14 +29,24 @@ const MONTH_LABELS = [
   "Dezember",
 ];
 
-type EventType = "training" | "game" | "event" | "tournament";
-
-const typeStyles = {
+// Feste Farben fuer die eingebauten Terminarten; zusaetzlich unter
+// Einstellungen angelegte Terminarten bekommen reihum eine Farbe aus
+// EXTRA_TYPE_COLORS zugewiesen.
+const BUILTIN_TYPE_STYLES: Record<string, string> = {
   training: "bg-blue-600 text-white",
   game: "bg-green-600 text-white",
   tournament: "bg-teal-600 text-white",
   event: "bg-purple-600 text-white",
-} as const;
+};
+
+const EXTRA_TYPE_COLORS = [
+  "bg-indigo-600 text-white",
+  "bg-fuchsia-600 text-white",
+  "bg-cyan-600 text-white",
+  "bg-lime-600 text-white",
+  "bg-sky-600 text-white",
+  "bg-orange-600 text-white",
+];
 
 // Verschiedene, aber alle roetliche Farbtoene fuer die Trainer-Abwesenheiten
 const ABSENCE_COLORS = [
@@ -52,7 +62,7 @@ const ABSENCE_COLORS = [
 
 type CalendarEvent = {
   id: string;
-  type: EventType;
+  type: string;
   event_date: string;
   opponent: string | null;
   event_time: string | null;
@@ -150,7 +160,11 @@ function birthdaysByDateForRange(people: BirthdayPerson[], days: Date[]) {
   return map;
 }
 
-function eventLabel(event: CalendarEvent, totalTrainers: number) {
+function eventLabel(
+  event: CalendarEvent,
+  totalTrainers: number,
+  typeLabelByKey: Map<string, string>,
+) {
   const time = event.event_time ? `${event.event_time.slice(0, 5)} ` : "";
   const base =
     event.type === "training"
@@ -163,15 +177,19 @@ function eventLabel(event: CalendarEvent, totalTrainers: number) {
           ? event.opponent
             ? `${time}Turnier: ${event.opponent}`
             : `${time}Turnier`
-          : (event.label ?? "Event");
+          : (event.label ?? typeLabelByKey.get(event.type) ?? "Termin");
 
   if (!totalTrainers) return base;
   const confirmed = event.trainer_attendance.filter((a) => a.confirmed).length;
   return `${base} (${confirmed}/${totalTrainers})`;
 }
 
-function eventTitle(event: CalendarEvent, totalTrainers: number) {
-  const label = eventLabel(event, totalTrainers);
+function eventTitle(
+  event: CalendarEvent,
+  totalTrainers: number,
+  typeLabelByKey: Map<string, string>,
+) {
+  const label = eventLabel(event, totalTrainers, typeLabelByKey);
   return (event.type === "game" || event.type === "tournament") && event.location
     ? `${label} · ${event.location}`
     : label;
@@ -201,6 +219,7 @@ export default async function CalendarPage({
     { data: playerBirthdayRows },
     { data: trainerBirthdayRows },
     { data: seasons },
+    { data: eventTypes },
     canWrite,
   ] = await Promise.all([
     supabase
@@ -229,10 +248,21 @@ export default async function CalendarPage({
       .eq("active", true)
       .not("birth_date", "is", null),
     supabase.from("seasons").select("name, is_default").order("name", { ascending: false }),
+    supabase.from("event_types").select("key, label").order("sort_order"),
     isTrainer(),
   ]);
 
   const defaultSeason = seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
+  const typeLabelByKey = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
+
+  const typeStyleByKey = new Map<string, string>();
+  let extraColorIndex = 0;
+  for (const t of eventTypes ?? []) {
+    const style =
+      BUILTIN_TYPE_STYLES[t.key] ?? EXTRA_TYPE_COLORS[extraColorIndex % EXTRA_TYPE_COLORS.length];
+    if (!BUILTIN_TYPE_STYLES[t.key]) extraColorIndex++;
+    typeStyleByKey.set(t.key, style);
+  }
 
   const events = (eventsData as CalendarEvent[] | null) ?? [];
   const absences = (absencesData as CalendarAbsence[] | null) ?? [];
@@ -290,9 +320,9 @@ export default async function CalendarPage({
         isToday: dateKey === todayKey,
         events: dayEvents.map((event) => ({
           id: event.id,
-          colorClass: typeStyles[event.type],
-          label: eventLabel(event, totalTrainers ?? 0),
-          title: eventTitle(event, totalTrainers ?? 0),
+          colorClass: typeStyleByKey.get(event.type) ?? "bg-zinc-600 text-white",
+          label: eventLabel(event, totalTrainers ?? 0, typeLabelByKey),
+          title: eventTitle(event, totalTrainers ?? 0, typeLabelByKey),
         })),
         absences: dayAbsences.map((absence) => ({
           id: absence.id,
@@ -339,18 +369,14 @@ export default async function CalendarPage({
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-4 text-xs text-zinc-600 dark:text-zinc-400">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Training
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-green-600" /> Spiel
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-teal-600" /> Turnier
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-purple-600" /> Event
-        </span>
+        {(eventTypes ?? []).map((t) => (
+          <span key={t.key} className="flex items-center gap-1.5">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${(typeStyleByKey.get(t.key) ?? "").split(" ")[0]}`}
+            />{" "}
+            {t.label}
+          </span>
+        ))}
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Geburtstag
         </span>
@@ -388,6 +414,7 @@ export default async function CalendarPage({
             canWrite={canWrite}
             seasons={seasons ?? []}
             defaultSeason={defaultSeason}
+            eventTypes={eventTypes ?? []}
           />
         </div>
       </div>

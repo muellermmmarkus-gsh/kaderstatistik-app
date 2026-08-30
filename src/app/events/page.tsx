@@ -5,13 +5,6 @@ import { deleteEvent } from "./actions";
 import CreateEventForm from "./CreateEventForm";
 import BackButton from "@/components/BackButton";
 
-const typeLabels: Record<string, string> = {
-  training: "Training",
-  game: "Spiel",
-  event: "Event",
-  tournament: "Turnier",
-};
-
 type EventRow = {
   id: string;
   type: string;
@@ -29,22 +22,25 @@ type EventRow = {
 
 export default async function EventsPage() {
   const supabase = await createClient();
-  const [{ data: eventsData }, { data: seasons }, canWrite] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
-      )
-      .order("event_date", { ascending: true }),
-    supabase
-      .from("seasons")
-      .select("name, is_default")
-      .order("name", { ascending: false }),
-    isTrainer(),
-  ]);
+  const [{ data: eventsData }, { data: seasons }, { data: eventTypes }, canWrite] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select(
+          "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
+        )
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("seasons")
+        .select("name, is_default")
+        .order("name", { ascending: false }),
+      supabase.from("event_types").select("key, label").order("sort_order"),
+      isTrainer(),
+    ]);
 
   const events = eventsData as EventRow[] | null;
   const today = new Date().toISOString().slice(0, 10);
+  const typeLabels = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
 
   const defaultSeason =
     seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
@@ -71,7 +67,11 @@ export default async function EventsPage() {
             mindestens eine Saison ein.
           </p>
         ) : (
-          <CreateEventForm seasons={seasons} defaultSeason={defaultSeason} />
+          <CreateEventForm
+            seasons={seasons}
+            defaultSeason={defaultSeason}
+            eventTypes={eventTypes ?? []}
+          />
         ))}
 
       <table className="w-full text-left text-sm">
@@ -110,7 +110,7 @@ export default async function EventsPage() {
                     {event.event_date}
                   </Link>
                 </td>
-                <td className="py-2">{typeLabels[event.type]}</td>
+                <td className="py-2">{typeLabels.get(event.type) ?? event.type}</td>
                 <td className="py-2 text-zinc-500">{event.opponent ?? "–"}</td>
                 <td className="py-2 text-zinc-500">
                   {event.event_time ? event.event_time.slice(0, 5) : "–"}
