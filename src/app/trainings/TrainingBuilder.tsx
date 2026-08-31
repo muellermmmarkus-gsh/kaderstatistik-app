@@ -97,6 +97,7 @@ export default function TrainingBuilder({
 
   const [trainingFocus, setTrainingFocus] = useState(initialFocus ?? "");
   const [showAiModal, setShowAiModal] = useState(false);
+  const [viewMode, setViewMode] = useState<"edit" | "visual">("edit");
 
   const [rows, setRows] = useState<Row[]>(() =>
     initialRows?.length
@@ -346,13 +347,65 @@ export default function TrainingBuilder({
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={goBack}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:underline dark:text-zinc-400"
-      >
-        ← Zurück
-      </button>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex items-center gap-1 text-sm text-zinc-600 hover:underline dark:text-zinc-400"
+        >
+          ← Zurück
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode((mode) => (mode === "edit" ? "visual" : "edit"))}
+          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          {viewMode === "edit" ? "Visuelle Ansicht" : "Zur Bearbeitungsansicht"}
+        </button>
+      </div>
+      {viewMode === "visual" ? (
+        <div className="space-y-6">
+          {blockOrder.flatMap((block) =>
+            rowsByBlock.get(block)!.map((row) => {
+              const exercise = exerciseById.get(row.exerciseId);
+              const duration = effectiveDuration.get(row.key) ?? 0;
+              const groupLabel = row.groups.filter(Boolean).join(", ") || "–";
+              return (
+                <div
+                  key={row.key}
+                  className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800"
+                >
+                  {exercise?.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
+                    <img src={exercise.image_url} alt="" className="h-80 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-80 w-full items-center justify-center border-b border-dashed border-zinc-300 text-sm text-zinc-400 dark:border-zinc-700">
+                      Kein Bild
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-6 p-4 text-sm">
+                    <div>
+                      <span className="text-zinc-500">Trainingsblock</span>{" "}
+                      <span className="font-medium">{block}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">Dauer</span>{" "}
+                      <span className="font-medium">{duration} min</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">Gruppe</span>{" "}
+                      <span className="font-medium">{groupLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }),
+          )}
+          {!rows.length && (
+            <p className="text-sm text-zinc-500">Noch keine Übungen geplant.</p>
+          )}
+        </div>
+      ) : (
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <form
           ref={(el) => {
@@ -848,6 +901,7 @@ export default function TrainingBuilder({
         </table>
       </aside>
       </div>
+      )}
       <AiPlanModal
         open={showAiModal}
         onClose={() => setShowAiModal(false)}
