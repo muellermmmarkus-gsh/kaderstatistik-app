@@ -90,7 +90,11 @@ export default async function PerformanceUpdatePage({
         </p>
       ) : !focusLabels.length ? (
         <p className="text-sm text-zinc-500">
-          Es sind noch keine Übungsschwerpunkte unter „Übungsplanung“ angelegt.
+          Es sind noch keine Skills unter{" "}
+          <Link href="/settings/skills" className="underline">
+            Einstellungen
+          </Link>{" "}
+          angelegt.
         </p>
       ) : !players?.length ? (
         <p className="text-sm text-zinc-500">Noch keine aktiven Spieler angelegt.</p>

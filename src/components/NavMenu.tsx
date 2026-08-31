@@ -29,7 +29,6 @@ const menu: MenuGroup[] = [
     items: [
       { label: "Übungen", href: "/exercises" },
       { label: "Übungshistorie", href: "/exercise-history" },
-      { label: "Übungsplanung", href: "/exercise-focuses" },
       { label: "Trainingsplanung", href: "/trainings" },
       { label: "Flächenplanung", href: "/fields" },
     ],
@@ -44,7 +43,10 @@ const menu: MenuGroup[] = [
   { label: "Statistik", href: "/stats" },
   {
     label: "Einstellungen",
-    items: [{ label: "Termine", href: "/settings/event-types" }],
+    items: [
+      { label: "Termine", href: "/settings/event-types" },
+      { label: "Skills", href: "/settings/skills" },
+    ],
   },
 ];
 
