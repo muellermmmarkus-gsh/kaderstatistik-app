@@ -12,12 +12,7 @@ type EventRow = {
   opponent: string | null;
   event_time: string | null;
   location: string | null;
-  label: string | null;
   season: string;
-  trainer_attendance: {
-    confirmed: boolean;
-    trainers: { first_name: string; last_name: string } | null;
-  }[];
 };
 
 export default async function EventsPage({
@@ -30,14 +25,12 @@ export default async function EventsPage({
   const supabase = await createClient();
   let eventsQuery = supabase
     .from("events")
-    .select(
-      "id, type, event_date, opponent, event_time, location, label, season, trainer_attendance(confirmed, trainers(first_name, last_name))",
-    )
+    .select("id, type, event_date, opponent, event_time, location, season")
     .order("event_date", { ascending: true });
   if (filterType) eventsQuery = eventsQuery.eq("type", filterType);
   if (filterSeason) eventsQuery = eventsQuery.eq("season", filterSeason);
 
-  const [{ data: eventsData }, { data: seasons }, { data: eventTypes }, canWrite] =
+  const [{ data: eventsData }, { data: seasons }, { data: eventTypes }, { data: trainingsData }, canWrite] =
     await Promise.all([
       eventsQuery,
       supabase
@@ -45,10 +38,14 @@ export default async function EventsPage({
         .select("name, is_default")
         .order("name", { ascending: false }),
       supabase.from("event_types").select("key, label").order("sort_order"),
+      supabase.from("trainings").select("event_id, focus").not("event_id", "is", null),
       isTrainer(),
     ]);
 
   const events = eventsData as EventRow[] | null;
+  const focusByEvent = new Map(
+    (trainingsData ?? []).map((t) => [t.event_id as string, t.focus as string | null]),
+  );
   const hasActiveFilters = !!(filterType || filterSeason);
   const today = new Date().toISOString().slice(0, 10);
   const typeLabels = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
@@ -152,8 +149,7 @@ export default async function EventsPage({
             <th className="py-2">Gegner</th>
             <th className="py-2">Uhrzeit</th>
             <th className="py-2">Ort</th>
-            <th className="py-2">Event</th>
-            <th className="py-2">Trainer (zugesagt)</th>
+            <th className="py-2">Schwerpunkt</th>
             <th className="py-2">Saison</th>
             {canWrite && <th className="py-2" />}
           </tr>
@@ -166,10 +162,6 @@ export default async function EventsPage({
             // Anwesenheiten erhalten bleiben. Spiele/Events/Turniere sind
             // davon nicht betroffen.
             const canDelete = !(event.type === "training" && event.event_date <= today);
-            const confirmedTrainers = event.trainer_attendance
-              .filter((a) => a.confirmed && a.trainers)
-              .map((a) => `${a.trainers!.first_name} ${a.trainers!.last_name}`)
-              .join(", ");
             return (
               <tr
                 key={event.id}
@@ -186,8 +178,7 @@ export default async function EventsPage({
                   {event.event_time ? event.event_time.slice(0, 5) : "–"}
                 </td>
                 <td className="py-2 text-zinc-500">{event.location ?? "–"}</td>
-                <td className="py-2 text-zinc-500">{event.label ?? "–"}</td>
-                <td className="py-2 text-zinc-500">{confirmedTrainers || "–"}</td>
+                <td className="py-2 text-zinc-500">{focusByEvent.get(event.id) ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{event.season}</td>
                 {canWrite && (
                   <td className="py-2 text-right">
@@ -215,7 +206,7 @@ export default async function EventsPage({
           })}
           {!events?.length && (
             <tr>
-              <td colSpan={canWrite ? 9 : 8} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 8 : 7} className="py-4 text-zinc-500">
                 Noch keine Termine angelegt.
               </td>
             </tr>
