@@ -2,6 +2,7 @@ type ExerciseValues = {
   name: string;
   aufbau: string;
   ablauf: string;
+  coaching: string | null;
   hauptzweck: string;
   nebenzweck: string | null;
   min_players: number;
@@ -100,6 +101,19 @@ export default function ExerciseForm({
           name="ablauf"
           rows={3}
           defaultValue={initial?.ablauf}
+          className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium" htmlFor="coaching">
+          Coaching
+        </label>
+        <textarea
+          id="coaching"
+          name="coaching"
+          rows={3}
+          defaultValue={initial?.coaching ?? ""}
           className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>

@@ -138,6 +138,7 @@ create table if not exists exercises (
   name text not null,
   aufbau text not null default '',
   ablauf text not null default '',
+  coaching text,
   hauptzweck text not null default '',
   nebenzweck text,
   min_players integer not null check (min_players > 0),

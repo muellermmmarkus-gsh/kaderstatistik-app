@@ -18,7 +18,7 @@ export default async function ExerciseDetailPage({
     supabase
       .from("exercises")
       .select(
-        "name, aufbau, ablauf, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m)",
+        "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m)",
       )
       .eq("id", id)
       .single(),
@@ -101,6 +101,10 @@ export default async function ExerciseDetailPage({
             <div>
               <dt className="font-medium">Ablauf</dt>
               <dd className="text-zinc-500">{exercise.ablauf || "–"}</dd>
+            </div>
+            <div>
+              <dt className="font-medium">Coaching</dt>
+              <dd className="text-zinc-500">{exercise.coaching || "–"}</dd>
             </div>
             <div>
               <dt className="font-medium">Übungsschwerpunkt 1</dt>

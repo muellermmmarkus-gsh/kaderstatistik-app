@@ -18,6 +18,7 @@ function parseExercise(formData: FormData) {
     nebenzweck: String(formData.get("nebenzweck") ?? "").trim() || null,
     aufbau: String(formData.get("aufbau") ?? "").trim(),
     ablauf: String(formData.get("ablauf") ?? "").trim(),
+    coaching: String(formData.get("coaching") ?? "").trim() || null,
     min_players: Number(formData.get("minPlayers") ?? 0),
     max_players: Number(formData.get("maxPlayers") ?? 0),
     small_goals: Number(formData.get("smallGoals") ?? 0),
