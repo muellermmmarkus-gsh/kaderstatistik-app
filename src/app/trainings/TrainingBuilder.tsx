@@ -222,18 +222,12 @@ export default function TrainingBuilder({
     updateRow(key, { category, exerciseId: firstMatch?.id ?? "" });
   }
 
+  // Setzt nur den Trainings-Schwerpunkt, ohne bereits gewaehlte Uebungen
+  // anzutasten - eine automatische Uebungsauswahl/-ersetzung soll
+  // ausschliesslich ueber den "KI-Vorschlag"-Button (generateAiPlan)
+  // erfolgen, nicht als Nebeneffekt der manuellen Schwerpunkt-Auswahl.
   function changeFocus(focus: string) {
     setTrainingFocus(focus);
-    setRows((prev) =>
-      prev.map((r) => {
-        if (!focusAppliesToCategory(r.category)) return r;
-        if (exerciseMatchesFocus(exerciseById.get(r.exerciseId), focus)) return r;
-        const firstMatch = exercises.find(
-          (ex) => ex.category === r.category && exerciseMatchesFocus(ex, focus),
-        );
-        return { ...r, exerciseId: firstMatch?.id ?? "" };
-      }),
-    );
   }
 
   // Ersetzt den kompletten Trainingsplan durch einen Vorschlag: pro
@@ -279,13 +273,14 @@ export default function TrainingBuilder({
     });
 
     setRows(newRows);
-    // "Schwerpunkt Training" bewusst auf "Kein Schwerpunkt" zuruecksetzen:
-    // die Uebungs-/Spielform-Bloecke wurden reihum ueber mehrere
-    // Schwerpunkte hinweg befuellt (nicht auf einen einzigen beschraenkt).
-    // Ein einzelner gesetzter Wert wuerde categoryExercises weiter unten
-    // filtern und Bloecke mit einem anderen Schwerpunkt faelschlich als
-    // "keine passende Uebung" anzeigen, obwohl row.exerciseId korrekt ist.
-    setTrainingFocus("");
+    // "Schwerpunkt Training" auf den insgesamt am schlechtesten bewerteten
+    // Skill setzen (Ausgangspunkt der Prioritaetsliste) - einzelne Bloecke
+    // koennen dennoch auf andere Schwerpunkte ausweichen, wenn dort keine
+    // passende, noch unbenutzte Uebung mehr verfuegbar war (Round-Robin
+    // ueber focusPriority). categoryExercises beruecksichtigt deshalb
+    // zusaetzlich die bereits gewaehlte Uebung, damit solche Bloecke nicht
+    // faelschlich als "keine passende Uebung" erscheinen.
+    setTrainingFocus(focusPriority[0] ?? "");
     setShowAiModal(false);
   }
 
@@ -429,34 +424,34 @@ export default function TrainingBuilder({
             <label className="mb-1 block text-sm font-medium" htmlFor="focus">
               Schwerpunkt Training
             </label>
-            <select
-              id="focus"
-              name="focus"
-              value={trainingFocus}
-              onChange={(e) => changeFocus(e.target.value)}
-              className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="">Kein Schwerpunkt</option>
-              {focuses.map((focus) => (
-                <option key={focus} value={focus}>
-                  {focus}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1">
-            <div className="mb-1 flex items-center justify-between gap-3">
-              <label className="block text-sm font-medium" htmlFor="notes">
-                Notizen
-              </label>
+            <div className="flex gap-2">
+              <select
+                id="focus"
+                name="focus"
+                value={trainingFocus}
+                onChange={(e) => changeFocus(e.target.value)}
+                className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <option value="">Kein Schwerpunkt</option>
+                {focuses.map((focus) => (
+                  <option key={focus} value={focus}>
+                    {focus}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={() => setShowAiModal(true)}
-                className="rounded border border-zinc-300 px-3 py-1 text-xs whitespace-nowrap dark:border-zinc-700"
+                className="rounded border border-zinc-300 px-3 py-2 text-xs whitespace-nowrap dark:border-zinc-700"
               >
-                KI-Vorschlag erstellen
+                Schwerpunkt aus Team-Performance ermitteln
               </button>
             </div>
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-sm font-medium" htmlFor="notes">
+              Notizen
+            </label>
             <input
               id="notes"
               name="notes"
@@ -494,7 +489,8 @@ export default function TrainingBuilder({
                         (ex) =>
                           ex.category === row.category &&
                           (!focusAppliesToCategory(row.category) ||
-                            exerciseMatchesFocus(ex, trainingFocus)),
+                            exerciseMatchesFocus(ex, trainingFocus) ||
+                            ex.id === row.exerciseId),
                       )
                     : [];
                   const isFirstInBlock = indexInBlock === 0;
