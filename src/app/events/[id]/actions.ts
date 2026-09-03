@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function saveAttendance(
+async function persistAttendance(
   eventId: string,
   playerIds: string[],
   trainerIds: string[],
@@ -57,6 +58,25 @@ export async function saveAttendance(
   if (goalsRows.length) {
     await supabase.from("goals").insert(goalsRows);
   }
+}
 
+export async function saveAttendance(
+  eventId: string,
+  playerIds: string[],
+  trainerIds: string[],
+  formData: FormData,
+) {
+  await persistAttendance(eventId, playerIds, trainerIds, formData);
   revalidatePath(`/events/${eventId}`);
+}
+
+export async function saveAttendanceAndReturn(
+  eventId: string,
+  playerIds: string[],
+  trainerIds: string[],
+  formData: FormData,
+) {
+  await persistAttendance(eventId, playerIds, trainerIds, formData);
+  revalidatePath("/events");
+  redirect("/events");
 }

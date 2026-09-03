@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
-import { saveAttendance } from "./actions";
+import { saveAttendance, saveAttendanceAndReturn } from "./actions";
 import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
+import EventDetailActions from "./EventDetailActions";
 
 export default async function EventDetailPage({
   params,
@@ -81,6 +82,7 @@ export default async function EventDetailPage({
   const playerIds = players?.map((p) => p.id) ?? [];
   const trainerIds = trainers?.map((t) => t.id) ?? [];
   const save = saveAttendance.bind(null, id, playerIds, trainerIds);
+  const saveAndBack = saveAttendanceAndReturn.bind(null, id, playerIds, trainerIds);
 
   const hasGoals = event.type === "game" || event.type === "tournament";
 
@@ -290,14 +292,12 @@ export default async function EventDetailPage({
           </table>
         </section>
 
-        {canWrite && (!!players?.length || !!trainers?.length) && (
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Speichern
-          </button>
-        )}
+        <EventDetailActions
+          canWrite={canWrite}
+          hasContent={!!players?.length || !!trainers?.length}
+          saveAndBack={saveAndBack}
+          backHref="/events"
+        />
         <SaveNotice />
       </form>
     </div>
