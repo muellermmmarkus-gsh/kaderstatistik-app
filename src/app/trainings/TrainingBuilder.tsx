@@ -230,31 +230,22 @@ export default function TrainingBuilder({
     setTrainingFocus(focus);
   }
 
-  // Ersetzt den kompletten Trainingsplan durch einen Vorschlag: pro
-  // vorgegebenem Block wird - bei Uebungs-/Spielformen - reihum der
-  // schwaechste noch nicht verplante Schwerpunkt (aus "Performance")
-  // mit einer passenden, moeglichst noch nicht verwendeten Uebung belegt.
+  // Ersetzt den kompletten Trainingsplan durch einen Vorschlag: der im
+  // KI-Vorschlag-Popup gewaehlte (manuell oder per "aus Performance
+  // ermitteln") Schwerpunkt wird fuer alle Uebungs-/Spielform-Bloecke als
+  // Filter verwendet, jeweils eine passende, noch nicht verwendete Uebung.
   // Ohne Treffer faellt der Block auf irgendeine Uebung der Kategorie zurueck.
-  function generateAiPlan(blocks: { category: string; duration: number }[]) {
+  function generateAiPlan(focus: string, blocks: { category: string; duration: number }[]) {
     const usedExerciseIds = new Set<string>();
-    let priorityPointer = 0;
 
     const newRows: Row[] = blocks.map((block, index) => {
       const categoryExercises = exercises.filter((ex) => ex.category === block.category);
       let chosen: Exercise | undefined;
 
-      if (focusAppliesToCategory(block.category) && focusPriority.length) {
-        for (let p = 0; p < focusPriority.length && !chosen; p++) {
-          const idx = (priorityPointer + p) % focusPriority.length;
-          const focus = focusPriority[idx];
-          const match = categoryExercises.find(
-            (ex) => !usedExerciseIds.has(ex.id) && exerciseMatchesFocus(ex, focus),
-          );
-          if (match) {
-            chosen = match;
-            priorityPointer = (idx + 1) % focusPriority.length;
-          }
-        }
+      if (focusAppliesToCategory(block.category) && focus) {
+        chosen = categoryExercises.find(
+          (ex) => !usedExerciseIds.has(ex.id) && exerciseMatchesFocus(ex, focus),
+        );
       }
 
       if (!chosen) {
@@ -273,14 +264,7 @@ export default function TrainingBuilder({
     });
 
     setRows(newRows);
-    // "Schwerpunkt Training" auf den insgesamt am schlechtesten bewerteten
-    // Skill setzen (Ausgangspunkt der Prioritaetsliste) - einzelne Bloecke
-    // koennen dennoch auf andere Schwerpunkte ausweichen, wenn dort keine
-    // passende, noch unbenutzte Uebung mehr verfuegbar war (Round-Robin
-    // ueber focusPriority). categoryExercises beruecksichtigt deshalb
-    // zusaetzlich die bereits gewaehlte Uebung, damit solche Bloecke nicht
-    // faelschlich als "keine passende Uebung" erscheinen.
-    setTrainingFocus(focusPriority[0] ?? "");
+    setTrainingFocus(focus);
     setShowAiModal(false);
   }
 
@@ -424,34 +408,34 @@ export default function TrainingBuilder({
             <label className="mb-1 block text-sm font-medium" htmlFor="focus">
               Schwerpunkt Training
             </label>
-            <div className="flex gap-2">
-              <select
-                id="focus"
-                name="focus"
-                value={trainingFocus}
-                onChange={(e) => changeFocus(e.target.value)}
-                className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                <option value="">Kein Schwerpunkt</option>
-                {focuses.map((focus) => (
-                  <option key={focus} value={focus}>
-                    {focus}
-                  </option>
-                ))}
-              </select>
+            <select
+              id="focus"
+              name="focus"
+              value={trainingFocus}
+              onChange={(e) => changeFocus(e.target.value)}
+              className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <option value="">Kein Schwerpunkt</option>
+              {focuses.map((focus) => (
+                <option key={focus} value={focus}>
+                  {focus}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium" htmlFor="notes">
+                Notizen
+              </label>
               <button
                 type="button"
                 onClick={() => setShowAiModal(true)}
-                className="rounded border border-zinc-300 px-3 py-2 text-xs whitespace-nowrap dark:border-zinc-700"
+                className="rounded border border-zinc-300 px-3 py-1 text-xs whitespace-nowrap dark:border-zinc-700"
               >
-                Schwerpunkt aus Team-Performance ermitteln
+                KI-Vorschlag erstellen
               </button>
             </div>
-          </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-sm font-medium" htmlFor="notes">
-              Notizen
-            </label>
             <input
               id="notes"
               name="notes"
@@ -902,6 +886,9 @@ export default function TrainingBuilder({
         open={showAiModal}
         onClose={() => setShowAiModal(false)}
         onGenerate={generateAiPlan}
+        focuses={focuses}
+        focusPriority={focusPriority}
+        initialFocus={trainingFocus}
       />
     </div>
   );

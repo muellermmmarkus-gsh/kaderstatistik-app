@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
 
 const DURATION_OPTIONS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60];
@@ -19,14 +19,31 @@ export default function AiPlanModal({
   open,
   onClose,
   onGenerate,
+  focuses,
+  focusPriority,
+  initialFocus,
 }: {
   open: boolean;
   onClose: () => void;
-  onGenerate: (blocks: { category: string; duration: number }[]) => void;
+  onGenerate: (focus: string, blocks: { category: string; duration: number }[]) => void;
+  focuses: string[];
+  focusPriority: string[];
+  initialFocus?: string;
 }) {
   const [blocks, setBlocks] = useState<Block[]>(() =>
     DEFAULT_BLOCKS.map((b) => ({ ...b, key: crypto.randomUUID() })),
   );
+  const [focus, setFocus] = useState(initialFocus ?? "");
+  const wasOpen = useRef(false);
+
+  // Beim Oeffnen des Popups den aktuell auf der Seite gesetzten Schwerpunkt
+  // uebernehmen (Ausgangspunkt fuer manuelle Auswahl oder Ermittlung).
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      setFocus(initialFocus ?? "");
+    }
+    wasOpen.current = open;
+  }, [open, initialFocus]);
 
   if (!open) return null;
 
@@ -42,9 +59,37 @@ export default function AiPlanModal({
         <h2 className="mb-1 text-lg font-semibold">KI-Vorschlag erstellen</h2>
         <p className="mb-4 text-sm text-zinc-500">
           Gib die grobe Struktur des Trainings vor. Für Üben/Spielen wählt die
-          KI dazu Übungen mit den Schwerpunkten, die das Team laut
-          „Performance“ am dringendsten braucht.
+          KI dazu Übungen mit dem unten gewählten Schwerpunkt.
         </p>
+
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium" htmlFor="ai-focus">
+            Schwerpunkt
+          </label>
+          <div className="flex gap-2">
+            <select
+              id="ai-focus"
+              value={focus}
+              onChange={(e) => setFocus(e.target.value)}
+              className="w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            >
+              <option value="">Kein Schwerpunkt</option>
+              {focuses.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setFocus(focusPriority[0] ?? "")}
+              disabled={!focusPriority.length}
+              className="rounded border border-zinc-300 px-3 py-2 text-xs whitespace-nowrap disabled:opacity-40 dark:border-zinc-700"
+            >
+              Schwerpunkt aus Performance des Teams ermitteln
+            </button>
+          </div>
+        </div>
 
         <div className="space-y-2">
           {blocks.map((block, index) => (
@@ -84,7 +129,10 @@ export default function AiPlanModal({
           <button
             type="button"
             onClick={() =>
-              onGenerate(blocks.map(({ category, duration }) => ({ category, duration })))
+              onGenerate(
+                focus,
+                blocks.map(({ category, duration }) => ({ category, duration })),
+              )
             }
             className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
           >
