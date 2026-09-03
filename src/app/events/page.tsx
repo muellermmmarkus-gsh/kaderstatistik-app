@@ -144,7 +144,7 @@ export default async function EventsPage({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
-            <th className="py-2">Datum</th>
+            <th className="py-2 pr-8">Datum</th>
             <th className="py-2">Art</th>
             <th className="py-2">Gegner</th>
             <th className="py-2">Uhrzeit</th>
@@ -167,7 +167,7 @@ export default async function EventsPage({
                 key={event.id}
                 className="border-b border-zinc-100 dark:border-zinc-900"
               >
-                <td className="py-2">
+                <td className="py-2 pr-8">
                   <Link href={`/events/${event.id}`} className="hover:underline">
                     {event.event_date}
                   </Link>
