@@ -9,6 +9,7 @@ import {
 import BackButton from "@/components/BackButton";
 import DeleteButton from "@/components/DeleteButton";
 import SaveNotice from "@/components/SaveNotice";
+import ExportPlayersButton from "./ExportPlayersButton";
 
 export default async function PlayersPage() {
   const supabase = await createClient();
@@ -23,7 +24,10 @@ export default async function PlayersPage() {
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <BackButton href="/" />
-      <h1 className="mb-6 text-xl font-semibold">Spieler</h1>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Spieler</h1>
+        <ExportPlayersButton players={players ?? []} />
+      </div>
 
       {!canWrite && (
         <p className="mb-6 text-sm text-zinc-500">
