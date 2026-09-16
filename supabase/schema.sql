@@ -245,11 +245,15 @@ create unique index if not exists training_player_groups_unique
 -- Termin: gewaehlte Formation (z.B. '1-3-2-1', GK-3-2-1 als 6 Feldspieler +
 -- Torwart) sowie die Zuordnung Positions-Slot -> Spieler als JSON,
 -- z.B. {"gk": "<player-uuid>", "def-0": "<player-uuid>", ...}.
+-- bench_formation/bench_assignments bilden dieselbe Struktur fuer die
+-- Ersatzbank ab - unabhaengig von der Formation der Startaufstellung.
 create table if not exists lineups (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references events(id) on delete cascade,
   formation text not null,
   assignments jsonb not null default '{}'::jsonb,
+  bench_formation text,
+  bench_assignments jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 

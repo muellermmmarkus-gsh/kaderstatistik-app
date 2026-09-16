@@ -33,7 +33,7 @@ export default async function LineupPage({
       supabase.from("attendance").select("player_id, registered").eq("event_id", id),
       supabase
         .from("lineups")
-        .select("formation, assignments")
+        .select("formation, assignments, bench_formation, bench_assignments")
         .eq("event_id", id)
         .maybeSingle(),
       isTrainer(),
@@ -43,7 +43,12 @@ export default async function LineupPage({
     (attendance ?? []).filter((a) => a.registered).map((a) => a.player_id),
   );
   const initialAssignments = (lineup?.assignments as Record<string, string> | null) ?? {};
-  const assignedIds = new Set(Object.values(initialAssignments));
+  const initialBenchAssignments =
+    (lineup?.bench_assignments as Record<string, string> | null) ?? {};
+  const assignedIds = new Set([
+    ...Object.values(initialAssignments),
+    ...Object.values(initialBenchAssignments),
+  ]);
 
   // Fuer die Spieler-Auswahl zaehlen als "angemeldet" markierte Spieler,
   // zusaetzlich bereits zugewiesene Spieler (falls die Anmeldung im
@@ -56,7 +61,7 @@ export default async function LineupPage({
   const action = saveLineup.bind(null, id);
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <BackButton href={`/events/${id}`} />
       <h1 className="mb-1 text-xl font-semibold">Aufstellung</h1>
       <p className="mb-6 text-sm text-zinc-500">
@@ -80,6 +85,8 @@ export default async function LineupPage({
         players={eligiblePlayers}
         initialFormation={lineup?.formation}
         initialAssignments={initialAssignments}
+        initialBenchFormation={lineup?.bench_formation ?? undefined}
+        initialBenchAssignments={initialBenchAssignments}
         canWrite={canWrite}
         action={action}
       />
