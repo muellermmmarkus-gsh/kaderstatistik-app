@@ -132,6 +132,15 @@ export default async function EventDetailPage({
         </Link>
       )}
 
+      {event.type === "game" && (
+        <Link
+          href={`/events/${event.id}/lineup`}
+          className="mb-6 inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          Aufstellung
+        </Link>
+      )}
+
       {!canWrite && (
         <p className="mb-6 text-sm text-zinc-500">
           Du hast Nur-Lese-Zugriff. Änderungen können nur Trainer vornehmen.

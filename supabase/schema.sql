@@ -241,6 +241,20 @@ create table if not exists training_player_groups (
 create unique index if not exists training_player_groups_unique
   on training_player_groups(training_id, player_id);
 
+-- Aufstellung fuer einen Spieltermin (events, type = 'game'). Eine Zeile pro
+-- Termin: gewaehlte Formation (z.B. '1-3-2-1', GK-3-2-1 als 6 Feldspieler +
+-- Torwart) sowie die Zuordnung Positions-Slot -> Spieler als JSON,
+-- z.B. {"gk": "<player-uuid>", "def-0": "<player-uuid>", ...}.
+create table if not exists lineups (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  formation text not null,
+  assignments jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists lineups_event_id_key on lineups(event_id);
+
 create index if not exists idx_attendance_player on attendance(player_id);
 create index if not exists idx_attendance_event on attendance(event_id);
 create index if not exists idx_goals_player on goals(player_id);
@@ -446,6 +460,7 @@ alter table fields enable row level security;
 alter table exercise_focuses enable row level security;
 alter table performance_updates enable row level security;
 alter table performance_ratings enable row level security;
+alter table lineups enable row level security;
 
 create policy "authenticated read profiles" on profiles
   for select to authenticated using (true);
@@ -547,6 +562,15 @@ create policy "authenticated write trainings" on trainings
 create policy "authenticated update trainings" on trainings
   for update to authenticated using (is_trainer());
 create policy "authenticated delete trainings" on trainings
+  for delete to authenticated using (is_trainer());
+
+create policy "authenticated read lineups" on lineups
+  for select to authenticated using (true);
+create policy "authenticated write lineups" on lineups
+  for insert to authenticated with check (is_trainer());
+create policy "authenticated update lineups" on lineups
+  for update to authenticated using (is_trainer());
+create policy "authenticated delete lineups" on lineups
   for delete to authenticated using (is_trainer());
 
 create policy "authenticated read training_exercises" on training_exercises
