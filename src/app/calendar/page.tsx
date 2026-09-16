@@ -227,6 +227,7 @@ export default async function CalendarPage({
       .select(
         "id, type, event_date, opponent, event_time, location, label, trainer_attendance(confirmed)",
       )
+      .is("deleted_at", null)
       .gte("event_date", rangeStart)
       .lte("event_date", rangeEnd)
       .order("event_date"),

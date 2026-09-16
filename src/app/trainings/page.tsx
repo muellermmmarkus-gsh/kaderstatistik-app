@@ -19,6 +19,7 @@ export default async function TrainingsPage() {
       .from("events")
       .select("id, event_date")
       .eq("type", "training")
+      .is("deleted_at", null)
       .order("event_date", { ascending: false }),
     supabase
       .from("trainings")

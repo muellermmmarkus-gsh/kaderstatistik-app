@@ -41,27 +41,28 @@ export async function createEvent(formData: FormData) {
   if (data) redirect(`/events/${data.id}?saved=1`);
 }
 
+// Loeschen ist ein Soft-Delete (deleted_at setzen statt die Zeile zu
+// entfernen): der Termin verschwindet dadurch ueberall in der App, bleibt
+// aber inklusive aller verknuepften Daten (Anwesenheit, Tore, Trainingsplan,
+// Aufstellung) in der Datenbank erhalten und kann im Notfall per SQL
+// (update events set deleted_at = null where id = '...') von einem Admin
+// reaktiviert werden. Deshalb gibt es hier - anders als frueher beim
+// endgueltigen Loeschen - keine Einschraenkung mehr fuer vergangene
+// Trainingstermine.
 export async function deleteEvent(eventId: string) {
   const supabase = await createClient();
 
-  const { data: event } = await supabase
+  const { error } = await supabase
     .from("events")
-    .select("type, event_date")
-    .eq("id", eventId)
-    .maybeSingle();
-  if (!event) return;
-
-  // Vergangene Trainingstermine (inkl. heute) duerfen nicht geloescht werden,
-  // damit Trainingsplaene und bereits erfasste Anwesenheiten erhalten
-  // bleiben. Spiele/Events/Turniere sind davon nicht betroffen.
-  const today = new Date().toISOString().slice(0, 10);
-  if (event.type === "training" && event.event_date <= today) {
-    throw new Error("Vergangene Trainingstermine können nicht gelöscht werden.");
-  }
-
-  const { error } = await supabase.from("events").delete().eq("id", eventId);
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", eventId);
   if (error) throw new Error(`Termin konnte nicht gelöscht werden: ${error.message}`);
 
   revalidatePath("/events");
   revalidatePath("/trainings");
+  revalidatePath("/calendar");
+  revalidatePath("/stats");
+  revalidatePath("/exercise-history");
+  revalidatePath("/settings/event-types");
+  revalidatePath("/");
 }

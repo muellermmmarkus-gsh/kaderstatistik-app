@@ -14,6 +14,7 @@ export default async function ExerciseHistoryPage() {
         .from("events")
         .select("id, event_date")
         .eq("type", "training")
+        .is("deleted_at", null)
         .order("event_date", { ascending: true }),
       supabase
         .from("trainings")

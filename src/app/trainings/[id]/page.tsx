@@ -60,6 +60,7 @@ export default async function TrainingDetailPage({
       .select("id, event_date, season")
       .eq("id", id)
       .eq("type", "training")
+      .is("deleted_at", null)
       .maybeSingle(),
     supabase
       .from("trainings")

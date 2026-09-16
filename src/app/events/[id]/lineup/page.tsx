@@ -17,6 +17,7 @@ export default async function LineupPage({
     .from("events")
     .select("id, type, event_date, opponent")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (!event) notFound();

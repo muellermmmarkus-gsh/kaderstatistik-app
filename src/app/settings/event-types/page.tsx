@@ -12,7 +12,7 @@ export default async function EventTypesSettingsPage() {
   const supabase = await createClient();
   const [{ data: types }, { data: allEvents }, canWrite] = await Promise.all([
     supabase.from("event_types").select("key, label").order("sort_order"),
-    supabase.from("events").select("type"),
+    supabase.from("events").select("type").is("deleted_at", null),
     isTrainer(),
   ]);
 

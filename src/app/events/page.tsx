@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { deleteEvent } from "./actions";
 import CreateEventForm from "./CreateEventForm";
+import DeleteEventButton from "./DeleteEventButton";
 import BackButton from "@/components/BackButton";
 
 type EventRow = {
@@ -26,6 +27,7 @@ export default async function EventsPage({
   let eventsQuery = supabase
     .from("events")
     .select("id, type, event_date, opponent, event_time, location, season")
+    .is("deleted_at", null)
     .order("event_date", { ascending: true });
   if (filterType) eventsQuery = eventsQuery.eq("type", filterType);
   if (filterSeason) eventsQuery = eventsQuery.eq("season", filterSeason);
@@ -47,7 +49,6 @@ export default async function EventsPage({
     (trainingsData ?? []).map((t) => [t.event_id as string, t.focus as string | null]),
   );
   const hasActiveFilters = !!(filterType || filterSeason);
-  const today = new Date().toISOString().slice(0, 10);
   const typeLabels = new Map((eventTypes ?? []).map((t) => [t.key, t.label]));
   // "unassigned" ist ein internes Fangnetz fuer Termine, deren Terminart
   // geloescht wurde - nicht zur Auswahl beim Anlegen eines neuen Termins.
@@ -157,11 +158,6 @@ export default async function EventsPage({
         <tbody>
           {events?.map((event) => {
             const remove = deleteEvent.bind(null, event.id);
-            // Vergangene Trainingstermine (inkl. heute) duerfen nicht
-            // geloescht werden, damit Trainingsplaene und bereits erfasste
-            // Anwesenheiten erhalten bleiben. Spiele/Events/Turniere sind
-            // davon nicht betroffen.
-            const canDelete = !(event.type === "training" && event.event_date <= today);
             return (
               <tr
                 key={event.id}
@@ -182,23 +178,10 @@ export default async function EventsPage({
                 <td className="py-2 text-zinc-500">{event.season}</td>
                 {canWrite && (
                   <td className="py-2 text-right">
-                    {canDelete ? (
-                      <form action={remove}>
-                        <button
-                          type="submit"
-                          className="text-zinc-600 hover:underline dark:text-zinc-400"
-                        >
-                          löschen
-                        </button>
-                      </form>
-                    ) : (
-                      <span
-                        className="text-xs text-zinc-400"
-                        title="Vergangene Trainingstermine können nicht gelöscht werden."
-                      >
-                        –
-                      </span>
-                    )}
+                    <DeleteEventButton
+                      action={remove}
+                      className="text-zinc-600 hover:underline dark:text-zinc-400"
+                    />
                   </td>
                 )}
               </tr>

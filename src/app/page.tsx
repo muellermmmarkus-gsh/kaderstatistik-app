@@ -21,7 +21,11 @@ export default async function Home() {
       .from("trainers")
       .select("*", { count: "exact", head: true })
       .eq("active", true),
-    supabase.from("events").select("season, type").lte("event_date", today),
+    supabase
+      .from("events")
+      .select("season, type")
+      .is("deleted_at", null)
+      .lte("event_date", today),
     supabase
       .from("attendance_overall_by_season")
       .select("season, attendance_pct"),

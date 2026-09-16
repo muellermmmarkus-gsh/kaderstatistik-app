@@ -249,6 +249,7 @@ export default async function StatsPage({
   const { data: seasonRows } = await supabase
     .from("events")
     .select("season")
+    .is("deleted_at", null)
     .order("season", { ascending: false });
 
   const seasons = [...new Set(seasonRows?.map((r) => r.season) ?? [])];
@@ -309,6 +310,7 @@ export default async function StatsPage({
           .select("player_id, performance, motivation, discipline, events!inner(season, type)")
           .eq("events.season", season)
           .eq("events.type", "training")
+          .is("events.deleted_at", null)
       : Promise.resolve({ data: [] as AssessmentAttendanceRow[] }),
   ]);
 

@@ -20,6 +20,7 @@ export default async function EventDetailPage({
     .from("events")
     .select("id, type, event_date, opponent, event_time, location, label, season")
     .eq("id", id)
+    .is("deleted_at", null)
     .single();
 
   if (!event) notFound();

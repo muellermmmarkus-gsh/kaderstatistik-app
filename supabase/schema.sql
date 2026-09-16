@@ -70,6 +70,12 @@ create table if not exists events (
   location text, -- nur relevant bei type = 'game'
   label text, -- nur relevant bei type = 'event'
   season text not null, -- z.B. '2025/2026'
+  -- Soft-Delete: "Loeschen" in der App setzt nur deleted_at, die Zeile
+  -- (und alle verknuepften Daten) bleiben erhalten und koennen von einem
+  -- Admin per SQL (update events set deleted_at = null where id = '...')
+  -- reaktiviert werden. Ueberall, wo Termine gelesen/gelistet werden, muss
+  -- deleted_at is null gefiltert werden.
+  deleted_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -267,6 +273,7 @@ create index if not exists idx_trainer_absences_trainer on trainer_absences(trai
 create index if not exists idx_trainer_absences_dates on trainer_absences(start_date, end_date);
 create index if not exists idx_events_date on events(event_date);
 create index if not exists idx_events_season on events(season);
+create index if not exists idx_events_not_deleted on events(id) where deleted_at is null;
 create index if not exists idx_trainer_attendance_trainer on trainer_attendance(trainer_id);
 create index if not exists idx_trainer_attendance_event on trainer_attendance(event_id);
 create index if not exists idx_training_exercises_training on training_exercises(training_id);
@@ -297,7 +304,7 @@ select
   ) as attendance_pct
 from attendance a
 join players p on p.id = a.player_id
-join events e on e.id = a.event_id
+join events e on e.id = a.event_id and e.deleted_at is null
 group by p.id, p.first_name, p.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- Anwesenheit pro Spieler und Saison
@@ -315,7 +322,7 @@ select
   ) as attendance_pct
 from attendance a
 join players p on p.id = a.player_id
-join events e on e.id = a.event_id
+join events e on e.id = a.event_id and e.deleted_at is null
 group by p.id, p.first_name, p.last_name, e.season, e.type;
 
 -- Torstatistik pro Spieler und Saison
@@ -328,7 +335,7 @@ select
   sum(g.goal_count) as goals
 from goals g
 join players p on p.id = g.player_id
-join events e on e.id = g.event_id
+join events e on e.id = g.event_id and e.deleted_at is null
 group by p.id, p.first_name, p.last_name, e.season;
 
 -- Gesamt-Anwesenheit des Teams (Spieler) pro Saison, ueber Training und Spiel hinweg
@@ -341,7 +348,7 @@ select
     100.0 * count(*) filter (where a.present) / nullif(count(*), 0), 1
   ) as attendance_pct
 from attendance a
-join events e on e.id = a.event_id
+join events e on e.id = a.event_id and e.deleted_at is null
 group by e.season;
 
 -- Anwesenheit pro Trainer und Saison
@@ -359,7 +366,7 @@ select
   ) as attendance_pct
 from trainer_attendance ta
 join trainers t on t.id = ta.trainer_id
-join events e on e.id = ta.event_id
+join events e on e.id = ta.event_id and e.deleted_at is null
 group by t.id, t.first_name, t.last_name, e.season, e.type;
 
 -- Anwesenheit pro Trainer und Monat
@@ -378,7 +385,7 @@ select
   ) as attendance_pct
 from trainer_attendance ta
 join trainers t on t.id = ta.trainer_id
-join events e on e.id = ta.event_id
+join events e on e.id = ta.event_id and e.deleted_at is null
 group by t.id, t.first_name, t.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- Aktuellste Note je Spieler und Schwerpunkt (aus dem jeweils neuesten Update).
