@@ -39,7 +39,9 @@ export default async function EventDetailPage({
       .order("last_name"),
     supabase
       .from("attendance")
-      .select("player_id, present, performance, motivation, discipline, player_notes")
+      .select(
+        "player_id, present, excused, registered, performance, motivation, discipline, player_notes",
+      )
       .eq("event_id", id),
     supabase.from("goals").select("player_id, goal_count").eq("event_id", id),
     supabase
@@ -56,6 +58,12 @@ export default async function EventDetailPage({
 
   const presentByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.present]),
+  );
+  const excusedByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.excused]),
+  );
+  const registeredByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.registered]),
   );
   const performanceByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.performance]),
@@ -86,7 +94,12 @@ export default async function EventDetailPage({
 
   const hasGoals = event.type === "game" || event.type === "tournament";
 
-  const playerColSpan = 2 + (hasGoals ? 1 : 0) + (event.type === "training" ? 4 : 0);
+  const playerColSpan =
+    2 +
+    (event.type === "game" ? 1 : 0) +
+    (event.type === "training" ? 1 : 0) +
+    (hasGoals ? 1 : 0) +
+    (event.type === "training" ? 4 : 0);
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
@@ -133,7 +146,9 @@ export default async function EventDetailPage({
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="py-2">Spieler</th>
+                  {event.type === "game" && <th className="py-2">Angemeldet</th>}
                   <th className="py-2">Anwesend</th>
+                  {event.type === "training" && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
                   {event.type === "training" && (
                     <>
@@ -154,6 +169,17 @@ export default async function EventDetailPage({
                     <td className="py-2 whitespace-nowrap">
                       {player.first_name} {player.last_name}
                     </td>
+                    {event.type === "game" && (
+                      <td className="py-2">
+                        <input
+                          type="checkbox"
+                          name={`registered_player_${player.id}`}
+                          defaultChecked={registeredByPlayer.get(player.id) ?? false}
+                          disabled={!canWrite}
+                          className="h-4 w-4"
+                        />
+                      </td>
+                    )}
                     <td className="py-2">
                       <input
                         type="checkbox"
@@ -163,6 +189,17 @@ export default async function EventDetailPage({
                         className="h-4 w-4"
                       />
                     </td>
+                    {event.type === "training" && (
+                      <td className="py-2">
+                        <input
+                          type="checkbox"
+                          name={`excused_player_${player.id}`}
+                          defaultChecked={excusedByPlayer.get(player.id) ?? false}
+                          disabled={!canWrite}
+                          className="h-4 w-4"
+                        />
+                      </td>
+                    )}
                     {hasGoals && (
                       <td className="py-2">
                         <input

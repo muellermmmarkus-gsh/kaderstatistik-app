@@ -16,6 +16,8 @@ async function persistAttendance(
     player_id: playerId,
     event_id: eventId,
     present: formData.get(`present_player_${playerId}`) === "on",
+    excused: formData.get(`excused_player_${playerId}`) === "on",
+    registered: formData.get(`registered_player_${playerId}`) === "on",
     performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
     motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
     discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
