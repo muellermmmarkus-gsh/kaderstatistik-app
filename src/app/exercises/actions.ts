@@ -98,6 +98,32 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
   redirect("/exercises?saved=1");
 }
 
+// Legt eine Kopie der Uebung mit dem Namen "Kopie von <Name>" an. Das Bild
+// wird nur per URL referenziert (Uploads landen immer unter neuem Pfad und
+// werden beim Loeschen/Ersetzen nicht aus dem Storage entfernt), daher ist
+// das Teilen der Bild-URL unkritisch.
+export async function duplicateExercise(exerciseId: string) {
+  const supabase = await createClient();
+
+  const { data: original, error: readError } = await supabase
+    .from("exercises")
+    .select(
+      "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url",
+    )
+    .eq("id", exerciseId)
+    .single();
+  if (readError || !original) {
+    throw new Error(`Übung konnte nicht kopiert werden: ${readError?.message ?? "nicht gefunden"}`);
+  }
+
+  const { error } = await supabase
+    .from("exercises")
+    .insert({ ...original, name: `Kopie von ${original.name}` });
+  if (error) throw new Error(`Übung konnte nicht kopiert werden: ${error.message}`);
+
+  revalidatePath("/exercises");
+}
+
 export async function deleteExercise(exerciseId: string, redirectTo?: string) {
   const supabase = await createClient();
   await supabase.from("exercises").delete().eq("id", exerciseId);

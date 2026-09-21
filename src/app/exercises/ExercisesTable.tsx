@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { categoryLabels } from "./categoryLabels";
-import { deleteExercise } from "./actions";
+import { deleteExercise, duplicateExercise } from "./actions";
 import DeleteButton from "@/components/DeleteButton";
 
 type ExerciseRow = {
@@ -21,6 +22,19 @@ type ExerciseRow = {
 };
 
 const NO_FIELD = "__keine__";
+
+function CopyButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="max-w-[7rem] text-right text-xs leading-tight text-zinc-500 hover:underline disabled:opacity-50 dark:text-zinc-400"
+    >
+      {pending ? "Kopie wird erstellt …" : "Kopie der Übung erstellen"}
+    </button>
+  );
+}
 
 function FilterDropdown({
   label,
@@ -189,6 +203,7 @@ export default function ExercisesTable({
         <tbody>
           {filtered.map((exercise) => {
             const remove = deleteExercise.bind(null, exercise.id, undefined);
+            const copy = duplicateExercise.bind(null, exercise.id);
             return (
               <tr
                 key={exercise.id}
@@ -224,20 +239,27 @@ export default function ExercisesTable({
                 <td className="py-2 text-zinc-500">{exercise.mini_goals}</td>
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
-                    <Link
-                      href={`/exercises/${exercise.id}`}
-                      className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                    >
-                      ändern
-                    </Link>
-                    <form action={remove} className="ml-3 inline">
-                      <DeleteButton
-                        confirmMessage={`Übung "${exercise.name}" wirklich löschen?`}
-                        className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                      >
-                        löschen
-                      </DeleteButton>
-                    </form>
+                    <div className="flex flex-col items-end gap-1">
+                      <div>
+                        <Link
+                          href={`/exercises/${exercise.id}`}
+                          className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                        >
+                          ändern
+                        </Link>
+                        <form action={remove} className="ml-3 inline">
+                          <DeleteButton
+                            confirmMessage={`Übung "${exercise.name}" wirklich löschen?`}
+                            className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                          >
+                            löschen
+                          </DeleteButton>
+                        </form>
+                      </div>
+                      <form action={copy}>
+                        <CopyButton />
+                      </form>
+                    </div>
                   </td>
                 )}
               </tr>

@@ -16,8 +16,45 @@ type ExerciseRow = {
   mini_goals: number;
   category: string;
   image_url: string | null;
+  created_at: string;
   fields: { name: string } | null;
 };
+
+const COPY_PREFIX = "Kopie von ";
+
+// Ordnet Kopien ("Kopie von <Name>") direkt unter ihrem Original ein, bei
+// mehreren Kopien die neueste zuerst. Umbenannte Kopien werden wie jede
+// andere Uebung einsortiert.
+function placeCopiesUnderOriginals(sorted: ExerciseRow[]): ExerciseRow[] {
+  const byName = new Map<string, ExerciseRow>();
+  for (const exercise of sorted) {
+    if (!byName.has(exercise.name)) byName.set(exercise.name, exercise);
+  }
+
+  const copiesOf = new Map<string, ExerciseRow[]>();
+  const roots: ExerciseRow[] = [];
+  for (const exercise of sorted) {
+    const original = exercise.name.startsWith(COPY_PREFIX)
+      ? byName.get(exercise.name.slice(COPY_PREFIX.length))
+      : undefined;
+    if (original) {
+      copiesOf.set(original.id, [...(copiesOf.get(original.id) ?? []), exercise]);
+    } else {
+      roots.push(exercise);
+    }
+  }
+
+  const result: ExerciseRow[] = [];
+  const visit = (exercise: ExerciseRow) => {
+    result.push(exercise);
+    const copies = [...(copiesOf.get(exercise.id) ?? [])].sort((a, b) =>
+      b.created_at.localeCompare(a.created_at),
+    );
+    copies.forEach(visit);
+  };
+  roots.forEach(visit);
+  return result;
+}
 
 export default async function ExercisesPage() {
   const supabase = await createClient();
@@ -25,7 +62,7 @@ export default async function ExercisesPage() {
     supabase
       .from("exercises")
       .select(
-        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, fields(name)",
+        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, created_at, fields(name)",
       )
       .order("name"),
     supabase
@@ -47,10 +84,12 @@ export default async function ExercisesPage() {
     }
   }
 
-  const exercises = ((exercisesData as unknown as ExerciseRow[] | null) ?? []).sort(
-    (a, b) =>
-      (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
-      a.name.localeCompare(b.name, "de"),
+  const exercises = placeCopiesUnderOriginals(
+    ((exercisesData as unknown as ExerciseRow[] | null) ?? []).sort(
+      (a, b) =>
+        (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
+        a.name.localeCompare(b.name, "de"),
+    ),
   );
 
   return (
