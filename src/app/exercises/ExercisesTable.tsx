@@ -29,9 +29,10 @@ function CopyButton() {
     <button
       type="submit"
       disabled={pending}
-      className="max-w-[7rem] text-right text-xs leading-tight text-zinc-500 hover:underline disabled:opacity-50 dark:text-zinc-400"
+      title="Kopie der Übung erstellen"
+      className="text-xs text-zinc-500 hover:underline disabled:opacity-50 dark:text-zinc-400"
     >
-      {pending ? "Kopie wird erstellt …" : "Kopie der Übung erstellen"}
+      {pending ? "Kopie …" : "Kopie erst."}
     </button>
   );
 }
@@ -188,10 +189,10 @@ export default function ExercisesTable({
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
-            <th className="py-2" />
-            <th className="py-2">Name</th>
-            <th className="py-2">Kategorie</th>
-            <th className="py-2">Fläche</th>
+            <th className="py-2 pr-3" />
+            <th className="min-w-[11rem] py-2 pr-4">Name</th>
+            <th className="min-w-[6rem] py-2 pr-4">Kategorie</th>
+            <th className="min-w-[8rem] py-2 pr-4">Fläche</th>
             <th className="py-2">Übungsschwerpunkt 1</th>
             <th className="py-2">Übungsschwerpunkt 2</th>
             <th className="py-2">Spieler</th>
@@ -209,7 +210,7 @@ export default function ExercisesTable({
                 key={exercise.id}
                 className="border-b border-zinc-100 dark:border-zinc-900"
               >
-                <td className="py-2">
+                <td className="py-2 pr-3">
                   {exercise.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
                     <img
@@ -221,15 +222,15 @@ export default function ExercisesTable({
                     <div className="h-10 w-10 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                   )}
                 </td>
-                <td className="py-2">
+                <td className="py-2 pr-4">
                   <Link href={`/exercises/${exercise.id}`} className="hover:underline">
                     {exercise.name}
                   </Link>
                 </td>
-                <td className="py-2 text-zinc-500">
+                <td className="py-2 pr-4 text-zinc-500">
                   {categoryLabels[exercise.category] ?? exercise.category}
                 </td>
-                <td className="py-2 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
+                <td className="py-2 pr-4 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
                 <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
                 <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
                 <td className="py-2 text-zinc-500">
