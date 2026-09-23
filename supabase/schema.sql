@@ -304,7 +304,7 @@ select
   ) as attendance_pct
 from attendance a
 join players p on p.id = a.player_id
-join events e on e.id = a.event_id and e.deleted_at is null
+join events e on e.id = a.event_id and e.deleted_at is null and e.event_date <= current_date
 group by p.id, p.first_name, p.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- Anwesenheit pro Spieler und Saison
@@ -322,7 +322,7 @@ select
   ) as attendance_pct
 from attendance a
 join players p on p.id = a.player_id
-join events e on e.id = a.event_id and e.deleted_at is null
+join events e on e.id = a.event_id and e.deleted_at is null and e.event_date <= current_date
 group by p.id, p.first_name, p.last_name, e.season, e.type;
 
 -- Torstatistik pro Spieler und Saison
@@ -348,7 +348,7 @@ select
     100.0 * count(*) filter (where a.present) / nullif(count(*), 0), 1
   ) as attendance_pct
 from attendance a
-join events e on e.id = a.event_id and e.deleted_at is null
+join events e on e.id = a.event_id and e.deleted_at is null and e.event_date <= current_date
 group by e.season;
 
 -- Anwesenheit pro Trainer und Saison
@@ -366,7 +366,7 @@ select
   ) as attendance_pct
 from trainer_attendance ta
 join trainers t on t.id = ta.trainer_id
-join events e on e.id = ta.event_id and e.deleted_at is null
+join events e on e.id = ta.event_id and e.deleted_at is null and e.event_date <= current_date
 group by t.id, t.first_name, t.last_name, e.season, e.type;
 
 -- Anwesenheit pro Trainer und Monat
@@ -385,7 +385,7 @@ select
   ) as attendance_pct
 from trainer_attendance ta
 join trainers t on t.id = ta.trainer_id
-join events e on e.id = ta.event_id and e.deleted_at is null
+join events e on e.id = ta.event_id and e.deleted_at is null and e.event_date <= current_date
 group by t.id, t.first_name, t.last_name, e.season, date_trunc('month', e.event_date), e.type;
 
 -- Aktuellste Note je Spieler und Schwerpunkt (aus dem jeweils neuesten Update).
