@@ -134,18 +134,34 @@ function AttendanceTable({
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-800">
-            <th className="py-2">Name</th>
-            <th className="py-2">Training</th>
-            <th className="py-2">Spiel</th>
+          <tr className={showAssessment ? "" : "border-b border-zinc-200 dark:border-zinc-800"}>
+            <th rowSpan={showAssessment ? 2 : 1} className="py-2 pr-10 align-bottom">
+              Name
+            </th>
+            <th rowSpan={showAssessment ? 2 : 1} className="py-2 pr-10 align-bottom">
+              Training
+            </th>
+            <th rowSpan={showAssessment ? 2 : 1} className="py-2 pr-10 align-bottom">
+              Spiel
+            </th>
             {showAssessment && (
               <>
-                <th className="whitespace-nowrap py-2">Leistung (stark/mittel/schwach)</th>
-                <th className="whitespace-nowrap py-2">Motivation (hoch/mittel/niedrig)</th>
-                <th className="whitespace-nowrap py-2">Disziplin (sehr gut/mittel/gering)</th>
+                <th className="px-6 pt-2 text-center">Leistung</th>
+                <th className="px-6 pt-2 text-center">Motivation</th>
+                <th className="px-6 pt-2 text-center">Disziplin</th>
               </>
             )}
           </tr>
+          {showAssessment && (
+            <tr className="border-b border-zinc-200 dark:border-zinc-800">
+              <th
+                colSpan={3}
+                className="whitespace-nowrap px-6 pb-2 text-center text-xs font-normal text-zinc-500"
+              >
+                (stark/mittel/schwach)
+              </th>
+            </tr>
+          )}
         </thead>
         <tbody>
           {rows.map((entry) => (
@@ -158,13 +174,13 @@ function AttendanceTable({
               <td className="py-2">{formatPct(entry.game)}</td>
               {showAssessment && (
                 <>
-                  <td className="py-2">
+                  <td className="px-6 py-2 text-center">
                     {formatCounts(performanceByPlayer?.get(entry.id), PERFORMANCE_ORDER)}
                   </td>
-                  <td className="py-2">
+                  <td className="px-6 py-2 text-center">
                     {formatCounts(motivationByPlayer?.get(entry.id), MOTIVATION_ORDER)}
                   </td>
-                  <td className="py-2">
+                  <td className="px-6 py-2 text-center">
                     {formatCounts(disciplineByPlayer?.get(entry.id), DISCIPLINE_ORDER)}
                   </td>
                 </>
