@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { deleteGoalEntry, finishMatch, saveGoalEntry } from "../../actions";
@@ -48,6 +48,23 @@ export default function LiveResultBoard({
   const [finishing, startFinish] = useTransition();
   const [scoreA, scoreB] = scoreOf(entries);
 
+  // Der Eintragsbereich fuellt die restliche Fensterhoehe unterhalb des
+  // Kopfes aus und scrollt selbst, statt die ganze Seite zu scrollen.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [listMaxHeight, setListMaxHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    function measure() {
+      const el = listRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      // 32px = unteres Padding der Seite (py-8)
+      setListMaxHeight(Math.max(240, window.innerHeight - top - 32));
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -88,10 +105,17 @@ export default function LiveResultBoard({
         <span className="flex-1 text-sm font-medium">{teamB}</span>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[56rem] space-y-2">
+      {/* Eigener Scrollbereich fuer die Eintraege: Kopf mit Mannschaften und
+          Spielstand oben bleibt immer sichtbar, die Spaltenueberschrift klebt
+          oben im Scrollbereich. */}
+      <div
+        ref={listRef}
+        style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
+        className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
+      >
+        <div className="min-w-[56rem] space-y-2 px-2 pb-2">
           <div
-            className={`${GRID} border-b border-zinc-200 pb-2 text-sm font-semibold dark:border-zinc-800`}
+            className={`${GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
           >
             <span className="text-xs font-medium text-zinc-500">Spielminute</span>
             <span>{teamA}</span>
