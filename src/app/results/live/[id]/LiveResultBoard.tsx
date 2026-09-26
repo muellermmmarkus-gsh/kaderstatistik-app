@@ -6,20 +6,32 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { deleteGoalEntry, finishMatch, saveGoalEntry } from "../../actions";
 import { scoreOf, type GoalEntry, type GoalKind, type TeamSide } from "../../teams";
 
-type SideDraft = { kind: GoalKind; shirtNumber: string; note: string };
+export type PlayerOption = { playerId: string; shirtNumber: number | null; name: string };
+type Option = { value: string; label: string };
+
+// pick = Auswahl im Dropdown: bei der eigenen Mannschaft die Spieler-ID
+// (oder "nr:<Nummer>" ohne Spielerzuordnung), beim Gegner die Nummer.
+type SideDraft = { kind: GoalKind; pick: string; note: string };
 type Draft = { minute: string; team: TeamSide | null; a: SideDraft; b: SideDraft };
 
-const EMPTY_SIDE: SideDraft = { kind: "goal", shirtNumber: "", note: "" };
+const EMPTY_SIDE: SideDraft = { kind: "goal", pick: "", note: "" };
 const EMPTY_DRAFT: Draft = { minute: "", team: null, a: EMPTY_SIDE, b: EMPTY_SIDE };
-const SHIRT_NUMBERS = Array.from({ length: 20 }, (_, i) => i + 1);
+const NUMBER_OPTIONS = (prefix: string): Option[] =>
+  Array.from({ length: 20 }, (_, i) => ({ value: `${prefix}${i + 1}`, label: String(i + 1) }));
 
 // Spalten: Spielminute | Mannschaft A | Mannschaft B | Buttons
 const GRID = "grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3";
 
-function draftFromEntry(entry: GoalEntry): Draft {
+function pickFromEntry(entry: GoalEntry, ownSide: TeamSide): string {
+  if (entry.team === ownSide && entry.playerId) return entry.playerId;
+  if (!entry.shirtNumber) return "";
+  return entry.team === ownSide ? `nr:${entry.shirtNumber}` : String(entry.shirtNumber);
+}
+
+function draftFromEntry(entry: GoalEntry, ownSide: TeamSide): Draft {
   const side: SideDraft = {
     kind: entry.kind,
-    shirtNumber: entry.shirtNumber ? String(entry.shirtNumber) : "",
+    pick: pickFromEntry(entry, ownSide),
     note: entry.note,
   };
   return { ...EMPTY_DRAFT, minute: entry.minute, team: entry.team, [entry.team]: side };
@@ -29,6 +41,8 @@ export default function LiveResultBoard({
   eventId,
   teamA,
   teamB,
+  ownSide,
+  playerOptions,
   subtitle,
   initialEntries,
   isFinished,
@@ -37,11 +51,23 @@ export default function LiveResultBoard({
   eventId: string;
   teamA: string;
   teamB: string;
+  ownSide: TeamSide;
+  playerOptions: PlayerOption[];
   subtitle: string;
   initialEntries: GoalEntry[];
   isFinished: boolean;
   canWrite: boolean;
 }) {
+  // Eigene Mannschaft: "Nummer – Name" aus den Rueckennummern des
+  // Spieltermins. Ohne vergebene Nummern nur die Nummern 1-20.
+  const ownOptions: Option[] = playerOptions.length
+    ? playerOptions.map((p) => ({
+        value: p.playerId,
+        label: `${p.shirtNumber ?? "–"} – ${p.name}`,
+      }))
+    : NUMBER_OPTIONS("nr:");
+  const optionsFor = (side: TeamSide) => (side === ownSide ? ownOptions : NUMBER_OPTIONS(""));
+
   const [entries, setEntries] = useState(initialEntries);
   const [newRowKey, setNewRowKey] = useState(0);
   const [confirmFinish, setConfirmFinish] = useState(false);
@@ -74,6 +100,15 @@ export default function LiveResultBoard({
           {isFinished && (
             <p className="mt-1 text-sm font-medium text-green-700 dark:text-green-400">
               Spiel ist beendet und archiviert – Einträge können weiterhin geändert werden.
+            </p>
+          )}
+          {canWrite && !playerOptions.length && (
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+              Noch keine Rückennummern vergeben – bitte im{" "}
+              <Link href={`/events/${eventId}`} className="underline">
+                Spieltermin
+              </Link>{" "}
+              eintragen, damit hier die Spielernamen erscheinen.
             </p>
           )}
         </div>
@@ -113,7 +148,7 @@ export default function LiveResultBoard({
         style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
         className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
       >
-        <div className="min-w-[56rem] space-y-2 px-2 pb-2">
+        <div className="min-w-[62rem] space-y-2 px-2 pb-2">
           <div
             className={`${GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
           >
@@ -128,6 +163,8 @@ export default function LiveResultBoard({
               key={entry.id}
               eventId={eventId}
               entry={entry}
+              ownSide={ownSide}
+              optionsFor={optionsFor}
               canWrite={canWrite}
               onSaved={(saved) =>
                 setEntries((prev) => prev.map((e) => (e.id === saved.id ? saved : e)))
@@ -141,6 +178,8 @@ export default function LiveResultBoard({
               key={`new-${newRowKey}`}
               eventId={eventId}
               entry={null}
+              ownSide={ownSide}
+              optionsFor={optionsFor}
               canWrite
               autoFocus={newRowKey > 0}
               onSaved={(saved) => {
@@ -176,6 +215,8 @@ export default function LiveResultBoard({
 function EntryRow({
   eventId,
   entry,
+  ownSide,
+  optionsFor,
   canWrite,
   autoFocus = false,
   onSaved,
@@ -183,13 +224,15 @@ function EntryRow({
 }: {
   eventId: string;
   entry: GoalEntry | null;
+  ownSide: TeamSide;
+  optionsFor: (side: TeamSide) => Option[];
   canWrite: boolean;
   autoFocus?: boolean;
   onSaved: (entry: GoalEntry) => void;
   onDeleted: (id: string) => void;
 }) {
   const isNew = entry === null;
-  const [draft, setDraft] = useState<Draft>(entry ? draftFromEntry(entry) : EMPTY_DRAFT);
+  const [draft, setDraft] = useState<Draft>(entry ? draftFromEntry(entry, ownSide) : EMPTY_DRAFT);
   const [editing, setEditing] = useState(isNew);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -219,18 +262,23 @@ function EntryRow({
       return;
     }
     const side = draft[draft.team];
+    const isPlayerPick =
+      draft.team === ownSide && !!side.pick && !side.pick.startsWith("nr:");
+    const shirtNumber =
+      side.pick && !isPlayerPick ? Number(side.pick.replace("nr:", "")) : null;
     startTransition(async () => {
       try {
         const saved = await saveGoalEntry(eventId, entry?.id ?? null, {
           minute: draft.minute,
           team: draft.team!,
           kind: side.kind,
-          shirtNumber: side.shirtNumber ? Number(side.shirtNumber) : null,
+          shirtNumber,
+          playerId: isPlayerPick ? side.pick : null,
           note: side.note,
         });
         onSaved(saved);
         if (!isNew) {
-          setDraft(draftFromEntry(saved));
+          setDraft(draftFromEntry(saved, ownSide));
           setEditing(false);
         }
       } catch (e) {
@@ -284,6 +332,8 @@ function EntryRow({
           <SideInputs
             key={side}
             value={draft[side]}
+            options={optionsFor(side)}
+            wide={side === ownSide}
             active={draft.team === side}
             dimmed={draft.team !== null && draft.team !== side}
             disabled={!editable}
@@ -305,7 +355,7 @@ function EntryRow({
               disabled={isNew || pending}
               onClick={() => {
                 setError(null);
-                if (editing && entry) setDraft(draftFromEntry(entry));
+                if (editing && entry) setDraft(draftFromEntry(entry, ownSide));
                 setEditing((v) => !v);
               }}
               className={`${buttonBase} border border-zinc-300 dark:border-zinc-700`}
@@ -342,12 +392,16 @@ function EntryRow({
 
 function SideInputs({
   value,
+  options,
+  wide,
   active,
   dimmed,
   disabled,
   onChange,
 }: {
   value: SideDraft;
+  options: Option[];
+  wide: boolean;
   active: boolean;
   dimmed: boolean;
   disabled: boolean;
@@ -386,17 +440,21 @@ function SideInputs({
       </div>
       <select
         aria-label="Rückennummer"
-        value={value.shirtNumber}
+        value={value.pick}
         disabled={disabled}
-        onChange={(event) => onChange({ shirtNumber: event.target.value })}
-        className="shrink-0 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
+        onChange={(event) => onChange({ pick: event.target.value })}
+        className={`${wide ? "w-48" : ""} shrink-0 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900`}
       >
         <option value="">Nr.</option>
-        {SHIRT_NUMBERS.map((n) => (
-          <option key={n} value={n}>
-            {n}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
+        {/* Aelterer Eintrag mit Nummer, die in der Auswahl nicht mehr vorkommt */}
+        {value.pick && !options.some((o) => o.value === value.pick) && (
+          <option value={value.pick}>{value.pick.replace("nr:", "")}</option>
+        )}
       </select>
       <input
         type="text"

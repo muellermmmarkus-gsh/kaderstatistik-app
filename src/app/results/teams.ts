@@ -10,8 +10,15 @@ export type GoalEntry = {
   team: TeamSide;
   kind: GoalKind;
   shirtNumber: number | null;
+  /** Torschuetze der eigenen Mannschaft (null bei Gegner/ohne Zuordnung). */
+  playerId: string | null;
   note: string;
 };
+
+/** Auf welcher Seite (a = zuerst genannt) die eigene Mannschaft steht. */
+export function ownSideOf(teamA: string): TeamSide {
+  return teamA === OWN_TEAM ? "a" : "b";
+}
 
 /**
  * Leitet die beiden Mannschaften aus dem Gegner-Feld eines Spieltermins ab.

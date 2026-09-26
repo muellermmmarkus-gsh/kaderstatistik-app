@@ -93,8 +93,13 @@ create table if not exists attendance (
   motivation text check (motivation in ('hoch', 'mittel', 'niedrig')),
   discipline text check (discipline in ('sehr gut', 'mittel', 'gering')),
   player_notes text check (char_length(player_notes) <= 50),
+  -- Rueckennummer im Spieltermin (Auswahl des Torschuetzen im Live-Ergebnis)
+  shirt_number int check (shirt_number between 1 and 100),
   created_at timestamptz not null default now(),
-  unique (player_id, event_id)
+  unique (player_id, event_id),
+  -- jede Rueckennummer pro Spiel nur einmal (deferred: Tauschen moeglich)
+  constraint attendance_event_shirt_number_key
+    unique (event_id, shirt_number) deferrable initially deferred
 );
 
 create table if not exists goals (
@@ -281,13 +286,16 @@ create unique index if not exists match_results_event_id_key on match_results(ev
 
 -- Einzelne Tor-/Eigentor-Eintraege eines Spiels. team = Mannschaft des
 -- verursachenden Spielers; ein Eigentor zaehlt fuer die andere Mannschaft.
+-- player_id = Torschuetze der eigenen Mannschaft; daraus wird die Tabelle
+-- goals (Grundlage der Statistik) automatisch befuellt.
 create table if not exists match_goal_entries (
   id uuid primary key default gen_random_uuid(),
   match_result_id uuid not null references match_results(id) on delete cascade,
   minute text,
   team text not null check (team in ('a', 'b')),
   kind text not null default 'goal' check (kind in ('goal', 'own_goal')),
-  shirt_number int check (shirt_number between 1 and 20),
+  shirt_number int check (shirt_number between 1 and 100),
+  player_id uuid references players(id) on delete set null,
   note text,
   created_at timestamptz not null default now()
 );

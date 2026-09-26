@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 
 async function persistAttendance(
   eventId: string,
@@ -12,18 +13,42 @@ async function persistAttendance(
 ) {
   const supabase = await createClient();
 
-  const attendanceRows = playerIds.map((playerId) => ({
-    player_id: playerId,
-    event_id: eventId,
-    present: formData.get(`present_player_${playerId}`) === "on",
-    excused: formData.get(`excused_player_${playerId}`) === "on",
-    registered: formData.get(`registered_player_${playerId}`) === "on",
-    performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
-    motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
-    discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
-    player_notes:
-      String(formData.get(`notes_${playerId}`) ?? "").trim().slice(0, 50) || null,
-  }));
+  const { data: event } = await supabase
+    .from("events")
+    .select("type")
+    .eq("id", eventId)
+    .single();
+  const isGame = event?.type === "game";
+
+  const attendanceRows = playerIds.map((playerId) => {
+    const shirt = Number(formData.get(`shirt_${playerId}`) || NaN);
+    return {
+      player_id: playerId,
+      event_id: eventId,
+      present: formData.get(`present_player_${playerId}`) === "on",
+      excused: formData.get(`excused_player_${playerId}`) === "on",
+      registered: formData.get(`registered_player_${playerId}`) === "on",
+      performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
+      motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
+      discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
+      player_notes:
+        String(formData.get(`notes_${playerId}`) ?? "").trim().slice(0, 50) || null,
+      // Rueckennummer nur bei Spielen (Auswahl des Torschuetzen im Live-Ergebnis)
+      ...(isGame && {
+        shirt_number:
+          Number.isInteger(shirt) && shirt >= 1 && shirt <= SHIRT_NUMBER_MAX ? shirt : null,
+      }),
+    };
+  });
+
+  if (isGame) {
+    const numbers = attendanceRows
+      .map((row) => row.shirt_number)
+      .filter((n): n is number => n != null);
+    if (new Set(numbers).size !== numbers.length) {
+      throw new Error("Jede Rückennummer darf pro Spiel nur einmal vergeben werden.");
+    }
+  }
 
   if (attendanceRows.length) {
     const { error } = await supabase
@@ -45,6 +70,10 @@ async function persistAttendance(
       .upsert(trainerAttendanceRows, { onConflict: "trainer_id,event_id" });
     if (error) throw new Error(`Trainer-Anwesenheit konnte nicht gespeichert werden: ${error.message}`);
   }
+
+  // Bei Spielen werden die Tore ausschliesslich ueber das Live-Ergebnis
+  // gepflegt (siehe syncGoals in app/results/actions.ts).
+  if (isGame) return;
 
   const goalsRows = playerIds
     .map((playerId) => ({

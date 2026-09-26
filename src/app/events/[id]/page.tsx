@@ -7,6 +7,11 @@ import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import EventDetailActions from "./EventDetailActions";
+import ShirtNumberGuard from "./ShirtNumberGuard";
+import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
+import { ownSideOf } from "@/app/results/teams";
+
+const SHIRT_NUMBERS = Array.from({ length: SHIRT_NUMBER_MAX }, (_, i) => i + 1);
 
 export default async function EventDetailPage({
   params,
@@ -57,6 +62,30 @@ export default async function EventDetailPage({
     isTrainer(),
   ]);
 
+  const isGame = event.type === "game";
+
+  // Bei Spielen: Rueckennummern (ggf. Voreinstellung aus dem letzten Spiel)
+  // und Tore ausschliesslich aus den Live-Ergebnis-Eintraegen.
+  const shirtNumbers = isGame
+    ? await getShirtNumbers(supabase, id, event.event_date)
+    : { numbers: new Map<string, number>(), isPreset: false };
+  const liveGoalsByPlayer = new Map<string, number>();
+  if (isGame) {
+    const { data: result } = await supabase
+      .from("match_results")
+      .select("team_a, match_goal_entries(team, kind, player_id)")
+      .eq("event_id", id)
+      .maybeSingle();
+    if (result) {
+      const ownSide = ownSideOf(result.team_a as string);
+      for (const e of result.match_goal_entries ?? []) {
+        if (e.team === ownSide && e.kind === "goal" && e.player_id) {
+          liveGoalsByPlayer.set(e.player_id, (liveGoalsByPlayer.get(e.player_id) ?? 0) + 1);
+        }
+      }
+    }
+  }
+
   const presentByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.present]),
   );
@@ -97,7 +126,7 @@ export default async function EventDetailPage({
 
   const playerColSpan =
     2 +
-    (event.type === "game" ? 1 : 0) +
+    (isGame ? 2 : 0) +
     (event.type === "training" ? 1 : 0) +
     (hasGoals ? 1 : 0) +
     (event.type === "training" ? 4 : 0);
@@ -149,14 +178,27 @@ export default async function EventDetailPage({
       )}
 
       <form action={save}>
+        {isGame && canWrite && <ShirtNumberGuard />}
         <section className="mb-8">
           <h2 className="mb-3 font-medium">Spieler</h2>
+          {isGame && (
+            <p className="mb-3 text-sm text-zinc-500">
+              Tore werden über{" "}
+              <Link href={`/results/live/${event.id}`} className="underline">
+                Live-Ergebnis
+              </Link>{" "}
+              erfasst.
+              {canWrite && shirtNumbers.isPreset &&
+                " Die Rückennummern sind aus dem letzten Spiel übernommen – mit Speichern werden sie für dieses Spiel festgelegt."}
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="py-2">Spieler</th>
-                  {event.type === "game" && <th className="py-2">Angemeldet</th>}
+                  {isGame && <th className="py-2">Rückennr.</th>}
+                  {isGame && <th className="py-2">Angemeldet</th>}
                   <th className="py-2">Anwesend</th>
                   {event.type === "training" && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
@@ -179,7 +221,25 @@ export default async function EventDetailPage({
                     <td className="py-2 whitespace-nowrap">
                       {player.first_name} {player.last_name}
                     </td>
-                    {event.type === "game" && (
+                    {isGame && (
+                      <td className="py-2">
+                        <select
+                          name={`shirt_${player.id}`}
+                          aria-label={`Rückennummer ${player.first_name} ${player.last_name}`}
+                          defaultValue={shirtNumbers.numbers.get(player.id) ?? ""}
+                          disabled={!canWrite}
+                          className="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                          <option value="">–</option>
+                          {SHIRT_NUMBERS.map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
+                    {isGame && (
                       <td className="py-2">
                         <input
                           type="checkbox"
@@ -210,7 +270,12 @@ export default async function EventDetailPage({
                         />
                       </td>
                     )}
-                    {hasGoals && (
+                    {isGame && (
+                      <td className="py-2 pl-2 tabular-nums">
+                        {liveGoalsByPlayer.get(player.id) ?? 0}
+                      </td>
+                    )}
+                    {hasGoals && !isGame && (
                       <td className="py-2">
                         <input
                           type="number"

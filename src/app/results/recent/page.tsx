@@ -14,6 +14,7 @@ type EntryRow = {
   shirt_number: number | null;
   note: string | null;
   created_at: string;
+  players: { first_name: string; last_name: string } | null;
 };
 
 type ResultRow = {
@@ -31,6 +32,7 @@ function describeEntry(entry: EntryRow, teamA: string, teamB: string): string {
     entry.minute ? `${entry.minute}'` : null,
     entry.shirt_number ? `#${entry.shirt_number}` : null,
     entry.kind === "own_goal" ? "Eigentor" : "Tor",
+    entry.players ? `${entry.players.first_name} ${entry.players.last_name}` : null,
     entry.note?.trim() || null,
     `(${entry.team === "a" ? teamA : teamB})`,
   ];
@@ -44,7 +46,7 @@ export default async function RecentResultsPage() {
     supabase
       .from("match_results")
       .select(
-        "id, event_id, team_a, team_b, finished_at, events(event_date, event_time, deleted_at), match_goal_entries(minute, team, kind, shirt_number, note, created_at)",
+        "id, event_id, team_a, team_b, finished_at, events(event_date, event_time, deleted_at), match_goal_entries(minute, team, kind, shirt_number, note, created_at, players(first_name, last_name))",
       )
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false }),
