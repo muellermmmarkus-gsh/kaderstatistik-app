@@ -57,6 +57,7 @@ export default async function ExerciseDetailPage({
         <>
           <ExerciseForm
             action={update}
+            exerciseId={id}
             initial={exercise}
             fields={fields ?? []}
             focuses={(focuses ?? []).map((f) => f.label)}

@@ -1,3 +1,5 @@
+import ExerciseImagePreview from "./ExerciseImagePreview";
+
 type ExerciseValues = {
   name: string;
   aufbau: string;
@@ -26,12 +28,15 @@ const categoryOptions = [
 
 export default function ExerciseForm({
   action,
+  exerciseId,
   initial,
   fields,
   focuses,
   submitLabel,
 }: {
   action: (formData: FormData) => void;
+  /** Nur beim Aendern: ermoeglicht das sofortige Entfernen des Bildes. */
+  exerciseId?: string;
   initial?: ExerciseValues;
   fields: FieldOption[];
   focuses: string[];
@@ -201,21 +206,8 @@ export default function ExerciseForm({
         <label className="mb-1 block text-sm font-medium" htmlFor="image">
           Bild
         </label>
-        {initial?.image_url && (
-          <div className="mb-2 flex items-center gap-3">
-            <a href={initial.image_url} target="_blank" rel="noreferrer">
-              {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL, next/image benoetigt bekannte Domains */}
-              <img
-                src={initial.image_url}
-                alt=""
-                className="h-16 w-16 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-              />
-            </a>
-            <label className="flex items-center gap-2 text-sm text-zinc-500">
-              <input type="checkbox" name="removeImage" className="h-4 w-4" />
-              Bild entfernen
-            </label>
-          </div>
+        {exerciseId && initial?.image_url && (
+          <ExerciseImagePreview exerciseId={exerciseId} imageUrl={initial.image_url} />
         )}
         <input
           id="image"

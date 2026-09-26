@@ -77,18 +77,13 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
   if (!exercise.name || !exercise.min_players || !exercise.max_players) return;
 
   const supabase = await createClient();
-  const removeImage = formData.get("removeImage") === "on";
   const imageUrl = await uploadImage(supabase, exerciseId, formData);
 
   const { error } = await supabase
     .from("exercises")
     .update({
       ...exercise,
-      ...(imageUrl
-        ? { image_url: imageUrl }
-        : removeImage
-          ? { image_url: null }
-          : {}),
+      ...(imageUrl ? { image_url: imageUrl } : {}),
     })
     .eq("id", exerciseId);
   if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
@@ -96,6 +91,21 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
   revalidatePath("/exercises");
   revalidatePath(`/exercises/${exerciseId}`);
   redirect("/exercises?saved=1");
+}
+
+// Entfernt das Bild einer Uebung sofort (roter X-Button im Aenderungsformular).
+// Die Datei bleibt im Storage liegen, da Kopien einer Uebung dieselbe
+// Bild-URL referenzieren koennen.
+export async function removeExerciseImage(exerciseId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("exercises")
+    .update({ image_url: null })
+    .eq("id", exerciseId);
+  if (error) throw new Error(`Bild konnte nicht entfernt werden: ${error.message}`);
+
+  revalidatePath("/exercises");
+  revalidatePath(`/exercises/${exerciseId}`);
 }
 
 // Legt eine Kopie der Uebung mit dem Namen "Kopie von <Name>" an. Das Bild
