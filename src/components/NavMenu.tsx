@@ -25,6 +25,13 @@ const menu: MenuGroup[] = [
     ],
   },
   {
+    label: "Spielergebnis",
+    items: [
+      { label: "Live-Ergebnis", href: "/results/live" },
+      { label: "Letzte Ergebnisse", href: "/results/recent" },
+    ],
+  },
+  {
     label: "Training",
     items: [
       { label: "Übungen", href: "/exercises" },
