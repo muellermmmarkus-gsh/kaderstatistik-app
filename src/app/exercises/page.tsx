@@ -58,7 +58,13 @@ function placeCopiesUnderOriginals(sorted: ExerciseRow[]): ExerciseRow[] {
 
 export default async function ExercisesPage() {
   const supabase = await createClient();
-  const [{ data: exercisesData }, { data: trainingsData }, canWrite] = await Promise.all([
+  const [
+    { data: exercisesData },
+    { data: trainingsData },
+    { data: seasons },
+    { data: trainingEvents },
+    canWrite,
+  ] = await Promise.all([
     supabase
       .from("exercises")
       .select(
@@ -67,10 +73,39 @@ export default async function ExercisesPage() {
       .order("name"),
     supabase
       .from("trainings")
-      .select("training_exercises(exercise_id)")
+      .select("event_id, training_exercises(exercise_id)")
       .not("event_id", "is", null),
+    supabase
+      .from("seasons")
+      .select("name, is_default")
+      .order("name", { ascending: false }),
+    supabase
+      .from("events")
+      .select("id, season")
+      .eq("type", "training")
+      .is("deleted_at", null),
     isTrainer(),
   ]);
+
+  // Laufende Saison wie bei den Terminen: als Standard markierte Saison,
+  // sonst die zuletzt angelegte.
+  const currentSeason = seasons?.find((s) => s.is_default)?.name ?? seasons?.[0]?.name;
+  const currentSeasonEventIds = new Set(
+    (trainingEvents ?? []).filter((e) => e.season === currentSeason).map((e) => e.id as string),
+  );
+
+  // Wie oft eine Uebung in der laufenden Saison schon eingeplant wurde
+  // (gezaehlt wie in der Uebungshistorie: je Trainingstermin einmal).
+  const seasonCount = new Map<string, number>();
+  for (const training of (trainingsData ?? []) as unknown as {
+    event_id: string;
+    training_exercises: { exercise_id: string }[];
+  }[]) {
+    if (!currentSeasonEventIds.has(training.event_id)) continue;
+    for (const id of new Set(training.training_exercises.map((te) => te.exercise_id))) {
+      seasonCount.set(id, (seasonCount.get(id) ?? 0) + 1);
+    }
+  }
 
   // Standardsortierung: absteigend nach Gesamtzahl der Einsätze in der
   // Trainingsplanung (wie in der Übungshistorie), bei Gleichstand alphabetisch.
@@ -90,10 +125,10 @@ export default async function ExercisesPage() {
         (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
         a.name.localeCompare(b.name, "de"),
     ),
-  );
+  ).map((exercise) => ({ ...exercise, seasonCount: seasonCount.get(exercise.id) ?? 0 }));
 
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
       <BackButton href="/" />
       <SavedQueryNotice />
       <div className="mb-6 flex items-center justify-between">

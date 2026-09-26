@@ -19,6 +19,8 @@ type ExerciseRow = {
   category: string;
   image_url: string | null;
   fields: { name: string } | null;
+  /** Einsaetze in der laufenden Saison (aus der Uebungshistorie). */
+  seasonCount: number;
 };
 
 const NO_FIELD = "__keine__";
@@ -186,18 +188,36 @@ export default function ExercisesTable({
         )}
       </div>
 
-      <table className="w-full text-left text-sm">
+      {/* Feste Spaltenbreiten: nur "Name" nimmt den restlichen Platz, alle
+          anderen Spalten sind schmal und brechen bei Bedarf um. */}
+      <table className="w-full table-fixed text-left text-sm">
+        <colgroup>
+          <col className="w-12" />
+          <col />
+          <col className="w-24" />
+          <col className="w-28" />
+          <col className="w-28" />
+          <col className="w-28" />
+          <col className="w-16" />
+          <col className="w-20" />
+          <col className="w-16" />
+          <col className="w-14" />
+          {canWrite && <col className="w-24" />}
+        </colgroup>
         <thead>
-          <tr className="border-b border-zinc-200 dark:border-zinc-800">
+          <tr className="border-b border-zinc-200 align-bottom dark:border-zinc-800">
             <th className="py-2 pr-3" />
-            <th className="min-w-[11rem] py-2 pr-4">Name</th>
-            <th className="min-w-[6rem] py-2 pr-4">Kategorie</th>
-            <th className="min-w-[8rem] py-2 pr-4">Fläche</th>
-            <th className="py-2">Übungsschwerpunkt 1</th>
-            <th className="py-2">Übungsschwerpunkt 2</th>
-            <th className="py-2">Spieler</th>
-            <th className="py-2">Kleinfeldtore</th>
-            <th className="py-2">Minitore</th>
+            <th className="py-2 pr-4">Name</th>
+            <th className="py-2 pr-3">Kategorie</th>
+            <th className="py-2 pr-3">Fläche</th>
+            <th className="py-2 pr-3">Üb.schwp. 1</th>
+            <th className="py-2 pr-3">Üb.schwp. 2</th>
+            <th className="py-2 pr-3">Spieler</th>
+            <th className="py-2 pr-3">Kleinfeld&shy;tore</th>
+            <th className="py-2 pr-3">Mini&shy;tore</th>
+            <th className="py-2 pr-3" title="Einsätze in der laufenden Saison">
+              akt.Sai.
+            </th>
             {canWrite && <th className="py-2" />}
           </tr>
         </thead>
@@ -227,17 +247,18 @@ export default function ExercisesTable({
                     {exercise.name}
                   </Link>
                 </td>
-                <td className="py-2 pr-4 text-zinc-500">
+                <td className="py-2 pr-3 text-zinc-500">
                   {categoryLabels[exercise.category] ?? exercise.category}
                 </td>
-                <td className="py-2 pr-4 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
-                <td className="py-2 text-zinc-500">{exercise.hauptzweck}</td>
-                <td className="py-2 text-zinc-500">{exercise.nebenzweck || "–"}</td>
-                <td className="py-2 text-zinc-500">
+                <td className="py-2 pr-3 text-zinc-500">{exercise.fields?.name ?? "–"}</td>
+                <td className="py-2 pr-3 text-zinc-500">{exercise.hauptzweck}</td>
+                <td className="py-2 pr-3 text-zinc-500">{exercise.nebenzweck || "–"}</td>
+                <td className="whitespace-nowrap py-2 pr-3 text-zinc-500">
                   {exercise.min_players}–{exercise.max_players}
                 </td>
-                <td className="py-2 text-zinc-500">{exercise.small_goals}</td>
-                <td className="py-2 text-zinc-500">{exercise.mini_goals}</td>
+                <td className="py-2 pr-3 text-zinc-500">{exercise.small_goals}</td>
+                <td className="py-2 pr-3 text-zinc-500">{exercise.mini_goals}</td>
+                <td className="py-2 pr-3 text-zinc-500">{exercise.seasonCount}</td>
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end gap-1">
@@ -268,7 +289,7 @@ export default function ExercisesTable({
           })}
           {!filtered.length && (
             <tr>
-              <td colSpan={canWrite ? 10 : 9} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 11 : 10} className="py-4 text-zinc-500">
                 {exercises.length
                   ? "Keine Übungen entsprechen den gewählten Filtern."
                   : "Noch keine Übungen angelegt."}
