@@ -11,13 +11,35 @@ export default function UpdatePasswordPage() {
 
   useEffect(() => {
     // Der Reset-Link liefert die Session nur als URL-Fragment (#access_token=...),
-    // das der Server nie sieht. getSession() wartet auf die automatische
-    // Verarbeitung dieses Fragments durch den Browser-Client und legt die
-    // Session danach in Cookies ab, damit die Server Action sie lesen kann.
+    // das der Server nie sieht. Wichtig: nicht einfach pruefen, ob "irgendeine"
+    // Session existiert - war im Browser bereits ein anderer Nutzer eingeloggt
+    // (oder wurde der Einmal-Link z.B. durch das Vorab-Scannen von Gmail schon
+    // verbraucht), waere sonst faelschlich dessen alte Session akzeptiert und
+    // durch das Formular dessen Passwort geaendert worden, statt das des
+    // Nutzers, fuer den der Link erzeugt wurde. Nur das "PASSWORD_RECOVERY"-
+    // Event bestaetigt, dass die Session frisch aus einem gueltigen Reset-Link
+    // stammt; es setzt die Session dabei automatisch in Cookies, damit die
+    // Server Action sie lesen kann.
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setStatus(session ? "ready" : "invalid");
+    let recovered = false;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        recovered = true;
+        setStatus("ready");
+      }
     });
+
+    const timeout = setTimeout(() => {
+      if (!recovered) setStatus("invalid");
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   if (status === "checking") {
