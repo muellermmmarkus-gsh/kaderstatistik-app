@@ -71,6 +71,33 @@ und in der Tabelle `profiles` gespeichert. **Eltern/Spieler haben reinen
 Lesezugriff**, nur Trainer dürfen Daten anlegen/ändern/löschen – siehe
 Abschnitt "Rechte" unten.
 
+### Passwort zurücksetzen
+
+Nutzer können ihr Passwort selbst zurücksetzen: Auf `/login` über den Link
+„Passwort vergessen?" gelangt man zu `/reset-password`, gibt dort die
+E-Mail-Adresse ein und bekommt (falls dazu ein Konto existiert) eine E-Mail
+mit einem Link.
+
+Ohne eigenen SMTP-Server lässt Supabase das Anpassen der Link-URL im
+"Reset Password"-E-Mail-Template nicht zu (Hinweis im Dashboard: "Set up
+custom SMTP to edit templates"). Deshalb wird das Ziel stattdessen direkt
+beim Erzeugen des Links gesteuert: `resetPasswordForEmail` in
+[`src/app/reset-password/actions.ts`](src/app/reset-password/actions.ts)
+übergibt `redirectTo: <Site-URL>/reset-password/update`. Supabase bestätigt
+den Link auf seinem eigenen Endpunkt und leitet danach mit der Session als
+URL-Fragment (`#access_token=...`) dorthin weiter. Die Seite
+`/reset-password/update` liest dieses Fragment clientseitig aus
+(`supabase.auth.getSession()`), wodurch die Session in Cookies landet, bevor
+das neue Passwort per Server Action gespeichert wird.
+
+Aus demselben Grund (keine Template-Anpassung ohne Custom SMTP möglich)
+läuft auch die Registrierungs-Bestätigung über Supabases eigenen
+Bestätigungs-Endpunkt statt über `/auth/confirm` – das genügt aber, um die
+E-Mail-Adresse zu bestätigen; der Nutzer loggt sich danach ganz normal über
+`/login` ein. Die Route [`/auth/confirm`](src/app/auth/confirm/route.ts)
+bleibt nutzbar, sobald für dieses Projekt einmal Custom SMTP eingerichtet
+wird und die Templates entsprechend umgestellt werden.
+
 ### Rechte
 
 - **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche.
@@ -96,8 +123,17 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **trainings** – die Uebungsplanung (Schwerpunkt, Notizen, ausgewaehlte Uebungen) zu einem Termin vom Typ `training`, 1:1 verknuepft ueber `event_id` (`unique`); wird beim ersten Speichern in der Detailplanung unter „Trainingsplanung" automatisch angelegt (Upsert per `event_id`)
 - **training_exercises** – die fuer ein Training ausgewaehlten Uebungen inkl. geplanter Dauer und Reihenfolge (`exercise_id` kann nicht geloescht werden, solange die Uebung noch in einem Trainingsplan verwendet wird)
 - **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
+- **login_events** – ein Eintrag pro erfolgreichem Login (Nutzer, Zeitpunkt), Grundlage fuer die Admin-Uebersicht (siehe unten). Nur Trainer duerfen die Eintraege lesen, jeder Nutzer darf beim Login seinen eigenen Eintrag anlegen.
 
-Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql), [`supabase/migration_030_login_events.sql`](supabase/migration_030_login_events.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+
+### Admin-Uebersicht
+
+Trainer sehen oben rechts neben „Abmelden" einen Button „ADMIN", der zur Seite
+`/admin` fuehrt (fuer Eltern/Spieler nicht sichtbar und serverseitig
+geschuetzt). Dort stehen alle registrierten Nutzer (Name, E-Mail, Rolle,
+Registrierungsdatum, Logins gesamt, letzter Login) sowie die Login-Historie
+je Datum, Woche und Monat.
 
 ### Geburtstage im Kalender
 

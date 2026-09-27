@@ -8,10 +8,15 @@ export async function signIn(_prevState: string | null, formData: FormData) {
   const password = String(formData.get("password") ?? "");
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return "Anmeldung fehlgeschlagen. E-Mail oder Passwort falsch.";
+  }
+
+  if (data.user) {
+    // Best effort - schlaegt die Protokollierung fehl, soll der Login trotzdem klappen.
+    await supabase.from("login_events").insert({ user_id: data.user.id });
   }
 
   redirect("/");
