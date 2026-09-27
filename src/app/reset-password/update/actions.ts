@@ -25,7 +25,7 @@ export async function updatePassword(_prevState: string | null, formData: FormDa
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
-    return "Passwort konnte nicht geändert werden. Bitte versuche es erneut.";
+    return `Passwort konnte nicht geändert werden: ${error.message}`;
   }
 
   redirect("/");
