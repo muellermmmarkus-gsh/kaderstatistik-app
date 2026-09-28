@@ -25,8 +25,9 @@ const EMPTY_DRAFT: Draft = { minute: "", team: null, a: EMPTY_SIDE, b: EMPTY_SID
 const NUMBER_OPTIONS = (prefix: string): Option[] =>
   Array.from({ length: 20 }, (_, i) => ({ value: `${prefix}${i + 1}`, label: String(i + 1) }));
 
-// Spalten: Spielminute | Mannschaft A | Mannschaft B | Buttons
-const GRID = "grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3";
+// Spalten: Spielminute | Zwischenstand | Mannschaft A | Mannschaft B | Buttons
+const GRID =
+  "grid grid-cols-[4.5rem_5.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3";
 
 function pickFromEntry(entry: GoalEntry, ownSide: TeamSide): string {
   if (entry.team === ownSide && entry.playerId) return entry.playerId;
@@ -154,11 +155,12 @@ export default function LiveResultBoard({
         style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
         className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
       >
-        <div className="min-w-[62rem] space-y-2 px-2 pb-2">
+        <div className="min-w-[68rem] space-y-2 px-2 pb-2">
           <div
             className={`${GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
           >
             <span className="text-xs font-medium text-zinc-500">Spielminute</span>
+            <span className="text-center text-xs font-medium text-zinc-500">Zwischenstand</span>
             <span>{teamA}</span>
             <span>{teamB}</span>
             <span />
@@ -166,11 +168,14 @@ export default function LiveResultBoard({
 
           {/* Gespeicherte Eintraege chronologisch nach Spielminute; eine
               Zeile springt erst nach dem Speichern an ihre neue Position. */}
-          {sortByMinute(entries).map((entry) => (
+          {/* Zwischenstand nach dem jeweiligen Tor wird automatisch
+              mitgezaehlt (Eigentor zaehlt fuer die andere Mannschaft). */}
+          {sortByMinute(entries).map((entry, index, sorted) => (
             <EntryRow
               key={entry.id}
               eventId={eventId}
               entry={entry}
+              runningScore={scoreOf(sorted.slice(0, index + 1)).join(" : ")}
               ownSide={ownSide}
               optionsFor={optionsFor}
               canWrite={canWrite}
@@ -227,6 +232,7 @@ function EntryRow({
   optionsFor,
   canWrite,
   autoFocus = false,
+  runningScore,
   onSaved,
   onDeleted,
 }: {
@@ -236,6 +242,8 @@ function EntryRow({
   optionsFor: (side: TeamSide) => Option[];
   canWrite: boolean;
   autoFocus?: boolean;
+  /** Zwischenstand nach diesem Eintrag (nur gespeicherte Eintraege). */
+  runningScore?: string;
   onSaved: (entry: GoalEntry) => void;
   onDeleted: (id: string) => void;
 }) {
@@ -335,6 +343,10 @@ function EntryRow({
           }}
           className="w-full rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
         />
+
+        <span className="text-center text-base font-bold tabular-nums">
+          {runningScore ?? ""}
+        </span>
 
         {(["a", "b"] as const).map((side) => (
           <SideInputs
