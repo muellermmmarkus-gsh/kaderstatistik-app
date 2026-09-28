@@ -61,7 +61,7 @@ export default async function RecentResultsPage() {
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <BackButton href="/" />
-      <h1 className="mb-6 text-xl font-semibold">Letzte Ergebnisse</h1>
+      <h1 className="mb-6 text-xl font-semibold">Spielberichte</h1>
       <SavedQueryNotice />
 
       <table className="w-full text-left text-sm">
@@ -70,7 +70,7 @@ export default async function RecentResultsPage() {
             <th className="py-2 pr-6">Datum</th>
             <th className="py-2 pr-4">Spiel</th>
             <th className="py-2 pr-4 text-center">Ergebnis</th>
-            {canWrite && <th className="py-2" />}
+            <th className="py-2" />
           </tr>
         </thead>
         <tbody>
@@ -106,30 +106,38 @@ export default async function RecentResultsPage() {
                 <td className="whitespace-nowrap py-3 pr-4 text-center text-lg font-bold tabular-nums">
                   {scoreA} : {scoreB}
                 </td>
-                {canWrite && (
-                  <td className="whitespace-nowrap py-3 text-right">
-                    <Link
-                      href={`/results/live/${result.event_id}`}
-                      className="mr-3 text-zinc-600 hover:underline dark:text-zinc-400"
-                    >
-                      Ändern
-                    </Link>
-                    <form action={remove} className="inline">
-                      <DeleteConfirmButton
-                        message="Eintrag wirklich löschen?"
-                        triggerLabel="Löschen"
-                        confirmLabel="Löschen"
-                        triggerClassName="text-red-700 hover:underline dark:text-red-400"
-                      />
-                    </form>
-                  </td>
-                )}
+                <td className="whitespace-nowrap py-3 text-right">
+                  {canWrite && (
+                    <>
+                      <Link
+                        href={`/results/live/${result.event_id}`}
+                        className="mr-3 text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        Ändern
+                      </Link>
+                      <form action={remove} className="mr-3 inline">
+                        <DeleteConfirmButton
+                          message="Eintrag wirklich löschen?"
+                          triggerLabel="Löschen"
+                          confirmLabel="Löschen"
+                          triggerClassName="text-red-700 hover:underline dark:text-red-400"
+                        />
+                      </form>
+                    </>
+                  )}
+                  <Link
+                    href={`/results/report/${result.event_id}`}
+                    className="rounded bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  >
+                    Spielbericht
+                  </Link>
+                </td>
               </tr>
             );
           })}
           {!results.length && (
             <tr>
-              <td colSpan={canWrite ? 4 : 3} className="py-4 text-zinc-500">
+              <td colSpan={4} className="py-4 text-zinc-500">
                 Noch keine beendeten Spiele.
               </td>
             </tr>

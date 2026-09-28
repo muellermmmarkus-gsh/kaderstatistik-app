@@ -190,6 +190,18 @@ export async function finishMatch(eventId: string) {
   redirect("/results/recent?saved=1");
 }
 
+export async function saveMatchReport(resultId: string, formData: FormData) {
+  const report = String(formData.get("report") ?? "").trim();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("match_results")
+    .update({ report: report || null })
+    .eq("id", resultId);
+  if (error) throw new Error(`Spielbericht konnte nicht gespeichert werden: ${error.message}`);
+
+  revalidatePath("/results/report", "layout");
+}
+
 // Loescht das archivierte Ergebnis inklusive aller Tor-Eintraege (per
 // on delete cascade). Der Spieltermin selbst bleibt erhalten.
 export async function deleteMatchResult(resultId: string, eventId: string) {

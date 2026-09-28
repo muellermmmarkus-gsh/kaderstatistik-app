@@ -27,7 +27,7 @@ export default async function LiveResultsPage() {
     supabase.from("match_results").select("event_id").not("finished_at", "is", null),
   ]);
 
-  // Bereits beendete (archivierte) Spiele stehen unter "Letzte Ergebnisse".
+  // Bereits beendete (archivierte) Spiele stehen unter "Spielberichte".
   const finishedIds = new Set((finishedData ?? []).map((r) => r.event_id as string));
   const games = ((gamesData as GameRow[] | null) ?? []).filter((g) => !finishedIds.has(g.id));
 

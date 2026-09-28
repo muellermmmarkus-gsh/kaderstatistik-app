@@ -25,10 +25,10 @@ const menu: MenuGroup[] = [
     ],
   },
   {
-    label: "Spielergebnis",
+    label: "Spielbetrieb",
     items: [
       { label: "Live-Ergebnis", href: "/results/live" },
-      { label: "Letzte Ergebnisse", href: "/results/recent" },
+      { label: "Spielberichte", href: "/results/recent" },
     ],
   },
   {

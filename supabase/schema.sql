@@ -279,6 +279,7 @@ create table if not exists match_results (
   team_a text not null,
   team_b text not null,
   finished_at timestamptz,
+  report text, -- subjektiver Spielbericht des Trainers
   created_at timestamptz not null default now()
 );
 
