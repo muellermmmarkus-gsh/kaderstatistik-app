@@ -4,7 +4,13 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { deleteGoalEntry, finishMatch, saveGoalEntry } from "../../actions";
-import { scoreOf, type GoalEntry, type GoalKind, type TeamSide } from "../../teams";
+import {
+  scoreOf,
+  sortByMinute,
+  type GoalEntry,
+  type GoalKind,
+  type TeamSide,
+} from "../../teams";
 
 export type PlayerOption = { playerId: string; shirtNumber: number | null; name: string };
 type Option = { value: string; label: string };
@@ -158,7 +164,9 @@ export default function LiveResultBoard({
             <span />
           </div>
 
-          {entries.map((entry) => (
+          {/* Gespeicherte Eintraege chronologisch nach Spielminute; eine
+              Zeile springt erst nach dem Speichern an ihre neue Position. */}
+          {sortByMinute(entries).map((entry) => (
             <EntryRow
               key={entry.id}
               eventId={eventId}

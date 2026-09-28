@@ -5,7 +5,7 @@ import BackButton from "@/components/BackButton";
 import DeleteConfirmButton from "@/components/DeleteConfirmButton";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import { deleteMatchResult } from "../actions";
-import { scoreOf, type GoalKind, type TeamSide } from "../teams";
+import { scoreOf, sortByMinute, type GoalKind, type TeamSide } from "../teams";
 
 type EntryRow = {
   minute: string | null;
@@ -75,8 +75,10 @@ export default async function RecentResultsPage() {
         </thead>
         <tbody>
           {results.map((result) => {
-            const entries = [...result.match_goal_entries].sort((x, y) =>
-              x.created_at.localeCompare(y.created_at),
+            const entries = sortByMinute(
+              [...result.match_goal_entries].sort((x, y) =>
+                x.created_at.localeCompare(y.created_at),
+              ),
             );
             const [scoreA, scoreB] = scoreOf(entries);
             const remove = deleteMatchResult.bind(null, result.id, result.event_id);

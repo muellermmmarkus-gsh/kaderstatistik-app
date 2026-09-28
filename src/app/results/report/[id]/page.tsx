@@ -4,7 +4,7 @@ import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
 import { saveMatchReport } from "../../actions";
-import { scoreOf, type GoalKind, type TeamSide } from "../../teams";
+import { scoreOf, sortByMinute, type GoalKind, type TeamSide } from "../../teams";
 
 type EntryRow = {
   minute: string | null;
@@ -15,13 +15,6 @@ type EntryRow = {
   created_at: string;
   players: { first_name: string; last_name: string } | null;
 };
-
-// "12" -> 12, "45+2" -> 45.02; ohne (lesbare) Minute ans Ende.
-function minuteKey(minute: string | null): number {
-  const match = (minute ?? "").match(/^\s*(\d+)(?:\s*\+\s*(\d+))?/);
-  if (!match) return Number.POSITIVE_INFINITY;
-  return Number(match[1]) + Number(match[2] ?? 0) / 100;
-}
 
 function scorerLabel(entry: EntryRow): { name: string; extra: string | null } {
   const note = entry.note?.trim() || null;
@@ -66,9 +59,10 @@ export default async function MatchReportPage({
   // Zwischenstand chronologisch berechnen (Eintraege ohne Minute in
   // Erfassungsreihenfolge nach den anderen), angezeigt wird wie bei bfv.de
   // umgekehrt: das letzte Tor oben, das erste unten.
-  const entries = [...((result.match_goal_entries ?? []) as unknown as EntryRow[])].sort(
-    (x, y) =>
-      minuteKey(x.minute) - minuteKey(y.minute) || x.created_at.localeCompare(y.created_at),
+  const entries = sortByMinute(
+    [...((result.match_goal_entries ?? []) as unknown as EntryRow[])].sort((x, y) =>
+      x.created_at.localeCompare(y.created_at),
+    ),
   );
   let a = 0;
   let b = 0;

@@ -46,6 +46,25 @@ export function scoreOf(entries: { team: TeamSide; kind: GoalKind }[]): [number,
   return [a, b];
 }
 
+/** Sortierschluessel Spielminute: "12" -> 12, "45+2" -> 45.02, ohne Minute ans Ende. */
+export function minuteKey(minute: string | null | undefined): number {
+  const match = (minute ?? "").match(/^\s*(\d+)(?:\s*\+\s*(\d+))?/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  return Number(match[1]) + Number(match[2] ?? 0) / 100;
+}
+
+/**
+ * Chronologisch nach Spielminute (1. Minute zuerst). Die Sortierung ist
+ * stabil: Eintraege mit gleicher/ohne Minute behalten die Reihenfolge der
+ * Eingabeliste (= Erfassungsreihenfolge, wenn so uebergeben).
+ */
+export function sortByMinute<T extends { minute: string | null }>(entries: T[]): T[] {
+  return [...entries].sort((x, y) => {
+    const diff = minuteKey(x.minute) - minuteKey(y.minute);
+    return Number.isNaN(diff) ? 0 : diff;
+  });
+}
+
 /** Heutiges Datum (YYYY-MM-DD) in deutscher Zeit, unabhaengig von der Server-Zeitzone. */
 export function todayInGermany(): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date());
