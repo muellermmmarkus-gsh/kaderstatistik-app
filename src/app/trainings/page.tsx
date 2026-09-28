@@ -9,8 +9,20 @@ type EventRow = { id: string; event_date: string };
 type TrainingRow = {
   event_id: string;
   focus: string | null;
-  training_exercises: { duration_minutes: number }[];
+  training_exercises: { duration_minutes: number; block: number }[];
 };
+
+// Parallele Uebungen im selben Trainingsblock (z.B. Gruppe A/B) haben je
+// eine eigene Zeile, aber dieselbe Blockdauer - die Gesamtdauer zaehlt
+// jeden Block nur einmal, sonst wuerde sie bei parallelen Bloecken zu hoch
+// ausfallen (siehe auch die identische Logik in trainings/[id]/page.tsx).
+function totalMinutesOf(exercises: { duration_minutes: number; block: number }[]): number {
+  const durationByBlock = new Map<number, number>();
+  for (const ex of exercises) {
+    if (!durationByBlock.has(ex.block)) durationByBlock.set(ex.block, ex.duration_minutes);
+  }
+  return [...durationByBlock.values()].reduce((sum, d) => sum + d, 0);
+}
 
 export default async function TrainingsPage() {
   const supabase = await createClient();
@@ -23,7 +35,7 @@ export default async function TrainingsPage() {
       .order("event_date", { ascending: false }),
     supabase
       .from("trainings")
-      .select("event_id, focus, training_exercises(duration_minutes)")
+      .select("event_id, focus, training_exercises(duration_minutes, block)")
       .not("event_id", "is", null),
     isTrainer(),
   ]);
@@ -60,10 +72,7 @@ export default async function TrainingsPage() {
           {events?.map((event) => {
             const training = trainingByEvent.get(event.id);
             const exerciseCount = training?.training_exercises.length ?? 0;
-            const totalMinutes = (training?.training_exercises ?? []).reduce(
-              (sum, te) => sum + te.duration_minutes,
-              0,
-            );
+            const totalMinutes = totalMinutesOf(training?.training_exercises ?? []);
             const isFuture = event.event_date > today;
             const remove = deleteEvent.bind(null, event.id);
             return (
