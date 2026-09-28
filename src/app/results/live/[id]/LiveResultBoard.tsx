@@ -77,6 +77,9 @@ export default function LiveResultBoard({
 
   const [entries, setEntries] = useState(initialEntries);
   const [newRowKey, setNewRowKey] = useState(0);
+  // Live immer eine leere Zeile fuer den naechsten Eintrag; bei beendeten
+  // Spielen nur auf Klick auf "Zusätzlicher Toreintrag".
+  const [showNewRow, setShowNewRow] = useState(!isFinished);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [finishing, startFinish] = useTransition();
   const [scoreA, scoreB] = scoreOf(entries);
@@ -102,7 +105,7 @@ export default function LiveResultBoard({
     <div>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Live-Ergebnis</h1>
+          <h1 className="text-xl font-semibold">{isFinished ? "Ergebnis" : "Live-Ergebnis"}</h1>
           <p className="text-sm text-zinc-500">{subtitle}</p>
           {isFinished && (
             <p className="mt-1 text-sm font-medium text-green-700 dark:text-green-400">
@@ -155,7 +158,7 @@ export default function LiveResultBoard({
         style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
         className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
       >
-        <div className="min-w-[68rem] space-y-2 px-2 pb-2">
+        <div className="min-w-[76rem] space-y-2 px-2 pb-2">
           <div
             className={`${GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
           >
@@ -186,7 +189,7 @@ export default function LiveResultBoard({
             />
           ))}
 
-          {canWrite && (
+          {canWrite && showNewRow && (
             <EntryRow
               key={`new-${newRowKey}`}
               eventId={eventId}
@@ -194,14 +197,38 @@ export default function LiveResultBoard({
               ownSide={ownSide}
               optionsFor={optionsFor}
               canWrite
-              autoFocus={newRowKey > 0}
+              autoFocus={newRowKey > 0 || isFinished}
               onSaved={(saved) => {
                 setEntries((prev) => [...prev, saved]);
-                // Neue, leere Zeile fuer den naechsten Eintrag.
+                // Neue, leere Zeile fuer den naechsten Eintrag (live) bzw.
+                // Zeile wieder ausblenden (beendetes Spiel).
                 setNewRowKey((k) => k + 1);
+                if (isFinished) setShowNewRow(false);
               }}
               onDeleted={() => {}}
             />
+          )}
+
+          {canWrite && isFinished && (
+            <div className="flex gap-3 pt-1">
+              {showNewRow ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNewRow(false)}
+                  className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+                >
+                  Abbrechen
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewRow(true)}
+                  className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+                >
+                  + Zusätzlicher Toreintrag
+                </button>
+              )}
+            </div>
           )}
 
           {!canWrite && !entries.length && (
@@ -463,7 +490,7 @@ function SideInputs({
         value={value.pick}
         disabled={disabled}
         onChange={(event) => onChange({ pick: event.target.value })}
-        className={`${wide ? "w-48" : ""} shrink-0 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900`}
+        className={`${wide ? "w-40" : ""} shrink-0 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900`}
       >
         <option value="">Nr.</option>
         {options.map((o) => (
@@ -483,7 +510,7 @@ function SideInputs({
         value={value.note}
         disabled={disabled}
         onChange={(event) => onChange({ note: event.target.value })}
-        className="min-w-0 flex-1 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-w-24 flex-1 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
       />
     </div>
   );

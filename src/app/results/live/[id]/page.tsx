@@ -80,7 +80,7 @@ export default async function LiveResultPage({
   const isFinished = !!result?.finished_at;
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8">
       <BackButton href={isFinished ? "/results/recent" : "/results/live"} />
       <LiveResultBoard
         eventId={id}
