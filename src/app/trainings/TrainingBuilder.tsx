@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
 import SaveNotice from "@/components/SaveNotice";
 import AiPlanModal from "./AiPlanModal";
@@ -98,6 +98,16 @@ export default function TrainingBuilder({
   const [trainingFocus, setTrainingFocus] = useState(initialFocus ?? "");
   const [showAiModal, setShowAiModal] = useState(false);
   const [viewMode, setViewMode] = useState<"edit" | "visual">("edit");
+  const [zoomImage, setZoomImage] = useState<{ url: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if (!zoomImage) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setZoomImage(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [zoomImage]);
 
   const [rows, setRows] = useState<Row[]>(() =>
     initialRows?.length
@@ -326,6 +336,33 @@ export default function TrainingBuilder({
 
   return (
     <div>
+      {zoomImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={zoomImage.name}
+          onClick={() => setZoomImage(null)}
+          className="fixed inset-0 z-50 flex cursor-zoom-out flex-col items-center justify-center gap-3 bg-black/80 p-4"
+        >
+          <div className="flex w-full max-w-5xl items-center justify-between gap-3 text-white">
+            <p className="truncate text-sm font-medium">{zoomImage.name}</p>
+            <button
+              type="button"
+              onClick={() => setZoomImage(null)}
+              aria-label="Schließen"
+              className="rounded px-2 py-1 text-2xl leading-none hover:bg-white/10"
+            >
+              ×
+            </button>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}
+          <img
+            src={zoomImage.url}
+            alt={zoomImage.name}
+            className="max-h-[85vh] max-w-full rounded object-contain shadow-lg"
+          />
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
@@ -639,12 +676,21 @@ export default function TrainingBuilder({
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           {exercise?.image_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                            <img
-                              src={exercise.image_url}
-                              alt=""
-                              className="h-24 w-24 shrink-0 rounded border border-zinc-300 object-cover dark:border-zinc-700"
-                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setZoomImage({ url: exercise.image_url!, name: exercise.name })
+                              }
+                              title="Bild vergrößern"
+                              className="shrink-0 cursor-zoom-in rounded"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}
+                              <img
+                                src={exercise.image_url}
+                                alt={exercise.name}
+                                className="h-24 w-24 rounded border border-zinc-300 object-cover dark:border-zinc-700"
+                              />
+                            </button>
                           ) : (
                             <div className="h-24 w-24 shrink-0 rounded border border-dashed border-zinc-300 dark:border-zinc-700" />
                           )}
