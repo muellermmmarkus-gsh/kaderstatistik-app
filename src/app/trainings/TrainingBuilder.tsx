@@ -765,9 +765,21 @@ export default function TrainingBuilder({
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
+            onClick={() => {
+              if (redirectInputRef.current) redirectInputRef.current.value = "";
+            }}
             className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
           >
             {submitLabel}
+          </button>
+          <button
+            type="submit"
+            onClick={() => {
+              if (redirectInputRef.current) redirectInputRef.current.value = backHref;
+            }}
+            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Speichern und Zurück
           </button>
           <button
             type="button"
