@@ -1,4 +1,5 @@
 import ExerciseImagePreview from "./ExerciseImagePreview";
+import ExerciseImageInput from "./ExerciseImageInput";
 
 type ExerciseValues = {
   name: string;
@@ -209,13 +210,7 @@ export default function ExerciseForm({
         {exerciseId && initial?.image_url && (
           <ExerciseImagePreview exerciseId={exerciseId} imageUrl={initial.image_url} />
         )}
-        <input
-          id="image"
-          name="image"
-          type="file"
-          accept="image/*"
-          className="block w-full text-sm"
-        />
+        <ExerciseImageInput />
       </div>
 
       <div className="flex flex-wrap gap-3">
