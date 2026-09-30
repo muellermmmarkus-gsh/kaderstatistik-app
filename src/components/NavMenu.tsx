@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 type MenuLink = { label: string; href: string };
-type MenuGroup = { label: string; href?: string; items?: MenuLink[] };
+type MenuGroup = { label: string; href?: string; items?: MenuLink[]; trainerOnly?: boolean };
 
 const menu: MenuGroup[] = [
   {
@@ -42,6 +42,7 @@ const menu: MenuGroup[] = [
   },
   {
     label: "Performance",
+    trainerOnly: true,
     items: [
       { label: "Update", href: "/performance/update" },
       { label: "Entwicklung", href: "/performance/development" },
@@ -57,8 +58,9 @@ const menu: MenuGroup[] = [
   },
 ];
 
-export default function NavMenu() {
+export default function NavMenu({ isTrainer }: { isTrainer: boolean }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const visibleMenu = menu.filter((group) => isTrainer || !group.trainerOnly);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export default function NavMenu() {
 
   return (
     <div ref={rootRef} className="flex items-center gap-1 text-sm font-medium">
-      {menu.map((group, index) =>
+      {visibleMenu.map((group, index) =>
         group.items ? (
           <div
             key={group.label}

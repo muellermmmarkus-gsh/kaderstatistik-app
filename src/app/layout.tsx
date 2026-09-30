@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
@@ -31,6 +32,11 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <NavBar />
         {children}
+        <footer className="px-4 py-4 text-center text-xs text-zinc-500">
+          <Link href="/datenschutz" className="hover:underline">
+            Datenschutz
+          </Link>
+        </footer>
       </body>
     </html>
   );

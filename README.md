@@ -66,10 +66,10 @@ Damit das funktioniert, im Supabase-Dashboard einmalig einstellen:
    ```
    (ersetzt die Standard-Variable `{{ .ConfirmationURL }}`).
 
-Rolle ("Trainer" oder "Eltern/Spieler") wird bei der Registrierung erfasst
-und in der Tabelle `profiles` gespeichert. **Eltern/Spieler haben reinen
-Lesezugriff**, nur Trainer dürfen Daten anlegen/ändern/löschen – siehe
-Abschnitt "Rechte" unten.
+Bei der Registrierung wird **keine Rolle** gewählt: Neue Nutzer starten als
+„nicht freigeschaltet" (`pending`), sehen nur die Warteseite `/pending` und
+bekommen keine Daten. Ein Trainer schaltet sie auf der ADMIN-Seite als
+„Eltern/Spieler" oder „Trainer" frei – siehe Abschnitt "Rechte" unten.
 
 ### Passwort zurücksetzen
 
@@ -100,22 +100,39 @@ wird und die Templates entsprechend umgestellt werden.
 
 ### Rechte
 
-- **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche.
-- **Eltern/Spieler**: nur Lesezugriff. Schreibgeschützt sowohl in der
-  Datenbank (Row-Level-Security anhand der Rolle in `profiles`) als auch
-  im UI (Formulare/Buttons werden ausgeblendet bzw. Felder deaktiviert).
+- **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche, vergeben
+  Rollen auf der ADMIN-Seite.
+- **Eltern/Spieler**: nur Lesezugriff, und **ohne** Geburtsdaten,
+  Passnummern, Trainingsbewertungen und Performance-Noten der Kinder
+  (Menüpunkt „Performance" ist ausgeblendet).
+- **Nicht freigeschaltet** (`pending`): kein Datenzugriff.
 
-Damit das greift, [`supabase/migration_010_role_permissions.sql`](supabase/migration_010_role_permissions.sql)
-ausführen (setzt `migration_009_profiles.sql` voraus).
+Alles ist in der Datenbank per Row-Level-Security durchgesetzt (Funktionen
+`is_trainer()` und `is_member()`), das UI blendet zusätzlich aus. Views laufen
+mit `security_invoker`, damit sie die Row-Level-Security nicht umgehen.
+Grundlage: [`supabase/migration_010_role_permissions.sql`](supabase/migration_010_role_permissions.sql)
+und [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschutz.sql).
+
+### Datenschutz
+
+- Hinweise für Nutzer unter `/datenschutz` (auch ohne Login erreichbar, im
+  Seitenfuß verlinkt).
+- Verlässt ein Kind die Mannschaft: unter „Spieler" auf **anonymisieren**
+  klicken. Name, Geburtsdatum, Passnummer, Bewertungen und Noten werden
+  gelöscht, Anwesenheiten/Tore bleiben anonym („Ehemaliger Spieler XXXX")
+  für die Mannschaftsstatistik erhalten. „löschen" entfernt dagegen alles
+  inkl. Anwesenheiten und Toren.
 
 ### Datenmodell
 
-- **profiles** – Vorname, Nachname, Rolle je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt)
-- **players** – Spieler-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
+- **profiles** – Vorname, Nachname, Rolle (`pending`/`parent_player`/`trainer`) je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt, startet immer als `pending`)
+- **players** – Spieler-Stammdaten (Name, aktiv)
+- **player_private** – Geburtsdatum (erscheint als Geburtstag im Kalender) und Passnummer je Spieler, nur fuer Trainer lesbar
 - **trainers** – Trainer-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
 - **events** – Termine (`type`: `training`/`game`/`tournament`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`, `event_time`/`location`/`opponent` fuer Uhrzeit/Ort/Gegner bei `game` und `tournament`)
-- **attendance** – Anwesenheit pro Spieler und Termin; bei Terminen vom Typ `training` zusaetzlich Leistung (`stark`/`mittel`/`schwach`), Motivation (`hoch`/`mittel`/`niedrig`), Disziplin (`sehr gut`/`mittel`/`gering`) und ein Freitext-Notizfeld (`player_notes`, max. 50 Zeichen) je Spieler
+- **attendance** – Anwesenheit pro Spieler und Termin
+- **attendance_assessments** – bei Terminen vom Typ `training` Leistung (`stark`/`mittel`/`schwach`), Motivation (`hoch`/`mittel`/`niedrig`), Disziplin (`sehr gut`/`mittel`/`gering`) und ein Freitext-Notizfeld (`player_notes`, max. 50 Zeichen) je Spieler, nur fuer Trainer lesbar
 - **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin
 - **trainer_absences** – Abwesenheitszeitraeume pro Trainer, verwaltet unter „Abwesenheiten", erscheinen automatisch im Kalender
 - **goals** – erzielte Tore pro Spieler bei Terminen vom Typ `game`/`tournament`
@@ -125,7 +142,7 @@ ausführen (setzt `migration_009_profiles.sql` voraus).
 - **fields** – Spielflaechen/Uebungsflaechen (Name, Laenge, Breite in Metern), verwaltet unter „Flächenplanung"; werden bei Uebungen als „Spielfeld/Übungsfläche" ausgewaehlt
 - **login_events** – ein Eintrag pro erfolgreichem Login (Nutzer, Zeitpunkt), Grundlage fuer die Admin-Uebersicht (siehe unten). Nur Trainer duerfen die Eintraege lesen, jeder Nutzer darf beim Login seinen eigenen Eintrag anlegen.
 
-Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql), [`supabase/migration_030_login_events.sql`](supabase/migration_030_login_events.sql). Wie bei allen anderen Bereichen duerfen alle eingeloggten Nutzer lesen, anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql), [`supabase/migration_030_login_events.sql`](supabase/migration_030_login_events.sql), [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschutz.sql). Lesen duerfen freigeschaltete Nutzer (ausser den nur fuer Trainer lesbaren Daten, siehe "Rechte"), anlegen/aendern/loeschen koennen nur Trainer.
 
 ### Admin-Uebersicht
 
@@ -133,11 +150,12 @@ Trainer sehen oben rechts neben „Abmelden" einen Button „ADMIN", der zur Sei
 `/admin` fuehrt (fuer Eltern/Spieler nicht sichtbar und serverseitig
 geschuetzt). Dort stehen alle registrierten Nutzer (Name, E-Mail, Rolle,
 Registrierungsdatum, Logins gesamt, letzter Login) sowie die Login-Historie
-je Datum, Woche und Monat.
+je Datum, Woche und Monat. Die Rolle anderer Nutzer laesst sich dort aendern
+(Freischaltung neuer Nutzer); die eigene Rolle ist gesperrt.
 
 ### Geburtstage im Kalender
 
-Geburtstage von aktiven Spielern und Trainern (`players.birth_date` / `trainers.birth_date`) werden **nicht** als eigene Termine gespeichert, sondern im Kalender bei jedem Aufruf live aus den Stammdaten berechnet (jahresunabhaengig anhand von Monat/Tag) und in Gelb/Amber dargestellt. Dadurch erscheinen neu angelegte Spieler/Trainer automatisch im Kalender, und geloeschte bzw. deaktivierte Spieler/Trainer verschwinden automatisch wieder – ganz ohne zusaetzliche Pflege.
+Geburtstage von aktiven Spielern und Trainern (`player_private.birth_date` / `trainers.birth_date`; Spieler-Geburtstage sehen nur Trainer) werden **nicht** als eigene Termine gespeichert, sondern im Kalender bei jedem Aufruf live aus den Stammdaten berechnet (jahresunabhaengig anhand von Monat/Tag) und in Gelb/Amber dargestellt. Dadurch erscheinen neu angelegte Spieler/Trainer automatisch im Kalender, und geloeschte bzw. deaktivierte Spieler/Trainer verschwinden automatisch wieder – ganz ohne zusaetzliche Pflege.
 
 ### Navigation
 

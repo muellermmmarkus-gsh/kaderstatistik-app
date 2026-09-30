@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import {
   addPlayer,
+  anonymizePlayer,
   deletePlayer,
   togglePlayerActive,
   updatePlayerBirthDate,
@@ -11,22 +12,36 @@ import DeleteButton from "@/components/DeleteButton";
 import SaveNotice from "@/components/SaveNotice";
 import ExportPlayersButton from "./ExportPlayersButton";
 
+type PrivateData = { birth_date: string | null; passnummer: string | null };
+
 export default async function PlayersPage() {
   const supabase = await createClient();
-  const [{ data: players }, canWrite] = await Promise.all([
+  const [{ data: rows }, canWrite] = await Promise.all([
     supabase
       .from("players")
-      .select("id, first_name, last_name, birth_date, passnummer, active")
+      .select("id, first_name, last_name, active, player_private(birth_date, passnummer)")
       .order("last_name"),
     isTrainer(),
   ]);
+
+  // Geburtsdatum/Passnummer liegen in player_private (nur fuer Trainer lesbar).
+  const players = (rows ?? []).map(({ player_private, ...player }) => {
+    const priv = (
+      Array.isArray(player_private) ? player_private[0] : player_private
+    ) as PrivateData | null | undefined;
+    return {
+      ...player,
+      birth_date: priv?.birth_date ?? null,
+      passnummer: priv?.passnummer ?? null,
+    };
+  });
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <BackButton href="/" />
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Spieler</h1>
-        <ExportPlayersButton players={players ?? []} />
+        {canWrite && <ExportPlayersButton players={players} />}
       </div>
 
       {!canWrite && (
@@ -97,20 +112,21 @@ export default async function PlayersPage() {
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
             <th className="py-2">Name</th>
-            <th className="py-2">Geburtsdatum</th>
-            <th className="py-2">Passnummer</th>
+            {canWrite && <th className="py-2">Geburtsdatum</th>}
+            {canWrite && <th className="py-2">Passnummer</th>}
             <th className="py-2">Status</th>
             {canWrite && <th className="py-2" />}
           </tr>
         </thead>
         <tbody>
-          {players?.map((player) => {
+          {players.map((player) => {
             const toggle = togglePlayerActive.bind(
               null,
               player.id,
               !player.active,
             );
             const remove = deletePlayer.bind(null, player.id);
+            const anonymize = anonymizePlayer.bind(null, player.id);
             const saveBirthDate = updatePlayerBirthDate.bind(null, player.id);
             return (
               <tr
@@ -120,8 +136,8 @@ export default async function PlayersPage() {
                 <td className="py-2">
                   {player.first_name} {player.last_name}
                 </td>
-                <td className="py-2 text-zinc-500">
-                  {canWrite ? (
+                {canWrite && (
+                  <td className="py-2 text-zinc-500">
                     <form action={saveBirthDate} className="flex items-center gap-1">
                       <input
                         type="date"
@@ -136,18 +152,18 @@ export default async function PlayersPage() {
                         speichern
                       </button>
                     </form>
-                  ) : (
-                    (player.birth_date ?? "–")
-                  )}
-                </td>
-                <td className="py-2 text-zinc-500">
-                  {player.passnummer ?? "–"}
-                </td>
+                  </td>
+                )}
+                {canWrite && (
+                  <td className="py-2 text-zinc-500">
+                    {player.passnummer ?? "–"}
+                  </td>
+                )}
                 <td className="py-2">
                   {player.active ? "aktiv" : "inaktiv"}
                 </td>
                 {canWrite && (
-                  <td className="py-2 text-right">
+                  <td className="py-2 text-right whitespace-nowrap">
                     <form action={toggle} className="inline">
                       <button
                         type="submit"
@@ -155,6 +171,14 @@ export default async function PlayersPage() {
                       >
                         {player.active ? "deaktivieren" : "aktivieren"}
                       </button>
+                    </form>
+                    <form action={anonymize} className="ml-3 inline">
+                      <DeleteButton
+                        confirmMessage={`${player.first_name} ${player.last_name} anonymisieren? Name, Geburtsdatum, Passnummer, Trainingsbewertungen und Performance-Noten werden unwiderruflich gelöscht. Anwesenheiten und Tore bleiben anonym für die Mannschaftsstatistik erhalten.`}
+                        className="text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        anonymisieren
+                      </DeleteButton>
                     </form>
                     <form action={remove} className="ml-3 inline">
                       <DeleteButton
@@ -169,9 +193,9 @@ export default async function PlayersPage() {
               </tr>
             );
           })}
-          {!players?.length && (
+          {!players.length && (
             <tr>
-              <td colSpan={canWrite ? 5 : 4} className="py-4 text-zinc-500">
+              <td colSpan={canWrite ? 5 : 2} className="py-4 text-zinc-500">
                 Noch keine Spieler angelegt.
               </td>
             </tr>

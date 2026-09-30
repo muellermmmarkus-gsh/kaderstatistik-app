@@ -35,7 +35,8 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     isAuthFormRoute ||
     pathname.startsWith("/auth/confirm") ||
-    pathname.startsWith("/reset-password");
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/datenschutz");
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
@@ -47,6 +48,24 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
+  }
+
+  // Noch nicht freigeschaltete Nutzer (Rolle "pending") sehen nur die
+  // Warteseite. Die Daten selbst schuetzt die Row-Level-Security.
+  if (user && !isPublicRoute) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isPending = !profile || profile.role === "pending";
+    const onPendingPage = pathname.startsWith("/pending");
+
+    if (isPending !== onPendingPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = isPending ? "/pending" : "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

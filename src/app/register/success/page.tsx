@@ -8,7 +8,8 @@ export default function RegisterSuccessPage() {
         <p className="mb-6 text-sm text-zinc-500">
           Wir haben dir eine Bestätigungs-E-Mail geschickt. Bitte klicke auf
           den Link darin, um deine Registrierung abzuschließen. Danach kannst
-          du dich anmelden.
+          du dich anmelden – die Inhalte der App siehst du, sobald ein Trainer
+          dein Konto freigeschaltet hat.
         </p>
         <Link href="/login" className="underline">
           Zur Anmeldung

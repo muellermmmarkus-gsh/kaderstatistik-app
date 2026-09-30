@@ -19,6 +19,7 @@ async function persistAttendance(
     .eq("id", eventId)
     .single();
   const isGame = event?.type === "game";
+  const isTraining = event?.type === "training";
 
   const attendanceRows = playerIds.map((playerId) => {
     const shirt = Number(formData.get(`shirt_${playerId}`) || NaN);
@@ -28,11 +29,6 @@ async function persistAttendance(
       present: formData.get(`present_player_${playerId}`) === "on",
       excused: formData.get(`excused_player_${playerId}`) === "on",
       registered: formData.get(`registered_player_${playerId}`) === "on",
-      performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
-      motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
-      discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
-      player_notes:
-        String(formData.get(`notes_${playerId}`) ?? "").trim().slice(0, 50) || null,
       // Rueckennummer nur bei Spielen (Auswahl des Torschuetzen im Live-Ergebnis)
       ...(isGame && {
         shirt_number:
@@ -55,6 +51,38 @@ async function persistAttendance(
       .from("attendance")
       .upsert(attendanceRows, { onConflict: "player_id,event_id" });
     if (error) throw new Error(`Anwesenheit konnte nicht gespeichert werden: ${error.message}`);
+  }
+
+  if (isTraining && playerIds.length) {
+    const assessments = playerIds.map((playerId) => ({
+      event_id: eventId,
+      player_id: playerId,
+      performance: String(formData.get(`performance_${playerId}`) ?? "").trim() || null,
+      motivation: String(formData.get(`motivation_${playerId}`) ?? "").trim() || null,
+      discipline: String(formData.get(`discipline_${playerId}`) ?? "").trim() || null,
+      player_notes:
+        String(formData.get(`notes_${playerId}`) ?? "").trim().slice(0, 50) || null,
+    }));
+    const filled = assessments.filter(
+      (a) => a.performance || a.motivation || a.discipline || a.player_notes,
+    );
+    const emptyPlayerIds = assessments
+      .filter((a) => !filled.includes(a))
+      .map((a) => a.player_id);
+
+    if (filled.length) {
+      const { error } = await supabase
+        .from("attendance_assessments")
+        .upsert(filled, { onConflict: "event_id,player_id" });
+      if (error) throw new Error(`Bewertungen konnten nicht gespeichert werden: ${error.message}`);
+    }
+    if (emptyPlayerIds.length) {
+      await supabase
+        .from("attendance_assessments")
+        .delete()
+        .eq("event_id", eventId)
+        .in("player_id", emptyPlayerIds);
+    }
   }
 
   const trainerAttendanceRows = trainerIds.map((trainerId) => ({

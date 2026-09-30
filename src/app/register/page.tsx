@@ -47,23 +47,6 @@ export default function RegisterPage() {
           className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
 
-        <label className="mb-1 block text-sm font-medium" htmlFor="role">
-          Rolle
-        </label>
-        <select
-          id="role"
-          name="role"
-          required
-          defaultValue=""
-          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          <option value="" disabled>
-            Bitte wählen
-          </option>
-          <option value="trainer">Trainer</option>
-          <option value="parent_player">Eltern/Spieler</option>
-        </select>
-
         <label className="mb-1 block text-sm font-medium" htmlFor="password">
           Passwort
         </label>

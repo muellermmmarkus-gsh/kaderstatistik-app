@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
 
 type AttendanceRow = {
@@ -278,6 +279,7 @@ export default async function StatsPage({
     { data: trainerByMonth },
     { data: byGoals },
     { data: assessmentRows },
+    canSeeAssessments,
   ] = await Promise.all([
     season && view === "season"
       ? supabase
@@ -322,12 +324,13 @@ export default async function StatsPage({
       : Promise.resolve({ data: [] as GoalsRow[] }),
     season && view === "season"
       ? supabase
-          .from("attendance")
+          .from("attendance_assessments")
           .select("player_id, performance, motivation, discipline, events!inner(season, type)")
           .eq("events.season", season)
           .eq("events.type", "training")
           .is("events.deleted_at", null)
       : Promise.resolve({ data: [] as AssessmentAttendanceRow[] }),
+    isTrainer(),
   ]);
 
   const assessmentData = (assessmentRows as AssessmentAttendanceRow[] | null) ?? [];
@@ -450,9 +453,11 @@ export default async function StatsPage({
                 <AttendanceTable
                   caption="Spieler-Anwesenheit gesamte Saison"
                   rows={seasonPivot}
-                  performanceByPlayer={performanceByPlayer}
-                  motivationByPlayer={motivationByPlayer}
-                  disciplineByPlayer={disciplineByPlayer}
+                  {...(canSeeAssessments && {
+                    performanceByPlayer,
+                    motivationByPlayer,
+                    disciplineByPlayer,
+                  })}
                 />
               </section>
 

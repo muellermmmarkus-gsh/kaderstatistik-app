@@ -33,6 +33,7 @@ export default async function EventDetailPage({
   const [
     { data: players },
     { data: attendance },
+    { data: assessments },
     { data: goals },
     { data: trainers },
     { data: trainerAttendance },
@@ -45,9 +46,11 @@ export default async function EventDetailPage({
       .order("last_name"),
     supabase
       .from("attendance")
-      .select(
-        "player_id, present, excused, registered, performance, motivation, discipline, player_notes",
-      )
+      .select("player_id, present, excused, registered")
+      .eq("event_id", id),
+    supabase
+      .from("attendance_assessments")
+      .select("player_id, performance, motivation, discipline, player_notes")
       .eq("event_id", id),
     supabase.from("goals").select("player_id, goal_count").eq("event_id", id),
     supabase
@@ -96,16 +99,16 @@ export default async function EventDetailPage({
     attendance?.map((a) => [a.player_id, a.registered]),
   );
   const performanceByPlayer = new Map(
-    attendance?.map((a) => [a.player_id, a.performance]),
+    assessments?.map((a) => [a.player_id, a.performance]),
   );
   const motivationByPlayer = new Map(
-    attendance?.map((a) => [a.player_id, a.motivation]),
+    assessments?.map((a) => [a.player_id, a.motivation]),
   );
   const disciplineByPlayer = new Map(
-    attendance?.map((a) => [a.player_id, a.discipline]),
+    assessments?.map((a) => [a.player_id, a.discipline]),
   );
   const notesByPlayer = new Map(
-    attendance?.map((a) => [a.player_id, a.player_notes]),
+    assessments?.map((a) => [a.player_id, a.player_notes]),
   );
   const goalsByPlayer = new Map(
     goals?.map((g) => [g.player_id, g.goal_count]),
@@ -123,13 +126,15 @@ export default async function EventDetailPage({
   const saveAndBack = saveAttendanceAndReturn.bind(null, id, playerIds, trainerIds);
 
   const hasGoals = event.type === "game" || event.type === "tournament";
+  // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
+  const showAssessment = event.type === "training" && canWrite;
 
   const playerColSpan =
     2 +
     (isGame ? 2 : 0) +
     (event.type === "training" ? 1 : 0) +
     (hasGoals ? 1 : 0) +
-    (event.type === "training" ? 4 : 0);
+    (showAssessment ? 4 : 0);
 
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
@@ -202,7 +207,7 @@ export default async function EventDetailPage({
                   <th className="py-2">Anwesend</th>
                   {event.type === "training" && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
-                  {event.type === "training" && (
+                  {showAssessment && (
                     <>
                       <th className="py-2">Leistung</th>
                       <th className="py-2">Motivation</th>
@@ -287,7 +292,7 @@ export default async function EventDetailPage({
                         />
                       </td>
                     )}
-                    {event.type === "training" && (
+                    {showAssessment && (
                       <>
                         <td className="py-2">
                           <select

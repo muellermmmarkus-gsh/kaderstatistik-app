@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
+import { setUserRole } from "./actions";
 
 type Profile = {
   id: string;
@@ -25,8 +26,9 @@ type PeriodRow = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  trainer: "Trainer",
+  pending: "nicht freigeschaltet",
   parent_player: "Eltern/Spieler",
+  trainer: "Trainer",
 };
 
 function formatDateTime(iso: string) {
@@ -149,7 +151,14 @@ export default async function AdminPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: profiles }, { data: loginEvents }] = await Promise.all([
+  const [
+    {
+      data: { user: currentUser },
+    },
+    { data: profiles },
+    { data: loginEvents },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
     supabase
       .from("profiles")
       .select("id, first_name, last_name, email, role, created_at")
@@ -160,7 +169,11 @@ export default async function AdminPage() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const users = (profiles ?? []) as Profile[];
+  // Wartende Nutzer zuerst, damit Freischaltungen nicht untergehen.
+  const users = ((profiles ?? []) as Profile[]).sort(
+    (a, b) => Number(b.role === "pending") - Number(a.role === "pending"),
+  );
+  const pendingCount = users.filter((u) => u.role === "pending").length;
   const events = (loginEvents ?? []) as LoginEvent[];
 
   const namesById = new Map(users.map((u) => [u.id, `${u.first_name} ${u.last_name}`]));
@@ -184,7 +197,20 @@ export default async function AdminPage() {
       <h1 className="mb-6 text-xl font-semibold">Admin</h1>
 
       <section className="mb-10">
-        <h2 className="mb-3 font-medium">Registrierte Nutzer</h2>
+        <h2 className="mb-1 font-medium">Registrierte Nutzer</h2>
+        <p className="mb-3 text-sm text-zinc-500">
+          Neue Nutzer sind zunächst „nicht freigeschaltet“ und sehen keine
+          Daten. Schalte nur Personen frei, die du kennst. „Eltern/Spieler“
+          sehen keine Bewertungen, Noten, Geburtsdaten oder Passnummern.
+        </p>
+        {pendingCount > 0 && (
+          <p className="mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            {pendingCount === 1
+              ? "1 Nutzer wartet auf Freischaltung."
+              : `${pendingCount} Nutzer warten auf Freischaltung.`}
+          </p>
+        )}
+        <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800">
@@ -203,7 +229,32 @@ export default async function AdminPage() {
                   {u.first_name} {u.last_name}
                 </td>
                 <td className="py-2">{u.email}</td>
-                <td className="py-2">{ROLE_LABELS[u.role] ?? u.role}</td>
+                <td className="py-2">
+                  {u.id === currentUser?.id ? (
+                    ROLE_LABELS[u.role] ?? u.role
+                  ) : (
+                    <form action={setUserRole.bind(null, u.id)} className="flex items-center gap-1">
+                      <select
+                        name="role"
+                        defaultValue={u.role}
+                        aria-label={`Rolle von ${u.first_name} ${u.last_name}`}
+                        className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
+                      >
+                        speichern
+                      </button>
+                    </form>
+                  )}
+                </td>
                 <td className="py-2">{formatDate(u.created_at)}</td>
                 <td className="py-2">{loginCountByUser.get(u.id) ?? 0}</td>
                 <td className="py-2">
@@ -222,6 +273,7 @@ export default async function AdminPage() {
             )}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { getCurrentRole } from "@/lib/supabase/profile";
 import { signOut } from "@/app/login/actions";
 import NavMenu from "./NavMenu";
 
@@ -12,11 +12,13 @@ export default async function NavBar() {
 
   if (!user) return null;
 
-  const canSeeAdmin = await isTrainer();
+  const role = await getCurrentRole();
+  const canSeeAdmin = role === "trainer";
+  const isApproved = role === "trainer" || role === "parent_player";
 
   return (
     <nav className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      <NavMenu />
+      {isApproved ? <NavMenu isTrainer={canSeeAdmin} /> : <span />}
       <div className="flex items-center gap-4">
         <form action={signOut}>
           <button

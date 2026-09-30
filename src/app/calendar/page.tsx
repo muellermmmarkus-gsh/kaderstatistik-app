@@ -238,10 +238,11 @@ export default async function CalendarPage({
       .gte("end_date", rangeStart),
     supabase.from("trainers").select("id").order("id"),
     supabase.from("trainers").select("*", { count: "exact", head: true }).eq("active", true),
+    // Geburtsdaten der Spieler sind nur fuer Trainer lesbar (player_private).
     supabase
-      .from("players")
-      .select("id, first_name, last_name, birth_date")
-      .eq("active", true)
+      .from("player_private")
+      .select("player_id, birth_date, players!inner(first_name, last_name, active)")
+      .eq("players.active", true)
       .not("birth_date", "is", null),
     supabase
       .from("trainers")
@@ -285,12 +286,18 @@ export default async function CalendarPage({
   });
 
   const birthdayPeople: BirthdayPerson[] = [
-    ...(playerBirthdayRows ?? []).map((p) => ({
-      id: p.id,
-      name: `${p.first_name} ${p.last_name}`,
-      birth_date: p.birth_date as string,
-      kind: "Spieler" as const,
-    })),
+    ...(playerBirthdayRows ?? []).map((p) => {
+      const player = (Array.isArray(p.players) ? p.players[0] : p.players) as {
+        first_name: string;
+        last_name: string;
+      };
+      return {
+        id: p.player_id as string,
+        name: `${player.first_name} ${player.last_name}`,
+        birth_date: p.birth_date as string,
+        kind: "Spieler" as const,
+      };
+    }),
     ...(trainerBirthdayRows ?? []).map((t) => ({
       id: t.id,
       name: `${t.first_name} ${t.last_name}`,
