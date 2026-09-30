@@ -35,7 +35,9 @@ export default function DatenschutzPage() {
           <li>
             <strong>Nutzerkonten:</strong> Vor- und Nachname, E-Mail-Adresse,
             Rolle sowie Datum und Uhrzeit jedes Logins. Die Login-Historie
-            sehen nur Trainer.
+            sehen nur Trainer. Bei einer neuen Registrierung werden Name und
+            E-Mail-Adresse per E-Mail an den Administrator geschickt, damit er
+            sie freigeben kann.
           </li>
         </ul>
       </section>
@@ -44,15 +46,12 @@ export default function DatenschutzPage() {
         <h2 className="mb-2 font-medium">Wer die Daten sehen kann</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Neue Konten sehen nichts, bis ein Trainer sie freischaltet.
+            Neue Registrierungen muss der Administrator freigeben. Bis dahin
+            sieht das Konto keine Daten.
           </li>
           <li>
-            <strong>Eltern/Spieler</strong> sehen Termine, Anwesenheit,
-            Ergebnisse, Aufstellungen und die Trainingsplanung, aber keine
-            Bewertungen, Noten, Geburtsdaten oder Passnummern.
-          </li>
-          <li>
-            <strong>Trainer</strong> sehen und bearbeiten alle Daten.
+            Derzeit haben <strong>nur Trainer</strong> Zugriff auf die Daten.
+            Eltern/Spieler sehen nach dem Login keine Inhalte.
           </li>
         </ul>
         <p className="mt-2">

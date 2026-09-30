@@ -4,7 +4,8 @@
 -- 1. Neue Nutzer starten als "pending" (ohne Datenzugriff), bis ein Trainer
 --    sie in der Admin-Uebersicht freischaltet. Die bei der Registrierung
 --    mitgeschickte Rolle wird ignoriert - sie ist vom Client frei waehlbar.
--- 2. Lesen nur noch fuer freigeschaltete Nutzer, Schreiben nur fuer Trainer.
+-- 2. Lesen nur noch fuer freigeschaltete Nutzer (vorerst nur Trainer, Eltern
+--    haben keinen Zugriff), Schreiben nur fuer Trainer.
 -- 3. Views laufen mit den Rechten des Aufrufers (sonst umgehen sie die
 --    Row-Level-Security und waeren sogar ohne Login ueber die API lesbar).
 -- 4. Geburtsdatum/Passnummer der Spieler, Trainingsbewertungen und
@@ -36,6 +37,9 @@ begin
 end;
 $$;
 
+-- Wer Daten lesen darf. Eltern/Spieler haben vorerst KEINEN Zugriff; um sie
+-- spaeter wieder zuzulassen, hier 'parent_player' ergaenzen:
+--   where id = auth.uid() and role in ('trainer', 'parent_player')
 create or replace function public.is_member()
 returns boolean
 language sql
@@ -45,7 +49,7 @@ stable
 as $$
   select exists (
     select 1 from public.profiles
-    where id = auth.uid() and role in ('trainer', 'parent_player')
+    where id = auth.uid() and role = 'trainer'
   );
 $$;
 

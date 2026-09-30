@@ -68,8 +68,17 @@ Damit das funktioniert, im Supabase-Dashboard einmalig einstellen:
 
 Bei der Registrierung wird **keine Rolle** gewählt: Neue Nutzer starten als
 „nicht freigeschaltet" (`pending`), sehen nur die Warteseite `/pending` und
-bekommen keine Daten. Ein Trainer schaltet sie auf der ADMIN-Seite als
-„Eltern/Spieler" oder „Trainer" frei – siehe Abschnitt "Rechte" unten.
+bekommen keine Daten. Der Admin bekommt bei jeder Registrierung eine E-Mail
+und gibt sie auf der ADMIN-Seite frei – siehe Abschnitt "Rechte" unten.
+
+Für die Admin-E-Mail in Vercel (und lokal in `.env.local`) setzen:
+
+- `RESEND_API_KEY` – API-Key von [Resend](https://resend.com) (kostenlos)
+- `ADMIN_NOTIFY_EMAIL` – Empfänger; ohne eigene Domain bei Resend muss das
+  die E-Mail-Adresse des Resend-Kontos sein
+- optional `ADMIN_NOTIFY_FROM` – Absender, nur mit bei Resend verifizierter Domain
+
+Fehlen die Variablen, klappt die Registrierung trotzdem, nur ohne E-Mail.
 
 ### Passwort zurücksetzen
 
@@ -102,9 +111,11 @@ wird und die Templates entsprechend umgestellt werden.
 
 - **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche, vergeben
   Rollen auf der ADMIN-Seite.
-- **Eltern/Spieler**: nur Lesezugriff, und **ohne** Geburtsdaten,
-  Passnummern, Trainingsbewertungen und Performance-Noten der Kinder
-  (Menüpunkt „Performance" ist ausgeblendet).
+- **Eltern/Spieler**: derzeit **kein Zugriff** (wie „nicht freigeschaltet").
+  Zum späteren Freischalten mit Lesezugriff (ohne Geburtsdaten, Passnummern,
+  Bewertungen und Noten): in `is_member()` wieder `'parent_player'`
+  zulassen und in `src/lib/supabase/middleware.ts` sowie
+  `src/components/NavBar.tsx` die Rolle wieder berücksichtigen.
 - **Nicht freigeschaltet** (`pending`): kein Datenzugriff.
 
 Alles ist in der Datenbank per Row-Level-Security durchgesetzt (Funktionen

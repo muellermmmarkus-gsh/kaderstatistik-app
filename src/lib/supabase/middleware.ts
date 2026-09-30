@@ -50,20 +50,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Noch nicht freigeschaltete Nutzer (Rolle "pending") sehen nur die
-  // Warteseite. Die Daten selbst schuetzt die Row-Level-Security.
+  // Ohne Zugriff (nicht freigeschaltet oder Eltern/Spieler, die vorerst
+  // keine Rechte haben) nur die Warteseite. Die Daten selbst schuetzt die
+  // Row-Level-Security (is_member() in migration_031).
   if (user && !isPublicRoute) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    const isPending = !profile || profile.role === "pending";
+    const hasAccess = profile?.role === "trainer";
     const onPendingPage = pathname.startsWith("/pending");
 
-    if (isPending !== onPendingPage) {
+    if (hasAccess === onPendingPage) {
       const url = request.nextUrl.clone();
-      url.pathname = isPending ? "/pending" : "/";
+      url.pathname = hasAccess ? "/" : "/pending";
       return NextResponse.redirect(url);
     }
   }

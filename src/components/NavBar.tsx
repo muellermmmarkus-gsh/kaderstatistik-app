@@ -14,11 +14,10 @@ export default async function NavBar() {
 
   const role = await getCurrentRole();
   const canSeeAdmin = role === "trainer";
-  const isApproved = role === "trainer" || role === "parent_player";
 
   return (
     <nav className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      {isApproved ? <NavMenu isTrainer={canSeeAdmin} /> : <span />}
+      {canSeeAdmin ? <NavMenu isTrainer /> : <span />}
       <div className="flex items-center gap-4">
         <form action={signOut}>
           <button
