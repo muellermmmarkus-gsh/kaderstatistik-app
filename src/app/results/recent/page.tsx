@@ -5,16 +5,11 @@ import BackButton from "@/components/BackButton";
 import DeleteConfirmButton from "@/components/DeleteConfirmButton";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import { deleteMatchResult } from "../actions";
-import { scoreOf, sortByMinute, type GoalKind, type TeamSide } from "../teams";
+import { scoreOf, type GoalKind, type TeamSide } from "../teams";
 
 type EntryRow = {
-  minute: string | null;
   team: TeamSide;
   kind: GoalKind;
-  shirt_number: number | null;
-  note: string | null;
-  created_at: string;
-  players: { first_name: string; last_name: string } | null;
 };
 
 type ResultRow = {
@@ -27,18 +22,6 @@ type ResultRow = {
   match_goal_entries: EntryRow[];
 };
 
-function describeEntry(entry: EntryRow, teamA: string, teamB: string): string {
-  const parts = [
-    entry.minute ? `${entry.minute}'` : null,
-    entry.shirt_number ? `#${entry.shirt_number}` : null,
-    entry.kind === "own_goal" ? "Eigentor" : "Tor",
-    entry.players ? `${entry.players.first_name} ${entry.players.last_name}` : null,
-    entry.note?.trim() || null,
-    `(${entry.team === "a" ? teamA : teamB})`,
-  ];
-  return parts.filter(Boolean).join(" ");
-}
-
 export default async function RecentResultsPage() {
   const supabase = await createClient();
 
@@ -46,7 +29,7 @@ export default async function RecentResultsPage() {
     supabase
       .from("match_results")
       .select(
-        "id, event_id, team_a, team_b, finished_at, events(event_date, event_time, deleted_at), match_goal_entries(minute, team, kind, shirt_number, note, created_at, players(first_name, last_name))",
+        "id, event_id, team_a, team_b, finished_at, events(event_date, event_time, deleted_at), match_goal_entries(team, kind)",
       )
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false }),
@@ -75,12 +58,7 @@ export default async function RecentResultsPage() {
         </thead>
         <tbody>
           {results.map((result) => {
-            const entries = sortByMinute(
-              [...result.match_goal_entries].sort((x, y) =>
-                x.created_at.localeCompare(y.created_at),
-              ),
-            );
-            const [scoreA, scoreB] = scoreOf(entries);
+            const [scoreA, scoreB] = scoreOf(result.match_goal_entries);
             const remove = deleteMatchResult.bind(null, result.id, result.event_id);
             return (
               <tr
@@ -99,11 +77,6 @@ export default async function RecentResultsPage() {
                   <div className="font-medium">
                     {result.team_a} – {result.team_b}
                   </div>
-                  {entries.length > 0 && (
-                    <div className="mt-1 text-xs text-zinc-500">
-                      {entries.map((e) => describeEntry(e, result.team_a, result.team_b)).join(" · ")}
-                    </div>
-                  )}
                 </td>
                 <td className="whitespace-nowrap py-3 pr-4 text-center text-lg font-bold tabular-nums">
                   {scoreA} : {scoreB}
