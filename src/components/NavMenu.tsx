@@ -22,6 +22,7 @@ const menu: MenuGroup[] = [
       { label: "Kalender", href: "/calendar" },
       { label: "Abwesenheiten", href: "/absences" },
       { label: "Saisonverwaltung", href: "/seasons" },
+      { label: "Checklisten", href: "/checklists" },
     ],
   },
   {
