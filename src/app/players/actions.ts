@@ -33,16 +33,18 @@ export async function addPlayer(formData: FormData) {
   revalidatePath("/players");
 }
 
-export async function updatePlayerBirthDate(playerId: string, formData: FormData) {
-  const birthDate = String(formData.get("birthDate") ?? "").trim();
+export async function savePlayerBirthDate(playerId: string, birthDate: string) {
+  const value = birthDate.trim();
+  if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Ungültiges Datum.";
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("player_private")
-    .upsert({ player_id: playerId, birth_date: birthDate || null }, { onConflict: "player_id" });
-  if (error) throw new Error(`Geburtsdatum konnte nicht gespeichert werden: ${error.message}`);
+    .upsert({ player_id: playerId, birth_date: value || null }, { onConflict: "player_id" });
+  if (error) return `Geburtsdatum konnte nicht gespeichert werden: ${error.message}`;
 
   revalidatePath("/players");
+  return null;
 }
 
 export async function togglePlayerActive(playerId: string, active: boolean) {

@@ -5,12 +5,12 @@ import {
   anonymizePlayer,
   deletePlayer,
   togglePlayerActive,
-  updatePlayerBirthDate,
 } from "./actions";
 import BackButton from "@/components/BackButton";
 import DeleteButton from "@/components/DeleteButton";
 import SaveNotice from "@/components/SaveNotice";
 import ExportPlayersButton from "./ExportPlayersButton";
+import BirthDateInput from "./BirthDateInput";
 
 type PrivateData = { birth_date: string | null; passnummer: string | null };
 
@@ -37,7 +37,7 @@ export default async function PlayersPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
       <BackButton href="/" />
       <div className="mb-6 flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Spieler</h1>
@@ -111,10 +111,10 @@ export default async function PlayersPage() {
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-200 dark:border-zinc-800">
-            <th className="py-2">Name</th>
-            {canWrite && <th className="py-2">Geburtsdatum</th>}
-            {canWrite && <th className="py-2">Passnummer</th>}
-            <th className="py-2">Status</th>
+            <th className="py-2 pr-4">Name</th>
+            {canWrite && <th className="py-2 pr-4">Geburtsdatum</th>}
+            {canWrite && <th className="py-2 pr-4">Passnummer</th>}
+            <th className="py-2 pr-4">Status</th>
             {canWrite && <th className="py-2" />}
           </tr>
         </thead>
@@ -127,39 +127,29 @@ export default async function PlayersPage() {
             );
             const remove = deletePlayer.bind(null, player.id);
             const anonymize = anonymizePlayer.bind(null, player.id);
-            const saveBirthDate = updatePlayerBirthDate.bind(null, player.id);
             return (
               <tr
                 key={player.id}
                 className="border-b border-zinc-100 dark:border-zinc-900"
               >
-                <td className="py-2">
+                <td className="py-2 pr-4">
                   {player.first_name} {player.last_name}
                 </td>
                 {canWrite && (
-                  <td className="py-2 text-zinc-500">
-                    <form action={saveBirthDate} className="flex items-center gap-1">
-                      <input
-                        type="date"
-                        name="birthDate"
-                        defaultValue={player.birth_date ?? ""}
-                        className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
-                      />
-                      <button
-                        type="submit"
-                        className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
-                      >
-                        speichern
-                      </button>
-                    </form>
+                  <td className="py-2 pr-4 whitespace-nowrap">
+                    <BirthDateInput
+                      playerId={player.id}
+                      playerName={`${player.first_name} ${player.last_name}`}
+                      initialValue={player.birth_date ?? ""}
+                    />
                   </td>
                 )}
                 {canWrite && (
-                  <td className="py-2 text-zinc-500">
+                  <td className="py-2 pr-4 whitespace-nowrap text-zinc-500">
                     {player.passnummer ?? "–"}
                   </td>
                 )}
-                <td className="py-2">
+                <td className="py-2 pr-4">
                   {player.active ? "aktiv" : "inaktiv"}
                 </td>
                 {canWrite && (
