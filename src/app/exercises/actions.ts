@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/supabase/profile";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const categories = ["aufwaermen", "spielen", "ueben", "cooldown"];
@@ -54,24 +55,26 @@ export async function createExercise(formData: FormData) {
   if (!exercise.name || !exercise.min_players || !exercise.max_players) return;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  // Bild vor dem Anlegen hochladen: nachtraegliches Aendern der Uebung darf
+  // nur der Admin. Die ID wird deshalb hier vergeben (Pfad im Storage).
+  // created_by_team_id setzt die Datenbank (default current_team_id()).
+  const id = crypto.randomUUID();
+  const imageUrl = await uploadImage(supabase, id, formData);
+  const { error } = await supabase
     .from("exercises")
-    .insert(exercise)
-    .select("id")
-    .single();
+    .insert({ ...exercise, id, image_url: imageUrl ?? null });
   if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
 
-  if (data) {
-    const linkError = await activateForTeam(supabase, data.id);
-    if (linkError) throw new Error(linkError);
-    const imageUrl = await uploadImage(supabase, data.id, formData);
-    if (imageUrl) {
-      await supabase.from("exercises").update({ image_url: imageUrl }).eq("id", data.id);
-    }
-  }
+  const linkError = await activateForTeam(supabase, id);
+  if (linkError) throw new Error(linkError);
 
   revalidateExerciseLists();
   redirect("/exercises?saved=1");
+}
+
+// Aendern und Loeschen von Uebungen nur durch den Admin (zusaetzlich per RLS).
+async function requireAdmin() {
+  if (!(await isAdmin())) throw new Error("Übungen ändern oder löschen kann nur der Administrator.");
 }
 
 function revalidateExerciseLists() {
@@ -104,6 +107,7 @@ export async function setExerciseActiveInTeam(exerciseId: string, active: boolea
 }
 
 export async function updateExercise(exerciseId: string, formData: FormData) {
+  await requireAdmin();
   const exercise = parseExercise(formData);
   if (!exercise.name || !exercise.min_players || !exercise.max_players) return;
 
@@ -128,6 +132,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
 // Die Datei bleibt im Storage liegen, da Kopien einer Uebung dieselbe
 // Bild-URL referenzieren koennen.
 export async function removeExerciseImage(exerciseId: string) {
+  await requireAdmin();
   const supabase = await createClient();
   const { error } = await supabase
     .from("exercises")
@@ -169,32 +174,21 @@ export async function duplicateExercise(exerciseId: string) {
   revalidateExerciseLists();
 }
 
-// Uebungen sind teamuebergreifend: Nutzen noch andere Teams die Uebung, wird
-// sie nur aus dem eigenen Team entfernt. Endgueltig geloescht wird sie nur,
-// wenn kein anderes Team sie aktiv hat (und sie in keinem Trainingsplan steckt -
-// das verhindert der Fremdschluessel; dann ebenfalls nur aus dem Team entfernen).
-export async function deleteExercise(exerciseId: string, redirectTo?: string) {
+// Nur der Admin: loescht die Uebung aus der Datenbank fuer alle Teams. Steckt
+// sie noch in einem Trainingsplan, verhindert das der Fremdschluessel.
+export async function deleteExercise(exerciseId: string, returnTo: string) {
+  await requireAdmin();
   const supabase = await createClient();
-  const { data: teamCount } = await supabase.rpc("exercise_team_count", {
-    p_exercise_id: exerciseId,
-  });
-  const { data: ownLink } = await supabase
-    .from("team_exercises")
-    .select("exercise_id")
-    .eq("exercise_id", exerciseId)
-    .maybeSingle();
-  const otherTeams = (teamCount ?? 0) - (ownLink ? 1 : 0);
-
-  let deleted = false;
-  if (otherTeams === 0) {
-    const { error } = await supabase.from("exercises").delete().eq("id", exerciseId);
-    deleted = !error;
-  }
-  if (!deleted) {
-    await supabase.from("team_exercises").delete().eq("exercise_id", exerciseId);
-  }
+  const { error } = await supabase.from("exercises").delete().eq("id", exerciseId);
 
   revalidateExerciseLists();
   revalidatePath(`/exercises/${exerciseId}`);
-  if (redirectTo) redirect(redirectTo);
+  if (error) {
+    const message =
+      error.code === "23503"
+        ? "Die Übung wird noch in einem Trainingsplan verwendet und kann nicht gelöscht werden."
+        : `Übung konnte nicht gelöscht werden: ${error.message}`;
+    redirect(`${returnTo}?error=${encodeURIComponent(message)}`);
+  }
+  redirect(`${returnTo}?saved=1`);
 }

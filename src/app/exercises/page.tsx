@@ -1,12 +1,21 @@
 import Link from "next/link";
-import { isTrainer } from "@/lib/supabase/profile";
+import { isAdmin, isTrainer } from "@/lib/supabase/profile";
 import ExercisesTable from "./ExercisesTable";
 import BackButton from "@/components/BackButton";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import { loadExercises } from "./loadExercises";
 
-export default async function ExercisesPage() {
-  const [exercises, canWrite] = await Promise.all([loadExercises("team"), isTrainer()]);
+export default async function ExercisesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const [exercises, canWrite, canEdit, { error }] = await Promise.all([
+    loadExercises("team"),
+    isTrainer(),
+    isAdmin(),
+    searchParams,
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
@@ -30,9 +39,21 @@ export default async function ExercisesPage() {
           Übungsdatenbank
         </Link>
         . Neu angelegte Übungen landen automatisch auch dort.
+        {!canEdit &&
+          " Bestehende Übungen ändert nur der Administrator – für eine eigene Variante „Kopie erst.“ nutzen."}
       </p>
+      {error && (
+        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {error}
+        </p>
+      )}
 
-      <ExercisesTable exercises={exercises} canWrite={canWrite} />
+      <ExercisesTable
+        exercises={exercises}
+        canWrite={canWrite}
+        canEdit={canEdit}
+        returnTo="/exercises"
+      />
     </div>
   );
 }

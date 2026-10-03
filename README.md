@@ -63,8 +63,12 @@ Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.
 - **Übungen:** „Training → Übungsdatenbank" zeigt alle Übungen aller Teams;
   die Checkbox „In Team aktiv" (Tabelle `team_exercises`) bestimmt, welche
   unter „Übungen" und in der Trainingsplanung des Teams erscheinen. Neu
-  angelegte Übungen sind automatisch im eigenen Team aktiv. Löschen entfernt
-  eine Übung nur aus dem eigenen Team, solange andere Teams sie nutzen.
+  angelegte Übungen sind automatisch im eigenen Team aktiv und mit dem
+  Erstellerteam vermerkt (`exercises.created_by_team_id`, Spalte
+  „Erstellt von"). Anlegen und kopieren dürfen alle Trainer, **ändern und
+  löschen nur der Admin** (löscht für alle Teams; nicht möglich, solange die
+  Übung in einem Trainingsplan steckt). Siehe
+  [`supabase/migration_034_exercise_owner_admin_edit.sql`](supabase/migration_034_exercise_owner_admin_edit.sql).
 - **Teamname** (`teams.name`, z.B. „TVG E1") steht oben in der Menüleiste
   und unter „Kaderstatistik"; der **Name im Spielbetrieb**
   (`teams.match_name`, z.B. „TV Geisenhausen E7 1") erkennt die eigene

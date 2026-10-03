@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { isAdmin } from "@/lib/supabase/profile";
 import { updateExercise, deleteExercise } from "../actions";
 import DeleteButton from "@/components/DeleteButton";
 import ExerciseForm from "../ExerciseForm";
@@ -15,17 +15,18 @@ export default async function ExerciseDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: exercise }, { data: fields }, { data: focuses }, canWrite] = await Promise.all([
+  // Aendern/Loeschen nur durch den Admin (gemeinsame Uebungsdatenbank).
+  const [{ data: exercise }, { data: fields }, { data: focuses }, canEdit] = await Promise.all([
     supabase
       .from("exercises")
       .select(
-        "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m)",
+        "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m), creator:teams!exercises_created_by_team_id_fkey(name)",
       )
       .eq("id", id)
       .single(),
     supabase.from("fields").select("id, name, length_m, width_m").order("name"),
     supabase.from("exercise_focuses").select("label").order("sort_order"),
-    isTrainer(),
+    isAdmin(),
   ]);
 
   if (!exercise) notFound();
@@ -33,6 +34,7 @@ export default async function ExerciseDetailPage({
   const field = exercise.fields as unknown as
     | { name: string; length_m: number; width_m: number }
     | null;
+  const creator = exercise.creator as unknown as { name: string } | null;
 
   const update = updateExercise.bind(null, id);
   const remove = deleteExercise.bind(null, id, "/exercises");
@@ -40,9 +42,9 @@ export default async function ExerciseDetailPage({
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <BackButton href="/exercises" />
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <h1 className="text-xl font-semibold">{exercise.name}</h1>
-        {!canWrite && exercise.source_url && (
+        {!canEdit && exercise.source_url && (
           <a
             href={exercise.source_url}
             target="_blank"
@@ -53,13 +55,15 @@ export default async function ExerciseDetailPage({
           </a>
         )}
       </div>
+      <p className="mb-6 text-sm text-zinc-500">
+        Erstellt von: {creator?.name ?? "–"}
+      </p>
 
-      {canWrite ? (
+      {canEdit ? (
         <>
           <p className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            Diese Übung gehört zur gemeinsamen Übungsdatenbank. Änderungen
-            gelten für alle Teams, die sie nutzen – für eigene Varianten
-            besser eine Kopie erstellen.
+            Diese Übung gehört zur gemeinsamen Übungsdatenbank. Deine
+            Änderungen als Administrator gelten für alle Teams, die sie nutzen.
           </p>
           <ExerciseForm
             action={update}
@@ -71,7 +75,7 @@ export default async function ExerciseDetailPage({
           />
           <form action={remove} className="mt-4">
             <DeleteButton
-              confirmMessage={`Übung "${exercise.name}" löschen? Nutzen andere Teams sie noch, wird sie nur aus deinem Team entfernt, sonst endgültig aus der Übungsdatenbank gelöscht.`}
+              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit für alle Teams.`}
               className="text-sm text-red-600 hover:underline dark:text-red-400"
             >
               Übung löschen
@@ -80,6 +84,10 @@ export default async function ExerciseDetailPage({
         </>
       ) : (
         <>
+          <p className="mb-4 text-sm text-zinc-500">
+            Übungen der gemeinsamen Datenbank ändert nur der Administrator. Für
+            eine eigene Variante in der Übungsliste „Kopie erst.“ nutzen.
+          </p>
           {exercise.image_url && (
             <a href={exercise.image_url} target="_blank" rel="noreferrer" className="mb-4 block">
               {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}

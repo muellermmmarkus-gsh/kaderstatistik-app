@@ -23,6 +23,8 @@ type ExerciseRow = {
   seasonCount: number;
   /** Uebung erscheint unter "Uebungen" des eigenen Teams. */
   activeInTeam: boolean;
+  /** Team, das die Uebung angelegt hat. */
+  createdByTeam: string | null;
 };
 
 const NO_FIELD = "__keine__";
@@ -140,11 +142,18 @@ function FilterDropdown({
 export default function ExercisesTable({
   exercises,
   canWrite,
+  canEdit,
+  returnTo,
   showTeamToggle = false,
 }: {
   exercises: ExerciseRow[];
+  /** Trainer: Kopie erstellen, "In Team aktiv" setzen. */
   canWrite: boolean;
-  /** Spalte "In Team aktiv" (nur in der Uebungsdatenbank). */
+  /** Admin: Uebungen aendern und loeschen. */
+  canEdit: boolean;
+  /** Seite, auf die nach dem Loeschen zurueckgeleitet wird. */
+  returnTo: string;
+  /** Spalten "Erstellt von" und "In Team aktiv" (nur in der Uebungsdatenbank). */
   showTeamToggle?: boolean;
 }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -247,6 +256,7 @@ export default function ExercisesTable({
         <colgroup>
           <col className="w-12" />
           <col />
+          {showTeamToggle && <col className="w-20" />}
           <col className="w-24" />
           <col className="w-28" />
           <col className="w-28" />
@@ -262,6 +272,7 @@ export default function ExercisesTable({
           <tr className="border-b border-zinc-200 align-bottom dark:border-zinc-800">
             <th className="py-2 pr-3" />
             <th className="py-2 pr-4">Name</th>
+            {showTeamToggle && <th className="py-2 pr-3">Erstellt von</th>}
             <th className="py-2 pr-3">Kategorie</th>
             <th className="py-2 pr-3">Fläche</th>
             <th className="py-2 pr-3">Üb.schwp. 1</th>
@@ -282,7 +293,7 @@ export default function ExercisesTable({
         </thead>
         <tbody>
           {filtered.map((exercise) => {
-            const remove = deleteExercise.bind(null, exercise.id, undefined);
+            const remove = deleteExercise.bind(null, exercise.id, returnTo);
             const copy = duplicateExercise.bind(null, exercise.id);
             return (
               <tr
@@ -306,6 +317,9 @@ export default function ExercisesTable({
                     {exercise.name}
                   </Link>
                 </td>
+                {showTeamToggle && (
+                  <td className="py-2 pr-3 text-zinc-500">{exercise.createdByTeam ?? "–"}</td>
+                )}
                 <td className="py-2 pr-3 text-zinc-500">
                   {categoryLabels[exercise.category] ?? exercise.category}
                 </td>
@@ -331,22 +345,24 @@ export default function ExercisesTable({
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end gap-1">
-                      <div>
-                        <Link
-                          href={`/exercises/${exercise.id}`}
-                          className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
-                        >
-                          ändern
-                        </Link>
-                        <form action={remove} className="ml-3 inline">
-                          <DeleteButton
-                            confirmMessage={`Übung "${exercise.name}" löschen? Nutzen andere Teams sie noch, wird sie nur aus deinem Team entfernt, sonst endgültig aus der Übungsdatenbank gelöscht.`}
+                      {canEdit && (
+                        <div>
+                          <Link
+                            href={`/exercises/${exercise.id}`}
                             className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
                           >
-                            löschen
-                          </DeleteButton>
-                        </form>
-                      </div>
+                            ändern
+                          </Link>
+                          <form action={remove} className="ml-3 inline">
+                            <DeleteButton
+                              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit für alle Teams.`}
+                              className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
+                            >
+                              löschen
+                            </DeleteButton>
+                          </form>
+                        </div>
+                      )}
                       <form action={copy}>
                         <CopyButton />
                       </form>
@@ -358,7 +374,7 @@ export default function ExercisesTable({
           })}
           {!filtered.length && (
             <tr>
-              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 1 : 0)} className="py-4 text-zinc-500">
+              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 2 : 0)} className="py-4 text-zinc-500">
                 {exercises.length
                   ? "Keine Übungen entsprechen den gewählten Filtern."
                   : "Noch keine Übungen angelegt."}
