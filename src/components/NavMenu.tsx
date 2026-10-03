@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type MenuLink = { label: string; href: string };
@@ -59,23 +60,101 @@ const menu: MenuGroup[] = [
   },
 ];
 
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" className="h-6 w-6">
+      {open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+    </svg>
+  );
+}
+
 export default function NavMenu({ isTrainer }: { isTrainer: boolean }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const visibleMenu = menu.filter((group) => isTrainer || !group.trainerOnly);
   const rootRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setOpenIndex(null);
+        setMobileOpen(false);
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenIndex(null);
+        setMobileOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
+  const mobileLinkClass = (href: string) =>
+    `block rounded px-3 py-3 text-base hover:bg-zinc-100 dark:hover:bg-zinc-900 ${
+      pathname === href ? "bg-zinc-100 font-semibold dark:bg-zinc-900" : ""
+    }`;
+
   return (
-    <div ref={rootRef} className="flex items-center gap-1 text-sm font-medium">
+    <div ref={rootRef} className="text-sm font-medium">
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen((open) => !open)}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-menu"
+          aria-label={mobileOpen ? "Menü schließen" : "Menü öffnen"}
+          className="-ml-2 rounded p-2 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+        >
+          <MenuIcon open={mobileOpen} />
+        </button>
+        {mobileOpen && (
+          <div
+            id="mobile-menu"
+            className="absolute inset-x-0 top-full z-20 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-zinc-200 bg-white px-4 pb-4 shadow-lg dark:border-zinc-800 dark:bg-zinc-950"
+          >
+            {visibleMenu.map((group) =>
+              group.items ? (
+                <div key={group.label} className="pt-4">
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {group.label}
+                  </p>
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      aria-current={pathname === item.href ? "page" : undefined}
+                      className={mobileLinkClass(item.href)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div key={group.label} className="pt-4">
+                  <Link
+                    href={group.href!}
+                    onClick={() => setMobileOpen(false)}
+                    aria-current={pathname === group.href ? "page" : undefined}
+                    className={mobileLinkClass(group.href!)}
+                  >
+                    {group.label}
+                  </Link>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="hidden items-center gap-1 lg:flex">
       {visibleMenu.map((group, index) =>
         group.items ? (
           <div
@@ -121,6 +200,7 @@ export default function NavMenu({ isTrainer }: { isTrainer: boolean }) {
           </Link>
         ),
       )}
+      </div>
     </div>
   );
 }

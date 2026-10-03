@@ -16,15 +16,16 @@ export default async function NavBar() {
   const canSeeAdmin = role === "trainer";
 
   return (
-    <nav className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+    <nav className="relative flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
       {canSeeAdmin ? <NavMenu isTrainer /> : <span />}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <form action={signOut}>
           <button
             type="submit"
+            title={user.email}
             className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
           >
-            Abmelden ({user.email})
+            Abmelden<span className="hidden xl:inline"> ({user.email})</span>
           </button>
         </form>
         {canSeeAdmin && (
