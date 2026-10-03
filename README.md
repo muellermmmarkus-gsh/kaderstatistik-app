@@ -179,6 +179,19 @@ Migration_012 legt zusaetzlich einen **Supabase-Storage-Bucket** `exercise-image
 
 Statistiken (Anwesenheit pro Monat/Saison, Tore pro Saison) stehen als SQL-Views zur Verfuegung: `attendance_by_month`, `attendance_by_season`, `goals_by_season` (Spieler), `trainer_attendance_by_season` (Trainer) sowie `attendance_overall_by_season` (Team-Gesamtwert fuers Dashboard).
 
+### Als App installieren (PWA)
+
+Die App ist eine installierbare Web-App „TVG Coach": Manifest in
+[`src/app/manifest.ts`](src/app/manifest.ts), Name/Farbe in
+[`src/lib/appTheme.ts`](src/lib/appTheme.ts), Icons in `public/icons/`,
+`src/app/apple-icon.png` und `src/app/favicon.ico` (aus dem TVG-Coach-Logo
+erzeugt; `favicon.ico` muss RGBA-PNGs enthalten, sonst bricht Next.js ab).
+Das Manifest ist in [`src/proxy.ts`](src/proxy.ts) vom Login-Zwang ausgenommen.
+
+- **iPhone (Safari):** Seite öffnen → Teilen → „Zum Home-Bildschirm".
+- **Android (Chrome):** Seite öffnen → Menü ⋮ → „App installieren" bzw.
+  „Zum Startbildschirm hinzufügen".
+
 ### Hinweis zu Next.js 16
 
 Dieses Projekt nutzt Next.js 16. Die frueher `middleware.ts` genannte Datei heisst jetzt [`src/proxy.ts`](src/proxy.ts) (Konvention seit v16).
