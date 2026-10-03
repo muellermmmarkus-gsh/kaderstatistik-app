@@ -46,12 +46,21 @@ export default function DatenschutzPage() {
         <h2 className="mb-2 font-medium">Wer die Daten sehen kann</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            Neue Registrierungen muss der Administrator freigeben. Bis dahin
-            sieht das Konto keine Daten.
+            Die App wird von mehreren Teams genutzt. Jedes Team sieht
+            ausschließlich seine eigenen Daten (Kader, Termine, Anwesenheit,
+            Trainingsplanung, Ergebnisse, Bewertungen).
           </li>
           <li>
-            Derzeit haben <strong>nur Trainer</strong> Zugriff auf die Daten.
-            Eltern/Spieler sehen nach dem Login keine Inhalte.
+            Teamübergreifend gemeinsam ist nur die Übungsdatenbank
+            (Trainingsübungen ohne Personenbezug).
+          </li>
+          <li>
+            Neue Registrierungen und Teams muss der Administrator freigeben.
+            Bis dahin sieht das Konto keine Daten.
+          </li>
+          <li>
+            Derzeit haben <strong>nur Trainer</strong> Zugriff auf die Daten
+            ihres Teams. Eltern/Spieler sehen nach dem Login keine Inhalte.
           </li>
         </ul>
         <p className="mt-2">

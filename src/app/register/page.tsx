@@ -47,6 +47,22 @@ export default function RegisterPage() {
           className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
 
+        <label className="mb-1 block text-sm font-medium" htmlFor="requestedTeam">
+          Dein Team
+        </label>
+        <input
+          id="requestedTeam"
+          name="requestedTeam"
+          required
+          maxLength={60}
+          placeholder="z.B. TSV Musterstadt E2"
+          className="mb-1 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+        <p className="mb-4 text-xs text-zinc-500">
+          Neues Team oder ein bestehendes, dem du beitreten willst. Der
+          Administrator prüft deine Anfrage und schaltet dich frei.
+        </p>
+
         <label className="mb-1 block text-sm font-medium" htmlFor="password">
           Passwort
         </label>

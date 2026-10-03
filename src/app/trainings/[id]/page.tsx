@@ -69,10 +69,11 @@ export default async function TrainingDetailPage({
       )
       .eq("event_id", id)
       .maybeSingle(),
+    // Nur die im eigenen Team aktiven Uebungen (Uebungsdatenbank -> "In Team aktiv").
     supabase
       .from("exercises")
       .select(
-        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m)",
+        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m), team_exercises!inner(exercise_id)",
       )
       .order("name"),
     supabase
@@ -88,6 +89,24 @@ export default async function TrainingDetailPage({
   if (!event) notFound();
 
   const exerciseOptions = (exercises ?? []) as unknown as ExerciseOption[];
+  // Uebungen, die schon in diesem Plan stehen, aber im Team inzwischen
+  // deaktiviert wurden, bleiben auswaehlbar - sonst gingen sie beim Speichern verloren.
+  const missingPlanExerciseIds = [
+    ...new Set(
+      ((training?.training_exercises ?? []) as unknown as { exercises: { id: string } | null }[])
+        .map((te) => te.exercises?.id)
+        .filter((exerciseId): exerciseId is string => !!exerciseId),
+    ),
+  ].filter((exerciseId) => !exerciseOptions.some((o) => o.id === exerciseId));
+  if (missingPlanExerciseIds.length) {
+    const { data: planExercises } = await supabase
+      .from("exercises")
+      .select(
+        "id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, source_url, fields(name, length_m, width_m)",
+      )
+      .in("id", missingPlanExerciseIds);
+    exerciseOptions.push(...((planExercises ?? []) as unknown as ExerciseOption[]));
+  }
   const playerOptions = (players ?? []) as PlayerOption[];
   const focusLabels = (focuses ?? []).map((f) => f.label);
 

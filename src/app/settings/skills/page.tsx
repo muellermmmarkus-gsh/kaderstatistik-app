@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { isAdmin } from "@/lib/supabase/profile";
 import { saveSkills } from "./actions";
 import SkillForm from "./SkillForm";
 import BackButton from "@/components/BackButton";
@@ -8,7 +8,7 @@ export default async function SkillsSettingsPage() {
   const supabase = await createClient();
   const [{ data: skills }, canWrite] = await Promise.all([
     supabase.from("exercise_focuses").select("label").order("sort_order"),
-    isTrainer(),
+    isAdmin(),
   ]);
 
   const initialSkills = (skills ?? []).map((s) => s.label);
@@ -30,7 +30,7 @@ export default async function SkillsSettingsPage() {
       ) : (
         <>
           <p className="mb-4 text-sm text-zinc-500">
-            Du hast Nur-Lese-Zugriff. Ändern können nur Trainer.
+            Diese Einstellung gilt für alle Teams und kann nur vom Administrator geändert werden.
           </p>
           <ul className="space-y-1 text-sm">
             {initialSkills.map((skill) => (

@@ -45,10 +45,39 @@ App laeuft unter [http://localhost:3000](http://localhost:3000).
 3. In den Vercel-Projekteinstellungen unter **Environment Variables** dieselben zwei Variablen (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) eintragen.
 4. Deploy anstossen – danach ist die App unter der Vercel-URL fuer alle Nutzer erreichbar (PC und mobil, kein separates Programm noetig).
 
+### Plattform für mehrere Teams
+
+Die App ist eine Plattform: jedes Team (Tabelle `teams`) hat eigene,
+voneinander getrennte Daten, die Technik ist für alle Teams identisch.
+Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.sql).
+
+- **Teamdaten** (Kader, Termine, Anwesenheit, Trainingsplanung, Ergebnisse,
+  Performance, Checklisten, Abwesenheiten, Saisons) haben eine `team_id`
+  bzw. hängen an einem Termin/Spieler/Trainer des Teams. Die
+  Row-Level-Security zeigt nur Daten des eigenen Teams
+  (`current_team_id()`); neue Datensätze bekommen das Team automatisch
+  (`default current_team_id()`). Ein neues Team startet daher leer.
+  Manuelle SQL-Importe (z.B. Spielplan) müssen `team_id` selbst setzen.
+- **Gemeinsam für alle Teams:** Übungsdatenbank (`exercises`), Flächen,
+  Skills und Terminarten. Skills und Terminarten ändert nur der Admin.
+- **Übungen:** „Training → Übungsdatenbank" zeigt alle Übungen aller Teams;
+  die Checkbox „In Team aktiv" (Tabelle `team_exercises`) bestimmt, welche
+  unter „Übungen" und in der Trainingsplanung des Teams erscheinen. Neu
+  angelegte Übungen sind automatisch im eigenen Team aktiv. Löschen entfernt
+  eine Übung nur aus dem eigenen Team, solange andere Teams sie nutzen.
+- **Teamname** (`teams.name`, z.B. „TVG E1") steht oben in der Menüleiste
+  und unter „Kaderstatistik"; der **Name im Spielbetrieb**
+  (`teams.match_name`, z.B. „TV Geisenhausen E7 1") erkennt die eigene
+  Mannschaft im Live-Ergebnis. Beides pflegt der Admin unter ADMIN → Teams.
+- **Neue Teams:** Trainer registrieren sich und geben dabei ihr Team an
+  (`profiles.requested_team`). Der Admin (`profiles.is_admin`) ordnet sie auf
+  der ADMIN-Seite einem bestehenden oder neuen Team zu und gibt sie als
+  Trainer frei.
+
 ### Registrierung mit E-Mail-Bestätigung
 
 Neue Nutzer registrieren sich selbst unter `/register` (Vorname, Nachname,
-E-Mail, Rolle, Passwort) und müssen den Bestätigungslink aus der
+E-Mail, beantragtes Team, Passwort) und müssen den Bestätigungslink aus der
 automatisch verschickten E-Mail anklicken, bevor sie sich einloggen können.
 Damit das funktioniert, im Supabase-Dashboard einmalig einstellen:
 
@@ -109,8 +138,10 @@ wird und die Templates entsprechend umgestellt werden.
 
 ### Rechte
 
-- **Trainer**: voller Lese-/Schreibzugriff auf alle Bereiche, vergeben
-  Rollen auf der ADMIN-Seite.
+- **Admin** (`profiles.is_admin`, Plattform-Betreiber): gibt Trainer und
+  Teams auf der ADMIN-Seite frei, pflegt Teams, Skills und Terminarten.
+- **Trainer** (mit Team): voller Lese-/Schreibzugriff auf die Daten des
+  eigenen Teams und auf die gemeinsame Übungsdatenbank.
 - **Eltern/Spieler**: derzeit **kein Zugriff** (wie „nicht freigeschaltet").
   Zum späteren Freischalten mit Lesezugriff (ohne Geburtsdaten, Passnummern,
   Bewertungen und Noten): in `is_member()` wieder `'parent_player'`
@@ -119,7 +150,8 @@ wird und die Templates entsprechend umgestellt werden.
 - **Nicht freigeschaltet** (`pending`): kein Datenzugriff.
 
 Alles ist in der Datenbank per Row-Level-Security durchgesetzt (Funktionen
-`is_trainer()` und `is_member()`), das UI blendet zusätzlich aus. Views laufen
+`is_trainer()`, `is_member()`, `is_admin()` und `current_team_id()`), das UI
+blendet zusätzlich aus. Views laufen
 mit `security_invoker`, damit sie die Row-Level-Security nicht umgehen.
 Grundlage: [`supabase/migration_010_role_permissions.sql`](supabase/migration_010_role_permissions.sql)
 und [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschutz.sql).
@@ -136,7 +168,8 @@ und [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschut
 
 ### Datenmodell
 
-- **profiles** – Vorname, Nachname, Rolle (`pending`/`parent_player`/`trainer`) je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt, startet immer als `pending`)
+- **teams** – Teams der Plattform (`name`, `match_name` = Name im Spielbetrieb); **team_exercises** – welche Uebung der Datenbank in welchem Team aktiv ist
+- **profiles** – Vorname, Nachname, Rolle (`pending`/`parent_player`/`trainer`), Team (`team_id`), beantragtes Team, Admin-Kennzeichen je registriertem Auth-Nutzer (automatisch per Trigger aus `auth.users` befuellt, startet immer als `pending`)
 - **players** – Spieler-Stammdaten (Name, aktiv)
 - **player_private** – Geburtsdatum (erscheint als Geburtstag im Kalender) und Passnummer je Spieler, nur fuer Trainer lesbar
 - **trainers** – Trainer-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
@@ -154,16 +187,16 @@ und [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschut
 - **checklists** / **checklist_items** – Checklisten unter „Termine und Verwaltung → Checklisten": Name und Erstellungsdatum; je beim Anlegen aktivem Spieler bzw. Trainer eine Zeile mit „erledigt" und Notiz (max. 200 Zeichen). Lesen fuer freigeschaltete Nutzer, Aendern nur Trainer ([`supabase/migration_032_checklists.sql`](supabase/migration_032_checklists.sql))
 - **login_events** – ein Eintrag pro erfolgreichem Login (Nutzer, Zeitpunkt), Grundlage fuer die Admin-Uebersicht (siehe unten). Nur Trainer duerfen die Eintraege lesen, jeder Nutzer darf beim Login seinen eigenen Eintrag anlegen.
 
-Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql), [`supabase/migration_030_login_events.sql`](supabase/migration_030_login_events.sql), [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschutz.sql). Lesen duerfen freigeschaltete Nutzer (ausser den nur fuer Trainer lesbaren Daten, siehe "Rechte"), anlegen/aendern/loeschen koennen nur Trainer.
+Ausfuehren fuer bestehende Projekte der Reihe nach: [`supabase/migration_011_exercises_trainings.sql`](supabase/migration_011_exercises_trainings.sql), [`supabase/migration_012_fields_categories_images.sql`](supabase/migration_012_fields_categories_images.sql), [`supabase/migration_013_trainings_linked_to_events.sql`](supabase/migration_013_trainings_linked_to_events.sql), [`supabase/migration_014_attendance_assessment.sql`](supabase/migration_014_attendance_assessment.sql), [`supabase/migration_015_events_time_location.sql`](supabase/migration_015_events_time_location.sql), [`supabase/migration_016_trainer_birthdate.sql`](supabase/migration_016_trainer_birthdate.sql), [`supabase/migration_017_exercise_source_url.sql`](supabase/migration_017_exercise_source_url.sql), [`supabase/migration_018_event_type_tournament.sql`](supabase/migration_018_event_type_tournament.sql), [`supabase/migration_030_login_events.sql`](supabase/migration_030_login_events.sql), [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschutz.sql), [`supabase/migration_032_checklists.sql`](supabase/migration_032_checklists.sql), [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.sql). Lesen duerfen freigeschaltete Nutzer (ausser den nur fuer Trainer lesbaren Daten, siehe "Rechte"), anlegen/aendern/loeschen koennen nur Trainer.
 
 ### Admin-Uebersicht
 
-Trainer sehen oben rechts neben „Abmelden" einen Button „ADMIN", der zur Seite
-`/admin` fuehrt (fuer Eltern/Spieler nicht sichtbar und serverseitig
-geschuetzt). Dort stehen alle registrierten Nutzer (Name, E-Mail, Rolle,
-Registrierungsdatum, Logins gesamt, letzter Login) sowie die Login-Historie
-je Datum, Woche und Monat. Die Rolle anderer Nutzer laesst sich dort aendern
-(Freischaltung neuer Nutzer); die eigene Rolle ist gesperrt.
+Nur der Admin sieht oben rechts neben „Abmelden" den Button „ADMIN" (Seite
+`/admin`, serverseitig geschuetzt). Dort stehen alle registrierten Nutzer
+aller Teams (Name, E-Mail, beantragtes Team, Team und Rolle,
+Registrierungsdatum, Logins) mit Freigabe/Zuordnung, die Teams (Teamname,
+Name im Spielbetrieb) sowie die Login-Historie je Datum, Woche und Monat.
+Der eigene Zugang des Admins ist dort gesperrt.
 
 ### Geburtstage im Kalender
 

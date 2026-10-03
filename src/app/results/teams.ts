@@ -1,5 +1,5 @@
-// Name der eigenen Mannschaft (siehe supabase/insert_spielplan_313103.sql).
-export const OWN_TEAM = "TV Geisenhausen E7 1";
+// Den Namen der eigenen Mannschaft im Spielbetrieb liefert teams.match_name
+// des angemeldeten Teams (getCurrentProfile().teamMatchName).
 
 export type TeamSide = "a" | "b";
 export type GoalKind = "goal" | "own_goal";
@@ -16,8 +16,8 @@ export type GoalEntry = {
 };
 
 /** Auf welcher Seite (a = zuerst genannt) die eigene Mannschaft steht. */
-export function ownSideOf(teamA: string): TeamSide {
-  return teamA === OWN_TEAM ? "a" : "b";
+export function ownSideOf(teamA: string, ownTeam: string): TeamSide {
+  return teamA === ownTeam ? "a" : "b";
 }
 
 /**
@@ -26,12 +26,12 @@ export function ownSideOf(teamA: string): TeamSide {
  * die Heimmannschaft wird zuerst genannt. Ohne Zusatz gilt das Spiel als
  * Heimspiel.
  */
-export function teamsForEvent(opponent: string | null): [string, string] {
+export function teamsForEvent(opponent: string | null, ownTeam: string): [string, string] {
   const raw = (opponent ?? "").trim();
   const match = raw.match(/^(.*?)\s*\((heim|auswärts|auswaerts)\)\s*$/i);
   const name = (match ? match[1] : raw) || "Gegner";
   const isAway = !!match && match[2].toLowerCase() !== "heim";
-  return isAway ? [name, OWN_TEAM] : [OWN_TEAM, name];
+  return isAway ? [name, ownTeam] : [ownTeam, name];
 }
 
 /** Spielstand: ein Eigentor eines Spielers zaehlt fuer die andere Mannschaft. */

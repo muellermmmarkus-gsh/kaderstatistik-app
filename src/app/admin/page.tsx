@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { isAdmin } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
-import { setUserRole } from "./actions";
+import { saveUserAccess, updateTeam } from "./actions";
 
 type Profile = {
   id: string;
@@ -10,8 +10,13 @@ type Profile = {
   last_name: string;
   email: string;
   role: string;
+  team_id: string | null;
+  requested_team: string | null;
+  is_admin: boolean;
   created_at: string;
 };
+
+type Team = { id: string; name: string; match_name: string };
 
 type LoginEvent = {
   user_id: string;
@@ -145,8 +150,12 @@ function PeriodTable({ title, rows }: { title: string; rows: PeriodRow[] }) {
   );
 }
 
-export default async function AdminPage() {
-  if (!(await isTrainer())) {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; saved?: string }>;
+}) {
+  if (!(await isAdmin())) {
     redirect("/");
   }
 
@@ -157,23 +166,34 @@ export default async function AdminPage() {
     },
     { data: profiles },
     { data: loginEvents },
+    { data: teamsData },
+    { error: errorMessage, saved },
   ] = await Promise.all([
     supabase.auth.getUser(),
     supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, role, created_at")
+      .select("id, first_name, last_name, email, role, team_id, requested_team, is_admin, created_at")
       .order("created_at", { ascending: true }),
     supabase
       .from("login_events")
       .select("user_id, created_at")
       .order("created_at", { ascending: false }),
+    supabase.from("teams").select("id, name, match_name").order("name"),
+    searchParams,
   ]);
 
-  // Wartende Nutzer zuerst, damit Freischaltungen nicht untergehen.
+  const teams = (teamsData ?? []) as Team[];
+  const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
+  // Ohne Zugang (wartend oder noch ohne Team) zuerst, damit Freigaben nicht untergehen.
+  const needsApproval = (u: Profile) => u.role !== "trainer" || !u.team_id;
   const users = ((profiles ?? []) as Profile[]).sort(
-    (a, b) => Number(b.role === "pending") - Number(a.role === "pending"),
+    (a, b) => Number(needsApproval(b)) - Number(needsApproval(a)),
   );
   const pendingCount = users.filter((u) => u.role === "pending").length;
+  const membersByTeam = new Map<string, number>();
+  for (const u of users) {
+    if (u.team_id) membersByTeam.set(u.team_id, (membersByTeam.get(u.team_id) ?? 0) + 1);
+  }
   const events = (loginEvents ?? []) as LoginEvent[];
 
   const namesById = new Map(users.map((u) => [u.id, `${u.first_name} ${u.last_name}`]));
@@ -192,17 +212,29 @@ export default async function AdminPage() {
   const byMonth = groupLogins(events, namesById, monthKey, formatMonthLabel).slice(0, 12);
 
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
       <BackButton href="/" />
       <h1 className="mb-6 text-xl font-semibold">Admin</h1>
+
+      {errorMessage && (
+        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+          {errorMessage}
+        </p>
+      )}
+      {saved && !errorMessage && (
+        <p className="mb-4 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+          Gespeichert.
+        </p>
+      )}
 
       <section className="mb-10">
         <h2 className="mb-1 font-medium">Registrierte Nutzer</h2>
         <p className="mb-3 text-sm text-zinc-500">
-          Neue Nutzer sind zunächst „nicht freigeschaltet“ und sehen keine
-          Daten. Zugriff haben derzeit nur „Trainer“ – „Eltern/Spieler“
-          sehen vorerst ebenfalls nichts. Schalte nur Personen frei, die du
-          kennst.
+          Neue Trainer beantragen bei der Registrierung ihr Team. Zum
+          Freigeben: Team wählen (bestehendes Team oder „Neues Team“ mit dem
+          beantragten Namen), Rolle „Trainer“ und speichern. Zugang zur App
+          hat nur, wer Trainer ist und ein Team hat – „Eltern/Spieler“ sehen
+          vorerst nichts. Schalte nur Personen frei, die du kennst.
         </p>
         {pendingCount > 0 && (
           <p className="mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -215,29 +247,61 @@ export default async function AdminPage() {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800">
-              <th className="py-2">Name</th>
-              <th className="py-2">E-Mail</th>
-              <th className="py-2">Rolle</th>
-              <th className="py-2">Registriert am</th>
-              <th className="py-2">Logins gesamt</th>
+              <th className="py-2 pr-3">Name</th>
+              <th className="py-2 pr-3">E-Mail</th>
+              <th className="py-2 pr-3">Beantragtes Team</th>
+              <th className="py-2 pr-3">Team und Rolle</th>
+              <th className="py-2 pr-3">Registriert am</th>
+              <th className="py-2 pr-3">Logins</th>
               <th className="py-2">Letzter Login</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                <td className="py-2">
+              <tr key={u.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                <td className="py-2 pr-3">
                   {u.first_name} {u.last_name}
+                  {u.is_admin && (
+                    <span className="ml-1 rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
+                      Admin
+                    </span>
+                  )}
                 </td>
-                <td className="py-2">{u.email}</td>
-                <td className="py-2">
+                <td className="py-2 pr-3">{u.email}</td>
+                <td className="py-2 pr-3 text-zinc-500">{u.requested_team ?? "–"}</td>
+                <td className="py-2 pr-3">
                   {u.id === currentUser?.id ? (
-                    ROLE_LABELS[u.role] ?? u.role
+                    <span>
+                      {teamNameById.get(u.team_id ?? "") ?? "kein Team"} ·{" "}
+                      {ROLE_LABELS[u.role] ?? u.role}
+                    </span>
                   ) : (
-                    <form action={setUserRole.bind(null, u.id)} className="flex items-center gap-1">
+                    <form action={saveUserAccess.bind(null, u.id)} className="flex flex-wrap items-center gap-1">
+                      <select
+                        name="team"
+                        defaultValue={u.team_id ?? (u.requested_team ? "__new__" : "")}
+                        aria-label={`Team von ${u.first_name} ${u.last_name}`}
+                        className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <option value="">– kein Team –</option>
+                        {teams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                        <option value="__new__">+ Neues Team …</option>
+                      </select>
+                      <input
+                        name="newTeamName"
+                        defaultValue={u.team_id ? "" : (u.requested_team ?? "")}
+                        placeholder="Name neues Team"
+                        maxLength={60}
+                        aria-label={`Name des neuen Teams für ${u.first_name} ${u.last_name}`}
+                        className="w-36 rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                      />
                       <select
                         name="role"
-                        defaultValue={u.role}
+                        defaultValue={u.role === "pending" ? "trainer" : u.role}
                         aria-label={`Rolle von ${u.first_name} ${u.last_name}`}
                         className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
                       >
@@ -249,16 +313,16 @@ export default async function AdminPage() {
                       </select>
                       <button
                         type="submit"
-                        className="text-xs text-zinc-600 hover:underline dark:text-zinc-400"
+                        className="rounded bg-zinc-900 px-2 py-1 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900"
                       >
-                        speichern
+                        {needsApproval(u) ? "Freigeben" : "Speichern"}
                       </button>
                     </form>
                   )}
                 </td>
-                <td className="py-2">{formatDate(u.created_at)}</td>
-                <td className="py-2">{loginCountByUser.get(u.id) ?? 0}</td>
-                <td className="py-2">
+                <td className="py-2 pr-3 whitespace-nowrap">{formatDate(u.created_at)}</td>
+                <td className="py-2 pr-3">{loginCountByUser.get(u.id) ?? 0}</td>
+                <td className="py-2 whitespace-nowrap">
                   {lastLoginByUser.has(u.id)
                     ? formatDateTime(lastLoginByUser.get(u.id)!)
                     : "–"}
@@ -267,13 +331,62 @@ export default async function AdminPage() {
             ))}
             {!users.length && (
               <tr>
-                <td colSpan={6} className="py-4 text-zinc-500">
+                <td colSpan={7} className="py-4 text-zinc-500">
                   Noch keine Nutzer registriert.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="mb-1 font-medium">Teams</h2>
+        <p className="mb-3 text-sm text-zinc-500">
+          Der Teamname erscheint oben in der Menüleiste. Der Name im
+          Spielbetrieb muss genau so geschrieben sein wie im Spielplan bzw.
+          Live-Ergebnis (daran erkennt die App die eigene Mannschaft).
+        </p>
+        <div className="space-y-2">
+          {teams.map((team) => (
+            <form
+              key={team.id}
+              action={updateTeam.bind(null, team.id)}
+              className="flex flex-wrap items-end gap-2 rounded border border-zinc-200 p-3 dark:border-zinc-800"
+            >
+              <label className="text-xs">
+                <span className="mb-1 block text-zinc-500">Teamname</span>
+                <input
+                  name="name"
+                  defaultValue={team.name}
+                  required
+                  maxLength={60}
+                  className="w-40 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-zinc-500">Name im Spielbetrieb</span>
+                <input
+                  name="matchName"
+                  defaultValue={team.match_name}
+                  required
+                  maxLength={80}
+                  className="w-56 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </label>
+              <span className="pb-1.5 text-xs text-zinc-500">
+                {membersByTeam.get(team.id) ?? 0} Nutzer
+              </span>
+              <button
+                type="submit"
+                className="rounded border border-zinc-300 px-3 py-1 text-sm dark:border-zinc-700"
+              >
+                Speichern
+              </button>
+            </form>
+          ))}
+          {!teams.length && <p className="text-sm text-zinc-500">Noch keine Teams.</p>}
         </div>
       </section>
 

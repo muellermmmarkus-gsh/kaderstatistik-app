@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
-type ExerciseRow = { id: string; name: string };
+// team_exercises: per RLS nur die Zeile des eigenen Teams.
+type ExerciseRow = { id: string; name: string; team_exercises: { exercise_id: string }[] };
 type EventRow = { id: string; event_date: string };
 type TrainingRow = { event_id: string; training_exercises: { exercise_id: string }[] };
 
@@ -9,7 +10,7 @@ export default async function ExerciseHistoryPage() {
   const supabase = await createClient();
   const [{ data: exercisesData }, { data: eventsData }, { data: trainingsData }] =
     await Promise.all([
-      supabase.from("exercises").select("id, name").order("name"),
+      supabase.from("exercises").select("id, name, team_exercises(exercise_id)").order("name"),
       supabase
         .from("events")
         .select("id, event_date")
@@ -34,14 +35,17 @@ export default async function ExerciseHistoryPage() {
 
   // Standardsortierung: absteigend nach Gesamtzahl der Einsätze in der
   // Trainingsplanung, bei Gleichstand alphabetisch.
-  const exercises = ((exercisesData as ExerciseRow[] | null) ?? [])
-    .map((exercise) => ({
+  // Nur Uebungen des eigenen Teams: im Team aktiv oder schon eingeplant.
+  const exercises = ((exercisesData as unknown as ExerciseRow[] | null) ?? [])
+    .map(({ team_exercises, ...exercise }) => ({
       ...exercise,
+      activeInTeam: team_exercises.length > 0,
       total: events.reduce(
         (sum, event) => sum + (exerciseIdsByEvent.get(event.id)?.has(exercise.id) ? 1 : 0),
         0,
       ),
     }))
+    .filter((exercise) => exercise.activeInTeam || exercise.total > 0)
     .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "de"));
 
   return (

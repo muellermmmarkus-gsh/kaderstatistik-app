@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { categoryLabels } from "./categoryLabels";
-import { deleteExercise, duplicateExercise } from "./actions";
+import { deleteExercise, duplicateExercise, setExerciseActiveInTeam } from "./actions";
 import DeleteButton from "@/components/DeleteButton";
 
 type ExerciseRow = {
@@ -21,9 +21,59 @@ type ExerciseRow = {
   fields: { name: string } | null;
   /** Einsaetze in der laufenden Saison (aus der Uebungshistorie). */
   seasonCount: number;
+  /** Uebung erscheint unter "Uebungen" des eigenen Teams. */
+  activeInTeam: boolean;
 };
 
 const NO_FIELD = "__keine__";
+
+function TeamToggle({
+  exerciseId,
+  exerciseName,
+  initialActive,
+  disabled,
+}: {
+  exerciseId: string;
+  exerciseName: string;
+  initialActive: boolean;
+  disabled: boolean;
+}) {
+  const [active, setActive] = useState(initialActive);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function toggle() {
+    const next = !active;
+    setActive(next);
+    startTransition(async () => {
+      const result = await setExerciseActiveInTeam(exerciseId, next);
+      if (result) {
+        setActive(!next);
+        setError(result);
+      } else {
+        setError(null);
+      }
+    });
+  }
+
+  return (
+    <>
+      <input
+        type="checkbox"
+        checked={active}
+        disabled={disabled || pending}
+        onChange={toggle}
+        aria-label={`${exerciseName} in meinem Team aktiv`}
+        className="h-4 w-4"
+      />
+      {error && (
+        <span className="block text-xs text-red-600" title={error}>
+          Fehler
+        </span>
+      )}
+    </>
+  );
+}
 
 function CopyButton() {
   const { pending } = useFormStatus();
@@ -90,9 +140,12 @@ function FilterDropdown({
 export default function ExercisesTable({
   exercises,
   canWrite,
+  showTeamToggle = false,
 }: {
   exercises: ExerciseRow[];
   canWrite: boolean;
+  /** Spalte "In Team aktiv" (nur in der Uebungsdatenbank). */
+  showTeamToggle?: boolean;
 }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -202,6 +255,7 @@ export default function ExercisesTable({
           <col className="w-20" />
           <col className="w-16" />
           <col className="w-14" />
+          {showTeamToggle && <col className="w-16" />}
           {canWrite && <col className="w-24" />}
         </colgroup>
         <thead>
@@ -218,6 +272,11 @@ export default function ExercisesTable({
             <th className="py-2 pr-3" title="Einsätze in der laufenden Saison">
               akt.Sai.
             </th>
+            {showTeamToggle && (
+              <th className="py-2 pr-3 text-center" title="Übung erscheint unter „Übungen“ in deinem Team">
+                In Team aktiv
+              </th>
+            )}
             {canWrite && <th className="py-2" />}
           </tr>
         </thead>
@@ -259,6 +318,16 @@ export default function ExercisesTable({
                 <td className="py-2 pr-3 text-zinc-500">{exercise.small_goals}</td>
                 <td className="py-2 pr-3 text-zinc-500">{exercise.mini_goals}</td>
                 <td className="py-2 pr-3 text-zinc-500">{exercise.seasonCount}</td>
+                {showTeamToggle && (
+                  <td className="py-2 pr-3 text-center">
+                    <TeamToggle
+                      exerciseId={exercise.id}
+                      exerciseName={exercise.name}
+                      initialActive={exercise.activeInTeam}
+                      disabled={!canWrite}
+                    />
+                  </td>
+                )}
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end gap-1">
@@ -271,7 +340,7 @@ export default function ExercisesTable({
                         </Link>
                         <form action={remove} className="ml-3 inline">
                           <DeleteButton
-                            confirmMessage={`Übung "${exercise.name}" wirklich löschen?`}
+                            confirmMessage={`Übung "${exercise.name}" löschen? Nutzen andere Teams sie noch, wird sie nur aus deinem Team entfernt, sonst endgültig aus der Übungsdatenbank gelöscht.`}
                             className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
                           >
                             löschen
@@ -289,7 +358,7 @@ export default function ExercisesTable({
           })}
           {!filtered.length && (
             <tr>
-              <td colSpan={canWrite ? 11 : 10} className="py-4 text-zinc-500">
+              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 1 : 0)} className="py-4 text-zinc-500">
                 {exercises.length
                   ? "Keine Übungen entsprechen den gewählten Filtern."
                   : "Noch keine Übungen angelegt."}

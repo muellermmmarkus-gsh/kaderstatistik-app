@@ -9,10 +9,11 @@ export async function signUp(_prevState: string | null, formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const requestedTeam = String(formData.get("requestedTeam") ?? "").trim().slice(0, 60);
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
 
-  if (!firstName || !lastName || !email) {
+  if (!firstName || !lastName || !email || !requestedTeam) {
     return "Bitte alle Felder ausfüllen.";
   }
   if (password.length < 8) {
@@ -27,8 +28,8 @@ export async function signUp(_prevState: string | null, formData: FormData) {
     email,
     password,
     options: {
-      // Die Rolle vergibt der Admin bei der Freigabe (Admin-Seite).
-      data: { first_name: firstName, last_name: lastName },
+      // Rolle und Team vergibt der Admin bei der Freigabe (Admin-Seite).
+      data: { first_name: firstName, last_name: lastName, requested_team: requestedTeam },
     },
   });
 
@@ -43,12 +44,13 @@ export async function signUp(_prevState: string | null, formData: FormData) {
     const proto = host.startsWith("localhost") ? "http" : "https";
     try {
       await notifyAdmin(
-        `Neue Registrierung: ${firstName} ${lastName}`,
+        `Neue Registrierung: ${firstName} ${lastName} (${requestedTeam})`,
         [
           "Neue Registrierung in der Kaderstatistik-App, die auf Freigabe wartet:",
           "",
           `Name: ${firstName} ${lastName}`,
           `E-Mail: ${email}`,
+          `Beantragtes Team: ${requestedTeam}`,
           "",
           `Freigeben oder ignorieren: ${proto}://${host}/admin`,
         ].join("\n"),

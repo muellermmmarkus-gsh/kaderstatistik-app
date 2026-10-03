@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
+import { getCurrentProfile } from "@/lib/supabase/profile";
 import {
   ownSideOf,
   teamsForEvent,
@@ -15,6 +16,12 @@ import {
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 export type GoalEntryInput = Omit<GoalEntry, "id">;
+
+async function ownTeamName(): Promise<string> {
+  const profile = await getCurrentProfile();
+  if (!profile?.teamMatchName) throw new Error("Kein Team zugeordnet.");
+  return profile.teamMatchName;
+}
 
 function revalidateResults(eventId: string) {
   revalidatePath("/results/live");
@@ -46,7 +53,7 @@ async function ensureMatchResult(
     .single();
   if (!event) throw new Error("Spiel nicht gefunden.");
 
-  const [teamA, teamB] = teamsForEvent(event.opponent);
+  const [teamA, teamB] = teamsForEvent(event.opponent, await ownTeamName());
   const { data, error } = await supabase
     .from("match_results")
     .insert({ event_id: eventId, team_a: teamA, team_b: teamB })
@@ -72,7 +79,7 @@ async function syncGoals(supabase: SupabaseClient, eventId: string) {
 
   const counts = new Map<string, number>();
   if (result) {
-    const ownSide = ownSideOf(result.team_a as string);
+    const ownSide = ownSideOf(result.team_a as string, await ownTeamName());
     for (const e of result.match_goal_entries ?? []) {
       if (e.team === ownSide && e.kind === "goal" && e.player_id) {
         counts.set(e.player_id, (counts.get(e.player_id) ?? 0) + 1);
@@ -133,7 +140,7 @@ export async function saveGoalEntry(
 
   // Spieler nur fuer die eigene Mannschaft; die Rueckennummer kommt dann
   // aus dem Spieltermin.
-  if (team === ownSideOf(result.teamA) && input.playerId) {
+  if (team === ownSideOf(result.teamA, await ownTeamName()) && input.playerId) {
     const { data: event } = await supabase
       .from("events")
       .select("event_date")

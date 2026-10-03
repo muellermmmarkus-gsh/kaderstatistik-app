@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { isAdmin } from "@/lib/supabase/profile";
 import { saveEventTypes } from "./actions";
 import EventTypeForm from "./EventTypeForm";
 import BackButton from "@/components/BackButton";
@@ -13,7 +13,7 @@ export default async function EventTypesSettingsPage() {
   const [{ data: types }, { data: allEvents }, canWrite] = await Promise.all([
     supabase.from("event_types").select("key, label").order("sort_order"),
     supabase.from("events").select("type").is("deleted_at", null),
-    isTrainer(),
+    isAdmin(),
   ]);
 
   const countByType = new Map<string, number>();
@@ -45,7 +45,7 @@ export default async function EventTypesSettingsPage() {
       ) : (
         <>
           <p className="mb-4 text-sm text-zinc-500">
-            Du hast Nur-Lese-Zugriff. Ändern können nur Trainer.
+            Diese Einstellung gilt für alle Teams und kann nur vom Administrator geändert werden.
           </p>
           <ul className="space-y-1 text-sm">
             {initialTypes.map((t) => (

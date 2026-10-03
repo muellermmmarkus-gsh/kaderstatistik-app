@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { getCurrentProfile, isTrainer } from "@/lib/supabase/profile";
 import { getShirtNumbers } from "@/lib/shirtNumbers";
 import BackButton from "@/components/BackButton";
 import { ownSideOf, teamsForEvent, type GoalEntry } from "../../teams";
@@ -14,7 +14,7 @@ export default async function LiveResultPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: result }, { data: players }, canWrite] = await Promise.all([
+  const [{ data: event }, { data: result }, { data: players }, canWrite, profile] = await Promise.all([
     supabase
       .from("events")
       .select("id, type, event_date, opponent, event_time, location")
@@ -30,13 +30,15 @@ export default async function LiveResultPage({
       .maybeSingle(),
     supabase.from("players").select("id, first_name, last_name"),
     isTrainer(),
+    getCurrentProfile(),
   ]);
 
   if (!event || event.type !== "game") notFound();
 
+  const ownTeam = profile?.teamMatchName ?? "";
   const [teamA, teamB] = result
     ? [result.team_a as string, result.team_b as string]
-    : teamsForEvent(event.opponent);
+    : teamsForEvent(event.opponent, ownTeam);
 
   const entries: GoalEntry[] = [...(result?.match_goal_entries ?? [])]
     .sort((x, y) => String(x.created_at).localeCompare(String(y.created_at)))
@@ -86,7 +88,7 @@ export default async function LiveResultPage({
         eventId={id}
         teamA={teamA}
         teamB={teamB}
-        ownSide={ownSideOf(teamA)}
+        ownSide={ownSideOf(teamA, ownTeam)}
         playerOptions={playerOptions}
         subtitle={[
           event.event_date,

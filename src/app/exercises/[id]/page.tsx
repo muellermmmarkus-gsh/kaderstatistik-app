@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { updateExercise, deleteExercise } from "../actions";
+import DeleteButton from "@/components/DeleteButton";
 import ExerciseForm from "../ExerciseForm";
 import { categoryLabels } from "../categoryLabels";
 import BackButton from "@/components/BackButton";
@@ -55,6 +56,11 @@ export default async function ExerciseDetailPage({
 
       {canWrite ? (
         <>
+          <p className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+            Diese Übung gehört zur gemeinsamen Übungsdatenbank. Änderungen
+            gelten für alle Teams, die sie nutzen – für eigene Varianten
+            besser eine Kopie erstellen.
+          </p>
           <ExerciseForm
             action={update}
             exerciseId={id}
@@ -64,12 +70,12 @@ export default async function ExerciseDetailPage({
             submitLabel="Speichern"
           />
           <form action={remove} className="mt-4">
-            <button
-              type="submit"
+            <DeleteButton
+              confirmMessage={`Übung "${exercise.name}" löschen? Nutzen andere Teams sie noch, wird sie nur aus deinem Team entfernt, sonst endgültig aus der Übungsdatenbank gelöscht.`}
               className="text-sm text-red-600 hover:underline dark:text-red-400"
             >
               Übung löschen
-            </button>
+            </DeleteButton>
           </form>
         </>
       ) : (

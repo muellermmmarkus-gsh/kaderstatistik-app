@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isTrainer } from "@/lib/supabase/profile";
+import { getCurrentProfile, isTrainer } from "@/lib/supabase/profile";
 import { saveAttendance, saveAttendanceAndReturn } from "./actions";
 import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
@@ -80,7 +80,10 @@ export default async function EventDetailPage({
       .eq("event_id", id)
       .maybeSingle();
     if (result) {
-      const ownSide = ownSideOf(result.team_a as string);
+      const ownSide = ownSideOf(
+        result.team_a as string,
+        (await getCurrentProfile())?.teamMatchName ?? "",
+      );
       for (const e of result.match_goal_entries ?? []) {
         if (e.team === ownSide && e.kind === "goal" && e.player_id) {
           liveGoalsByPlayer.set(e.player_id, (liveGoalsByPlayer.get(e.player_id) ?? 0) + 1);

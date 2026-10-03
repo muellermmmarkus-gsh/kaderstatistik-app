@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentRole } from "@/lib/supabase/profile";
+import { getCurrentProfile } from "@/lib/supabase/profile";
 import { signOut } from "@/app/login/actions";
 import NavMenu from "./NavMenu";
 
@@ -12,13 +12,20 @@ export default async function NavBar() {
 
   if (!user) return null;
 
-  const role = await getCurrentRole();
-  const canSeeAdmin = role === "trainer";
+  const profile = await getCurrentProfile();
+  const hasAccess = profile?.role === "trainer" && !!profile.teamId;
 
   return (
-    <nav className="relative flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-      {canSeeAdmin ? <NavMenu isTrainer /> : <span />}
-      <div className="flex items-center gap-3 sm:gap-4">
+    <nav className="relative flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="flex min-w-0 items-center gap-2 lg:gap-4">
+        {hasAccess ? <NavMenu isTrainer /> : <span />}
+        {hasAccess && profile?.teamName && (
+          <span className="truncate rounded bg-[#1f4d2c] px-2.5 py-1 text-sm font-semibold text-white">
+            {profile.teamName}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-3 sm:gap-4">
         <form action={signOut}>
           <button
             type="submit"
@@ -28,7 +35,7 @@ export default async function NavBar() {
             Abmelden<span className="hidden xl:inline"> ({user.email})</span>
           </button>
         </form>
-        {canSeeAdmin && (
+        {profile?.isAdmin && (
           <Link
             href="/admin"
             className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"

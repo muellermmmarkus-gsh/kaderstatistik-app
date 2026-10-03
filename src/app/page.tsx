@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/supabase/profile";
 
 type EventKind = "training" | "game";
 
@@ -12,6 +13,7 @@ export default async function Home() {
     { count: trainerCount },
     { data: completedEvents },
     { data: overallAttendance },
+    profile,
   ] = await Promise.all([
     supabase
       .from("players")
@@ -29,6 +31,7 @@ export default async function Home() {
     supabase
       .from("attendance_overall_by_season")
       .select("season, attendance_pct"),
+    getCurrentProfile(),
   ]);
 
   const unitsBySeason = new Map<string, { training: number; game: number }>();
@@ -46,7 +49,10 @@ export default async function Home() {
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8">
-      <h1 className="mb-6 text-xl font-semibold">Dashboard</h1>
+      <h1 className="text-xl font-semibold">Kaderstatistik</h1>
+      <p className="mb-6 text-lg font-medium text-[#1f4d2c] dark:text-green-400">
+        {profile?.teamName}
+      </p>
 
       <div className="mb-8 grid grid-cols-2 gap-4">
         <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">

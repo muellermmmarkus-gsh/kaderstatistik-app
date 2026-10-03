@@ -62,14 +62,45 @@ export async function createExercise(formData: FormData) {
   if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
 
   if (data) {
+    const linkError = await activateForTeam(supabase, data.id);
+    if (linkError) throw new Error(linkError);
     const imageUrl = await uploadImage(supabase, data.id, formData);
     if (imageUrl) {
       await supabase.from("exercises").update({ image_url: imageUrl }).eq("id", data.id);
     }
   }
 
-  revalidatePath("/exercises");
+  revalidateExerciseLists();
   redirect("/exercises?saved=1");
+}
+
+function revalidateExerciseLists() {
+  revalidatePath("/exercises");
+  revalidatePath("/exercise-database");
+}
+
+// Neue Uebungen (und Kopien) gehoeren automatisch zum Team, das sie anlegt.
+// team_id setzt die Datenbank (default current_team_id()).
+async function activateForTeam(supabase: SupabaseClient, exerciseId: string) {
+  const { error } = await supabase
+    .from("team_exercises")
+    .upsert({ exercise_id: exerciseId }, { onConflict: "team_id,exercise_id", ignoreDuplicates: true });
+  return error ? `Übung konnte dem Team nicht zugeordnet werden: ${error.message}` : null;
+}
+
+/** Checkbox "In Team aktiv" in der Übungsdatenbank. */
+export async function setExerciseActiveInTeam(exerciseId: string, active: boolean) {
+  const supabase = await createClient();
+  if (active) {
+    const error = await activateForTeam(supabase, exerciseId);
+    if (error) return error;
+  } else {
+    // RLS beschraenkt das Loeschen auf die Zeile des eigenen Teams.
+    const { error } = await supabase.from("team_exercises").delete().eq("exercise_id", exerciseId);
+    if (error) return `Änderung konnte nicht gespeichert werden: ${error.message}`;
+  }
+  revalidateExerciseLists();
+  return null;
 }
 
 export async function updateExercise(exerciseId: string, formData: FormData) {
@@ -88,7 +119,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
     .eq("id", exerciseId);
   if (error) throw new Error(`Übung konnte nicht gespeichert werden: ${error.message}`);
 
-  revalidatePath("/exercises");
+  revalidateExerciseLists();
   revalidatePath(`/exercises/${exerciseId}`);
   redirect("/exercises?saved=1");
 }
@@ -104,7 +135,7 @@ export async function removeExerciseImage(exerciseId: string) {
     .eq("id", exerciseId);
   if (error) throw new Error(`Bild konnte nicht entfernt werden: ${error.message}`);
 
-  revalidatePath("/exercises");
+  revalidateExerciseLists();
   revalidatePath(`/exercises/${exerciseId}`);
 }
 
@@ -126,18 +157,44 @@ export async function duplicateExercise(exerciseId: string) {
     throw new Error(`Übung konnte nicht kopiert werden: ${readError?.message ?? "nicht gefunden"}`);
   }
 
-  const { error } = await supabase
+  const { data: copy, error } = await supabase
     .from("exercises")
-    .insert({ ...original, name: `Kopie von ${original.name}` });
+    .insert({ ...original, name: `Kopie von ${original.name}` })
+    .select("id")
+    .single();
   if (error) throw new Error(`Übung konnte nicht kopiert werden: ${error.message}`);
+  const linkError = await activateForTeam(supabase, copy.id);
+  if (linkError) throw new Error(linkError);
 
-  revalidatePath("/exercises");
+  revalidateExerciseLists();
 }
 
+// Uebungen sind teamuebergreifend: Nutzen noch andere Teams die Uebung, wird
+// sie nur aus dem eigenen Team entfernt. Endgueltig geloescht wird sie nur,
+// wenn kein anderes Team sie aktiv hat (und sie in keinem Trainingsplan steckt -
+// das verhindert der Fremdschluessel; dann ebenfalls nur aus dem Team entfernen).
 export async function deleteExercise(exerciseId: string, redirectTo?: string) {
   const supabase = await createClient();
-  await supabase.from("exercises").delete().eq("id", exerciseId);
-  revalidatePath("/exercises");
+  const { data: teamCount } = await supabase.rpc("exercise_team_count", {
+    p_exercise_id: exerciseId,
+  });
+  const { data: ownLink } = await supabase
+    .from("team_exercises")
+    .select("exercise_id")
+    .eq("exercise_id", exerciseId)
+    .maybeSingle();
+  const otherTeams = (teamCount ?? 0) - (ownLink ? 1 : 0);
+
+  let deleted = false;
+  if (otherTeams === 0) {
+    const { error } = await supabase.from("exercises").delete().eq("id", exerciseId);
+    deleted = !error;
+  }
+  if (!deleted) {
+    await supabase.from("team_exercises").delete().eq("exercise_id", exerciseId);
+  }
+
+  revalidateExerciseLists();
   revalidatePath(`/exercises/${exerciseId}`);
   if (redirectTo) redirect(redirectTo);
 }
