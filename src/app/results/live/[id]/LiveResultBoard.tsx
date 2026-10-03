@@ -25,9 +25,13 @@ const EMPTY_DRAFT: Draft = { minute: "", team: null, a: EMPTY_SIDE, b: EMPTY_SID
 const NUMBER_OPTIONS = (prefix: string): Option[] =>
   Array.from({ length: 20 }, (_, i) => ({ value: `${prefix}${i + 1}`, label: String(i + 1) }));
 
-// Spalten: Spielminute | Zwischenstand | Mannschaft A | Mannschaft B | Buttons
-const GRID =
-  "grid grid-cols-[4.5rem_5.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3";
+// Ab xl eine Zeile je Eintrag: Spielminute | Zwischenstand | Mannschaft A |
+// Mannschaft B | Buttons. Darunter (Handy/Tablet) eine Karte: oben Minute,
+// Zwischenstand und Buttons, darunter je Mannschaft ein Block.
+const ROW_GRID =
+  "grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-2 xl:grid-cols-[4.5rem_5.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] xl:gap-3";
+const HEADER_GRID =
+  "hidden xl:grid xl:grid-cols-[4.5rem_5.5rem_minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3";
 
 function pickFromEntry(entry: GoalEntry, ownSide: TeamSide): string {
   if (entry.team === ownSide && entry.playerId) return entry.playerId;
@@ -158,9 +162,9 @@ export default function LiveResultBoard({
         style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
         className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
       >
-        <div className="min-w-[76rem] space-y-2 px-2 pb-2">
+        <div className="flex flex-col gap-2 px-2 py-2 xl:min-w-[76rem] xl:pt-0">
           <div
-            className={`${GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
+            className={`${HEADER_GRID} sticky top-0 z-10 border-b border-zinc-200 bg-background py-2 text-sm font-semibold dark:border-zinc-800`}
           >
             <span className="text-xs font-medium text-zinc-500">Spielminute</span>
             <span className="text-center text-xs font-medium text-zinc-500">Zwischenstand</span>
@@ -177,6 +181,7 @@ export default function LiveResultBoard({
             <EntryRow
               key={entry.id}
               eventId={eventId}
+              teamNames={{ a: teamA, b: teamB }}
               entry={entry}
               runningScore={scoreOf(sorted.slice(0, index + 1)).join(" : ")}
               ownSide={ownSide}
@@ -189,10 +194,14 @@ export default function LiveResultBoard({
             />
           ))}
 
+          {/* Auf dem Handy steht die Eingabe fuer das naechste Tor oben, damit
+              sie ohne Scrollen erreichbar bleibt. */}
           {canWrite && showNewRow && (
             <EntryRow
+              className="order-first xl:order-none"
               key={`new-${newRowKey}`}
               eventId={eventId}
+              teamNames={{ a: teamA, b: teamB }}
               entry={null}
               ownSide={ownSide}
               optionsFor={optionsFor}
@@ -253,7 +262,9 @@ export default function LiveResultBoard({
 }
 
 function EntryRow({
+  className = "",
   eventId,
+  teamNames,
   entry,
   ownSide,
   optionsFor,
@@ -263,7 +274,9 @@ function EntryRow({
   onSaved,
   onDeleted,
 }: {
+  className?: string;
   eventId: string;
+  teamNames: Record<TeamSide, string>;
   entry: GoalEntry | null;
   ownSide: TeamSide;
   optionsFor: (side: TeamSide) => Option[];
@@ -347,10 +360,10 @@ function EntryRow({
 
   return (
     <div
-      className={`rounded-lg p-2 ${isNew ? "border border-dashed border-zinc-300 dark:border-zinc-700" : "bg-zinc-50 dark:bg-zinc-900/60"}`}
+      className={`${className} rounded-lg p-2 ${isNew ? "border border-dashed border-zinc-300 dark:border-zinc-700" : "bg-zinc-50 dark:bg-zinc-900/60"}`}
     >
       <form
-        className={GRID}
+        className={ROW_GRID}
         onSubmit={(event) => {
           event.preventDefault();
           if (editable) save();
@@ -371,29 +384,41 @@ function EntryRow({
           className="w-full rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
         />
 
-        <span className="text-center text-base font-bold tabular-nums">
-          {runningScore ?? ""}
+        <span className="text-sm font-bold tabular-nums xl:text-center xl:text-base">
+          {runningScore && (
+            <>
+              <span className="font-normal text-zinc-500 xl:hidden">Stand </span>
+              {runningScore}
+            </>
+          )}
         </span>
 
         {(["a", "b"] as const).map((side) => (
           <SideInputs
             key={side}
+            className="order-2 col-span-3 xl:order-none xl:col-span-1"
+            teamName={teamNames[side]}
             value={draft[side]}
             options={optionsFor(side)}
             wide={side === ownSide}
             active={draft.team === side}
             dimmed={draft.team !== null && draft.team !== side}
+            // Gespeicherter Eintrag ohne Bearbeitung: auf dem Handy nur die
+            // betroffene Mannschaft zeigen.
+            hiddenOnMobile={!editing && draft.team !== null && draft.team !== side}
             disabled={!editable}
             onChange={(patch) => updateSide(side, patch)}
           />
         ))}
 
+        {/* Auf dem Handy nur die gerade sinnvollen Buttons, damit die Zeile
+            nicht breiter als der Bildschirm wird. */}
         {canWrite ? (
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
             <button
               type="submit"
               disabled={!editable}
-              className={`${buttonBase} bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900`}
+              className={`${buttonBase} ${editing ? "" : "hidden xl:inline-block"} bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900`}
             >
               {pending ? "…" : "Speichern"}
             </button>
@@ -405,7 +430,7 @@ function EntryRow({
                 if (editing && entry) setDraft(draftFromEntry(entry, ownSide));
                 setEditing((v) => !v);
               }}
-              className={`${buttonBase} border border-zinc-300 dark:border-zinc-700`}
+              className={`${buttonBase} ${isNew ? "hidden xl:inline-block" : ""} border border-zinc-300 dark:border-zinc-700`}
             >
               {editing && !isNew ? "Abbrechen" : "Ändern"}
             </button>
@@ -413,7 +438,7 @@ function EntryRow({
               type="button"
               disabled={isNew || pending}
               onClick={() => setConfirmDelete(true)}
-              className={`${buttonBase} border border-red-300 text-red-700 dark:border-red-900 dark:text-red-400`}
+              className={`${buttonBase} ${isNew || editing ? "hidden xl:inline-block" : ""} border border-red-300 text-red-700 dark:border-red-900 dark:text-red-400`}
             >
               Löschen
             </button>
@@ -438,19 +463,25 @@ function EntryRow({
 }
 
 function SideInputs({
+  className,
+  teamName,
   value,
   options,
   wide,
   active,
   dimmed,
+  hiddenOnMobile,
   disabled,
   onChange,
 }: {
+  className: string;
+  teamName: string;
   value: SideDraft;
   options: Option[];
   wide: boolean;
   active: boolean;
   dimmed: boolean;
+  hiddenOnMobile: boolean;
   disabled: boolean;
   onChange: (patch: Partial<SideDraft>) => void;
 }) {
@@ -477,10 +508,11 @@ function SideInputs({
 
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg p-1 transition ${
+      className={`${className} ${hiddenOnMobile ? "hidden xl:flex" : "flex"} flex-wrap items-center gap-2 rounded-lg p-1 transition xl:flex-nowrap ${
         active ? "ring-2 ring-green-600" : ""
       } ${dimmed ? "opacity-40" : ""}`}
     >
+      <span className="w-full truncate text-xs font-medium text-zinc-500 xl:hidden">{teamName}</span>
       <div className="flex shrink-0 overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
         {toggle("goal", "Tor")}
         {toggle("own_goal", "Eigentor")}
@@ -490,7 +522,7 @@ function SideInputs({
         value={value.pick}
         disabled={disabled}
         onChange={(event) => onChange({ pick: event.target.value })}
-        className={`${wide ? "w-40" : ""} shrink-0 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900`}
+        className={`${wide ? "xl:w-40" : ""} min-w-0 flex-1 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent xl:flex-none xl:shrink-0 dark:border-zinc-700 dark:bg-zinc-900`}
       >
         <option value="">Nr.</option>
         {options.map((o) => (
@@ -510,7 +542,7 @@ function SideInputs({
         value={value.note}
         disabled={disabled}
         onChange={(event) => onChange({ note: event.target.value })}
-        className="min-w-24 flex-1 rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent dark:border-zinc-700 dark:bg-zinc-900"
+        className="w-full rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent xl:w-auto xl:min-w-24 xl:flex-1 dark:border-zinc-700 dark:bg-zinc-900"
       />
     </div>
   );
