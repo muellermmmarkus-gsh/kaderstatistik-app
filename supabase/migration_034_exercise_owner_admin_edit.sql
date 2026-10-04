@@ -10,6 +10,9 @@
 
 begin;
 
+-- Hauptkonto des Betreibers ebenfalls als Admin.
+update profiles set is_admin = true where lower(email) = 'mueller.mm.markus@gmx.de';
+
 alter table exercises
   add column if not exists created_by_team_id uuid references teams(id) on delete set null;
 
