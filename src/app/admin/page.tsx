@@ -184,6 +184,9 @@ export default async function AdminPage({
 
   const teams = (teamsData ?? []) as Team[];
   const teamNameById = new Map(teams.map((t) => [t.id, t.name]));
+  // Beantragtes Team, das es schon gibt (gleicher Name) - wird bei der Freigabe vorausgewaehlt.
+  const teamIdByName = new Map(teams.map((t) => [t.name.toLowerCase(), t.id]));
+  const requestedTeamId = (u: Profile) => teamIdByName.get((u.requested_team ?? "").toLowerCase());
   // Ohne Zugang (wartend oder noch ohne Team) zuerst, damit Freigaben nicht untergehen.
   const needsApproval = (u: Profile) => u.role !== "trainer" || !u.team_id;
   const users = ((profiles ?? []) as Profile[]).sort(
@@ -230,9 +233,9 @@ export default async function AdminPage({
       <section className="mb-10">
         <h2 className="mb-1 font-medium">Registrierte Nutzer</h2>
         <p className="mb-3 text-sm text-zinc-500">
-          Neue Trainer beantragen bei der Registrierung ihr Team. Zum
-          Freigeben: Team wählen (bestehendes Team oder „Neues Team“ mit dem
-          beantragten Namen), Rolle „Trainer“ und speichern. Zugang zur App
+          Neue Trainer wählen bei der Registrierung ein bestehendes Team oder
+          beantragen ein neues (markiert mit „neu“). Das Team ist zur Freigabe
+          schon vorausgewählt – prüfen, Rolle „Trainer“ und speichern. Zugang zur App
           hat nur, wer Trainer ist und ein Team hat – „Eltern/Spieler“ sehen
           vorerst nichts. Schalte nur Personen frei, die du kennst.
         </p>
@@ -268,7 +271,12 @@ export default async function AdminPage({
                   )}
                 </td>
                 <td className="py-2 pr-3">{u.email}</td>
-                <td className="py-2 pr-3 text-zinc-500">{u.requested_team ?? "–"}</td>
+                <td className="py-2 pr-3 text-zinc-500">
+                  {u.requested_team ?? "–"}
+                  {u.requested_team && !requestedTeamId(u) && (
+                    <span className="ml-1 text-xs text-amber-700 dark:text-amber-400">(neu)</span>
+                  )}
+                </td>
                 <td className="py-2 pr-3">
                   {u.id === currentUser?.id ? (
                     <span>
@@ -279,7 +287,7 @@ export default async function AdminPage({
                     <form action={saveUserAccess.bind(null, u.id)} className="flex flex-wrap items-center gap-1">
                       <select
                         name="team"
-                        defaultValue={u.team_id ?? (u.requested_team ? "__new__" : "")}
+                        defaultValue={u.team_id ?? requestedTeamId(u) ?? (u.requested_team ? "__new__" : "")}
                         aria-label={`Team von ${u.first_name} ${u.last_name}`}
                         className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
                       >
@@ -293,7 +301,7 @@ export default async function AdminPage({
                       </select>
                       <input
                         name="newTeamName"
-                        defaultValue={u.team_id ? "" : (u.requested_team ?? "")}
+                        defaultValue={u.team_id || requestedTeamId(u) ? "" : (u.requested_team ?? "")}
                         placeholder="Name neues Team"
                         maxLength={60}
                         aria-label={`Name des neuen Teams für ${u.first_name} ${u.last_name}`}

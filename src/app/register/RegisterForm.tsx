@@ -1,0 +1,147 @@
+"use client";
+
+import Link from "next/link";
+import { useActionState, useState } from "react";
+import { signUp } from "./actions";
+import { NEW_TEAM } from "./constants";
+
+type Team = { id: string; name: string };
+
+export default function RegisterForm({ teams }: { teams: Team[] }) {
+  const [error, formAction, pending] = useActionState(signUp, null);
+  // Ohne bestehende Teams (oder wenn die Liste nicht geladen werden konnte)
+  // bleibt nur "neues Team".
+  const [teamChoice, setTeamChoice] = useState(teams.length ? "" : NEW_TEAM);
+
+  return (
+    <div className="flex flex-1 items-center justify-center px-4 py-8">
+      <form
+        action={formAction}
+        className="w-full max-w-sm rounded-lg border border-zinc-200 p-6 dark:border-zinc-800"
+      >
+        <h1 className="mb-6 text-xl font-semibold">Registrieren</h1>
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="firstName">
+          Vorname
+        </label>
+        <input
+          id="firstName"
+          name="firstName"
+          required
+          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="lastName">
+          Name
+        </label>
+        <input
+          id="lastName"
+          name="lastName"
+          required
+          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="email">
+          E-Mail
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="teamChoice">
+          Dein Team
+        </label>
+        <select
+          id="teamChoice"
+          name="teamChoice"
+          required
+          value={teamChoice}
+          onChange={(e) => setTeamChoice(e.target.value)}
+          className="mb-1 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          {teams.length > 0 && (
+            <option value="" disabled>
+              Bitte auswählen …
+            </option>
+          )}
+          {teams.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+          <option value={NEW_TEAM}>+ Neues Team anlegen …</option>
+        </select>
+
+        {teamChoice === NEW_TEAM && (
+          <>
+            <label className="mb-1 mt-3 block text-sm font-medium" htmlFor="newTeamName">
+              Name des neuen Teams
+            </label>
+            <input
+              id="newTeamName"
+              name="newTeamName"
+              required
+              maxLength={60}
+              placeholder="z.B. TSV Musterstadt E2"
+              className="mb-1 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+            />
+          </>
+        )}
+        <p className="mb-4 text-xs text-zinc-500">
+          {teamChoice === NEW_TEAM
+            ? "Dein Team ist noch nicht in der Liste? Dann trag hier den Namen ein. "
+            : "Wähle das Team, in dem du Trainer bist. "}
+          Der Administrator prüft deine Anfrage und schaltet dich frei.
+        </p>
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="password">
+          Passwort
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+
+        <label className="mb-1 block text-sm font-medium" htmlFor="passwordConfirm">
+          Passwort bestätigen
+        </label>
+        <input
+          id="passwordConfirm"
+          name="passwordConfirm"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          className="mb-4 w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+
+        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded bg-zinc-900 px-4 py-2 text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          {pending ? "Registrieren…" : "Registrieren"}
+        </button>
+
+        <p className="mt-4 text-center text-sm text-zinc-500">
+          Schon registriert?{" "}
+          <Link href="/login" className="underline">
+            Anmelden
+          </Link>
+        </p>
+      </form>
+    </div>
+  );
+}
