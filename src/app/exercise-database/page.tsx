@@ -20,7 +20,9 @@ export default async function ExerciseDatabasePage({
   const activeCount = exercises.filter((e) => e.activeInTeam).length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+    // Breiter als die Uebungsliste: drei zusaetzliche Spalten (Erstellt von,
+    // Teams, In Team aktiv), sonst bleibt fuer den Namen kaum Platz.
+    <div className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-8">
       <BackButton href="/" />
       <SavedQueryNotice />
       <h1 className="mb-2 text-xl font-semibold">Übungsdatenbank</h1>

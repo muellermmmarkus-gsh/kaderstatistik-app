@@ -61,8 +61,13 @@ function placeCopiesUnderOriginals(sorted: ExerciseRow[]): ExerciseRow[] {
  */
 export async function loadExercises(scope: "team" | "all") {
   const supabase = await createClient();
-  const [{ data: exercisesData }, { data: trainingsData }, { data: seasons }, { data: trainingEvents }] =
-    await Promise.all([
+  const [
+    { data: exercisesData },
+    { data: trainingsData },
+    { data: seasons },
+    { data: trainingEvents },
+    { data: allTeamsUsage },
+  ] = await Promise.all([
       supabase
         .from("exercises")
         .select(
@@ -77,7 +82,22 @@ export async function loadExercises(scope: "team" | "all") {
         .not("event_id", "is", null),
       supabase.from("seasons").select("name, is_default").order("name", { ascending: false }),
       supabase.from("events").select("id, season").eq("type", "training").is("deleted_at", null),
+      // Einsaetze aller Teams in ihrer jeweils laufenden Saison (nur Summen,
+      // siehe migration_036) - nur fuer die Uebungsdatenbank.
+      scope === "all"
+        ? supabase.rpc("exercise_usage_current_season")
+        : Promise.resolve({ data: [] as UsageRow[] }),
     ]);
+
+  const teamUsageByExercise = new Map<string, { team: string; uses: number }[]>();
+  for (const row of (allTeamsUsage ?? []) as UsageRow[]) {
+    const list = teamUsageByExercise.get(row.exercise_id) ?? [];
+    list.push({ team: row.team_name, uses: row.uses });
+    teamUsageByExercise.set(row.exercise_id, list);
+  }
+  for (const list of teamUsageByExercise.values()) {
+    list.sort((a, b) => b.uses - a.uses || a.team.localeCompare(b.team, "de"));
+  }
 
   // Laufende Saison wie bei den Terminen: als Standard markierte Saison,
   // sonst die zuletzt angelegte.
@@ -109,11 +129,21 @@ export async function loadExercises(scope: "team" | "all") {
         (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
         a.name.localeCompare(b.name, "de"),
     ),
-  ).map(({ team_exercises, creator, created_by_team_id, ...exercise }) => ({
-    ...exercise,
-    createdByTeamId: created_by_team_id,
-    seasonCount: seasonCount.get(exercise.id) ?? 0,
-    activeInTeam: team_exercises.length > 0,
-    createdByTeam: creator?.name ?? null,
-  }));
+  ).map(({ team_exercises, creator, created_by_team_id, ...exercise }) => {
+    const teamUsage = teamUsageByExercise.get(exercise.id) ?? [];
+    return {
+      ...exercise,
+      createdByTeamId: created_by_team_id,
+      // Uebungsdatenbank: Summe aller Teams, "Uebungen": nur das eigene Team.
+      seasonCount:
+        scope === "all"
+          ? teamUsage.reduce((sum, t) => sum + t.uses, 0)
+          : (seasonCount.get(exercise.id) ?? 0),
+      teamUsage,
+      activeInTeam: team_exercises.length > 0,
+      createdByTeam: creator?.name ?? null,
+    };
+  });
 }
+
+type UsageRow = { exercise_id: string; team_name: string; uses: number };

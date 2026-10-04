@@ -19,8 +19,10 @@ type ExerciseRow = {
   category: string;
   image_url: string | null;
   fields: { name: string } | null;
-  /** Einsaetze in der laufenden Saison (aus der Uebungshistorie). */
+  /** Einsaetze in der laufenden Saison (Uebungsdatenbank: Summe aller Teams). */
   seasonCount: number;
+  /** Teams, die die Uebung in ihrer laufenden Saison genutzt haben. */
+  teamUsage: { team: string; uses: number }[];
   /** Uebung erscheint unter "Uebungen" des eigenen Teams. */
   activeInTeam: boolean;
   /** Team, das die Uebung angelegt hat. */
@@ -264,6 +266,7 @@ export default function ExercisesTable({
           <col className="w-20" />
           <col className="w-16" />
           <col className="w-14" />
+          {showTeamToggle && <col className="w-28" />}
           {showTeamToggle && <col className="w-16" />}
           {canWrite && <col className="w-24" />}
         </colgroup>
@@ -279,9 +282,21 @@ export default function ExercisesTable({
             <th className="py-2 pr-3">Spieler</th>
             <th className="py-2 pr-3">Kleinfeld&shy;tore</th>
             <th className="py-2 pr-3">Mini&shy;tore</th>
-            <th className="py-2 pr-3" title="Einsätze in der laufenden Saison">
+            <th
+              className="py-2 pr-3"
+              title={
+                showTeamToggle
+                  ? "Einsätze in der laufenden Saison, Summe aller Teams"
+                  : "Einsätze in der laufenden Saison"
+              }
+            >
               akt.Sai.
             </th>
+            {showTeamToggle && (
+              <th className="py-2 pr-3" title="Teams, die die Übung in ihrer laufenden Saison genutzt haben (Anzahl Einsätze)">
+                Teams
+              </th>
+            )}
             {showTeamToggle && (
               <th className="py-2 pr-3 text-center" title="Übung erscheint unter „Übungen“ in deinem Team">
                 In Team aktiv
@@ -332,6 +347,21 @@ export default function ExercisesTable({
                 <td className="py-2 pr-3 text-zinc-500">{exercise.mini_goals}</td>
                 <td className="py-2 pr-3 text-zinc-500">{exercise.seasonCount}</td>
                 {showTeamToggle && (
+                  <td className="py-2 pr-3 text-xs text-zinc-500">
+                    {exercise.teamUsage.length ? (
+                      <ul>
+                        {exercise.teamUsage.map((t) => (
+                          <li key={t.team}>
+                            {t.team} ({t.uses})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
+                )}
+                {showTeamToggle && (
                   <td className="py-2 pr-3 text-center">
                     <TeamToggle
                       exerciseId={exercise.id}
@@ -373,7 +403,7 @@ export default function ExercisesTable({
           })}
           {!filtered.length && (
             <tr>
-              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 2 : 0)} className="py-4 text-zinc-500">
+              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 3 : 0)} className="py-4 text-zinc-500">
                 {exercises.length
                   ? "Keine Übungen entsprechen den gewählten Filtern."
                   : "Noch keine Übungen angelegt."}
