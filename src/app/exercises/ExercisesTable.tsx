@@ -25,6 +25,8 @@ type ExerciseRow = {
   activeInTeam: boolean;
   /** Team, das die Uebung angelegt hat. */
   createdByTeam: string | null;
+  /** Darf geaendert/geloescht werden (Admin oder eigenes Erstellerteam). */
+  editable: boolean;
 };
 
 const NO_FIELD = "__keine__";
@@ -142,15 +144,12 @@ function FilterDropdown({
 export default function ExercisesTable({
   exercises,
   canWrite,
-  canEdit,
   returnTo,
   showTeamToggle = false,
 }: {
   exercises: ExerciseRow[];
   /** Trainer: Kopie erstellen, "In Team aktiv" setzen. */
   canWrite: boolean;
-  /** Admin: Uebungen aendern und loeschen. */
-  canEdit: boolean;
   /** Seite, auf die nach dem Loeschen zurueckgeleitet wird. */
   returnTo: string;
   /** Spalten "Erstellt von" und "In Team aktiv" (nur in der Uebungsdatenbank). */
@@ -345,7 +344,7 @@ export default function ExercisesTable({
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end gap-1">
-                      {canEdit && (
+                      {exercise.editable && (
                         <div>
                           <Link
                             href={`/exercises/${exercise.id}`}
@@ -355,7 +354,7 @@ export default function ExercisesTable({
                           </Link>
                           <form action={remove} className="ml-3 inline">
                             <DeleteButton
-                              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit für alle Teams.`}
+                              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit auch bei allen Teams, die sie übernommen haben.`}
                               className="text-xs text-zinc-500 hover:underline dark:text-zinc-400"
                             >
                               löschen

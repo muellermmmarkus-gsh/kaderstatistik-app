@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/supabase/profile";
+import { getCurrentProfile } from "@/lib/supabase/profile";
+import { canEditExercise } from "./permissions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const categories = ["aufwaermen", "spielen", "ueben", "cooldown"];
@@ -72,9 +73,19 @@ export async function createExercise(formData: FormData) {
   redirect("/exercises?saved=1");
 }
 
-// Aendern und Loeschen von Uebungen nur durch den Admin (zusaetzlich per RLS).
-async function requireAdmin() {
-  if (!(await isAdmin())) throw new Error("Übungen ändern oder löschen kann nur der Administrator.");
+// Aendern und Loeschen: Admin alle Uebungen, Trainer nur die ihres Teams
+// (zusaetzlich per RLS abgesichert).
+async function requireCanEdit(exerciseId: string) {
+  const supabase = await createClient();
+  const [profile, { data: exercise }] = await Promise.all([
+    getCurrentProfile(),
+    supabase.from("exercises").select("created_by_team_id").eq("id", exerciseId).maybeSingle(),
+  ]);
+  if (!canEditExercise(profile, exercise?.created_by_team_id ?? null)) {
+    throw new Error(
+      "Diese Übung kann nur das Team ändern, das sie erstellt hat, oder der Administrator.",
+    );
+  }
 }
 
 function revalidateExerciseLists() {
@@ -107,7 +118,7 @@ export async function setExerciseActiveInTeam(exerciseId: string, active: boolea
 }
 
 export async function updateExercise(exerciseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCanEdit(exerciseId);
   const exercise = parseExercise(formData);
   if (!exercise.name || !exercise.min_players || !exercise.max_players) return;
 
@@ -132,7 +143,7 @@ export async function updateExercise(exerciseId: string, formData: FormData) {
 // Die Datei bleibt im Storage liegen, da Kopien einer Uebung dieselbe
 // Bild-URL referenzieren koennen.
 export async function removeExerciseImage(exerciseId: string) {
-  await requireAdmin();
+  await requireCanEdit(exerciseId);
   const supabase = await createClient();
   const { error } = await supabase
     .from("exercises")
@@ -177,7 +188,7 @@ export async function duplicateExercise(exerciseId: string) {
 // Nur der Admin: loescht die Uebung aus der Datenbank fuer alle Teams. Steckt
 // sie noch in einem Trainingsplan, verhindert das der Fremdschluessel.
 export async function deleteExercise(exerciseId: string, returnTo: string) {
-  await requireAdmin();
+  await requireCanEdit(exerciseId);
   const supabase = await createClient();
   const { error } = await supabase.from("exercises").delete().eq("id", exerciseId);
 

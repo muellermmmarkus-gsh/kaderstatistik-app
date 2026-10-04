@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/supabase/profile";
+import { getCurrentProfile } from "@/lib/supabase/profile";
+import { canEditExercise } from "../permissions";
 import { updateExercise, deleteExercise } from "../actions";
 import DeleteButton from "@/components/DeleteButton";
 import ExerciseForm from "../ExerciseForm";
@@ -15,21 +16,22 @@ export default async function ExerciseDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  // Aendern/Loeschen nur durch den Admin (gemeinsame Uebungsdatenbank).
-  const [{ data: exercise }, { data: fields }, { data: focuses }, canEdit] = await Promise.all([
+  // Aendern/Loeschen: Admin alle Uebungen, Trainer die ihres eigenen Teams.
+  const [{ data: exercise }, { data: fields }, { data: focuses }, profile] = await Promise.all([
     supabase
       .from("exercises")
       .select(
-        "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, fields(name, length_m, width_m), creator:teams!exercises_created_by_team_id_fkey(name)",
+        "name, aufbau, ablauf, coaching, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, field_id, image_url, source_url, created_by_team_id, fields(name, length_m, width_m), creator:teams!exercises_created_by_team_id_fkey(name)",
       )
       .eq("id", id)
       .single(),
     supabase.from("fields").select("id, name, length_m, width_m").order("name"),
     supabase.from("exercise_focuses").select("label").order("sort_order"),
-    isAdmin(),
+    getCurrentProfile(),
   ]);
 
   if (!exercise) notFound();
+  const canEdit = canEditExercise(profile, exercise.created_by_team_id);
 
   const field = exercise.fields as unknown as
     | { name: string; length_m: number; width_m: number }
@@ -62,8 +64,8 @@ export default async function ExerciseDetailPage({
       {canEdit ? (
         <>
           <p className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-            Diese Übung gehört zur gemeinsamen Übungsdatenbank. Deine
-            Änderungen als Administrator gelten für alle Teams, die sie nutzen.
+            Diese Übung gehört zur gemeinsamen Übungsdatenbank. Änderungen
+            gelten auch für alle anderen Teams, die sie übernommen haben.
           </p>
           <ExerciseForm
             action={update}
@@ -75,7 +77,7 @@ export default async function ExerciseDetailPage({
           />
           <form action={remove} className="mt-4">
             <DeleteButton
-              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit für alle Teams.`}
+              confirmMessage={`Übung "${exercise.name}" endgültig aus der Übungsdatenbank löschen? Sie verschwindet damit auch bei allen Teams, die sie übernommen haben.`}
               className="text-sm text-red-600 hover:underline dark:text-red-400"
             >
               Übung löschen
@@ -85,8 +87,10 @@ export default async function ExerciseDetailPage({
       ) : (
         <>
           <p className="mb-4 text-sm text-zinc-500">
-            Übungen der gemeinsamen Datenbank ändert nur der Administrator. Für
-            eine eigene Variante in der Übungsliste „Kopie erst.“ nutzen.
+            Diese Übung hat ein anderes Team erstellt – ändern kann sie nur
+            dieses Team oder der Administrator. Für eine eigene Variante in der
+            Übungsliste „Kopie erst.“ nutzen; die Kopie kannst du dann
+            bearbeiten.
           </p>
           {exercise.image_url && (
             <a href={exercise.image_url} target="_blank" rel="noreferrer" className="mb-4 block">

@@ -65,10 +65,14 @@ Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.
   unter „Übungen" und in der Trainingsplanung des Teams erscheinen. Neu
   angelegte Übungen sind automatisch im eigenen Team aktiv und mit dem
   Erstellerteam vermerkt (`exercises.created_by_team_id`, Spalte
-  „Erstellt von"). Anlegen und kopieren dürfen alle Trainer, **ändern und
-  löschen nur der Admin** (löscht für alle Teams; nicht möglich, solange die
-  Übung in einem Trainingsplan steckt). Siehe
-  [`supabase/migration_034_exercise_owner_admin_edit.sql`](supabase/migration_034_exercise_owner_admin_edit.sql).
+  „Erstellt von"). Anlegen und kopieren dürfen alle Trainer. **Ändern und
+  löschen:** der Admin alle Übungen, Trainer nur die Übungen ihres eigenen
+  Teams (Erstellerteam) – Änderungen und Löschen wirken auch bei Teams, die
+  die Übung übernommen haben; Löschen ist nicht möglich, solange die Übung in
+  einem Trainingsplan steckt. Fremde Übungen lassen sich per „Kopie erst." als
+  eigene, bearbeitbare Variante übernehmen. Siehe
+  [`supabase/migration_034_exercise_owner_admin_edit.sql`](supabase/migration_034_exercise_owner_admin_edit.sql)
+  und [`supabase/migration_035_exercise_edit_own_team.sql`](supabase/migration_035_exercise_edit_own_team.sql).
 - **Teamname** (`teams.name`, z.B. „TVG E1") steht oben in der Menüleiste
   und unter „Kaderstatistik"; der **Name im Spielbetrieb**
   (`teams.match_name`, z.B. „TV Geisenhausen E7 1") erkennt die eigene

@@ -15,6 +15,7 @@ type ExerciseRow = {
   fields: { name: string } | null;
   // RLS liefert nur die Zeile des eigenen Teams.
   team_exercises: { exercise_id: string }[];
+  created_by_team_id: string | null;
   creator: { name: string } | null;
 };
 
@@ -67,7 +68,7 @@ export async function loadExercises(scope: "team" | "all") {
         .select(
           // Zwei Wege exercises -> teams (Ersteller und team_exercises): der
           // Fremdschluessel-Hinweis waehlt das Erstellerteam.
-          `id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, created_at, fields(name), team_exercises${scope === "team" ? "!inner" : ""}(exercise_id), creator:teams!exercises_created_by_team_id_fkey(name)`,
+          `id, name, hauptzweck, nebenzweck, min_players, max_players, small_goals, mini_goals, category, image_url, created_at, created_by_team_id, fields(name), team_exercises${scope === "team" ? "!inner" : ""}(exercise_id), creator:teams!exercises_created_by_team_id_fkey(name)`,
         )
         .order("name"),
       supabase
@@ -108,8 +109,9 @@ export async function loadExercises(scope: "team" | "all") {
         (usageCount.get(b.id) ?? 0) - (usageCount.get(a.id) ?? 0) ||
         a.name.localeCompare(b.name, "de"),
     ),
-  ).map(({ team_exercises, creator, ...exercise }) => ({
+  ).map(({ team_exercises, creator, created_by_team_id, ...exercise }) => ({
     ...exercise,
+    createdByTeamId: created_by_team_id,
     seasonCount: seasonCount.get(exercise.id) ?? 0,
     activeInTeam: team_exercises.length > 0,
     createdByTeam: creator?.name ?? null,
