@@ -23,6 +23,8 @@ type ExerciseRow = {
   seasonCount: number;
   /** Teams, die die Uebung in ihrer laufenden Saison genutzt haben. */
   teamUsage: { team: string; uses: number }[];
+  /** Einsaetze des eigenen Teams in der laufenden Saison. */
+  ownSeasonCount: number;
   /** Uebung erscheint unter "Uebungen" des eigenen Teams. */
   activeInTeam: boolean;
   /** Team, das die Uebung angelegt hat. */
@@ -160,6 +162,9 @@ export default function ExercisesTable({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [selectedFocuses, setSelectedFocuses] = useState<string[]>([]);
+  // Uebungsdatenbank: Sortierung nach akt.Sai. aller Teams (Voreinstellung)
+  // oder nur des eigenen Teams.
+  const [sortBy, setSortBy] = useState<"all" | "own">("all");
 
   const categoryOptions = useMemo(
     () =>
@@ -191,7 +196,7 @@ export default function ExercisesTable({
     return [...set].sort().map((value) => ({ value, label: value }));
   }, [exercises]);
 
-  const filtered = exercises.filter((exercise) => {
+  const matching = exercises.filter((exercise) => {
     if (
       selectedCategories.length &&
       !selectedCategories.includes(exercise.category)
@@ -209,6 +214,13 @@ export default function ExercisesTable({
     }
     return true;
   });
+
+  const seasonValue = (e: ExerciseRow) => (sortBy === "all" ? e.seasonCount : e.ownSeasonCount);
+  const filtered = showTeamToggle
+    ? [...matching].sort(
+        (a, b) => seasonValue(b) - seasonValue(a) || a.name.localeCompare(b.name, "de"),
+      )
+    : matching;
 
   const hasActiveFilters =
     selectedCategories.length > 0 ||
@@ -248,6 +260,38 @@ export default function ExercisesTable({
           >
             Filter zurücksetzen
           </button>
+        )}
+        {showTeamToggle && (
+          <div className="ml-auto flex items-center gap-2 text-sm">
+            <span className="text-zinc-500">Sortierung nach akt.Sai.:</span>
+            <div
+              role="radiogroup"
+              aria-label="Sortierung nach Einsätzen in der laufenden Saison"
+              className="flex overflow-hidden rounded border border-zinc-300 dark:border-zinc-700"
+            >
+              {(
+                [
+                  ["all", "Summe aller Teams"],
+                  ["own", "Eigenes Team"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={sortBy === value}
+                  onClick={() => setSortBy(value)}
+                  className={`px-3 py-2 ${
+                    sortBy === value
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      : "bg-white text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

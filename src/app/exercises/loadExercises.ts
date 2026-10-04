@@ -139,6 +139,7 @@ export async function loadExercises(scope: "team" | "all") {
         scope === "all"
           ? teamUsage.reduce((sum, t) => sum + t.uses, 0)
           : (seasonCount.get(exercise.id) ?? 0),
+      ownSeasonCount: seasonCount.get(exercise.id) ?? 0,
       teamUsage,
       activeInTeam: team_exercises.length > 0,
       createdByTeam: creator?.name ?? null,
