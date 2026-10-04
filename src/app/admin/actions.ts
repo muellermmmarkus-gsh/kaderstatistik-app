@@ -60,6 +60,28 @@ export async function saveUserAccess(userId: string, formData: FormData) {
   redirect("/admin?saved=1");
 }
 
+/**
+ * Teamwechsel fuer den Admin: ordnet das eigene Konto einem anderen Team zu.
+ * Alle Teamdaten (per RLS ueber current_team_id()) zeigen dann dieses Team.
+ */
+export async function switchTeam(teamId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !(await isAdmin())) return "Nur der Administrator kann das Team wechseln.";
+
+  const { data: team } = await supabase.from("teams").select("id").eq("id", teamId).maybeSingle();
+  if (!team) return "Team nicht gefunden.";
+
+  const { error } = await supabase.from("profiles").update({ team_id: teamId }).eq("id", user.id);
+  if (error) return `Team konnte nicht gewechselt werden: ${error.message}`;
+
+  revalidatePath("/", "layout");
+  // Zur Startseite, damit keine Detailseite des alten Teams offen bleibt.
+  redirect("/");
+}
+
 export async function updateTeam(teamId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
   const matchName = String(formData.get("matchName") ?? "").trim().slice(0, 80);

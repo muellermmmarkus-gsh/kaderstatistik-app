@@ -77,6 +77,10 @@ Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.
   und unter „Kaderstatistik"; der **Name im Spielbetrieb**
   (`teams.match_name`, z.B. „TV Geisenhausen E7 1") erkennt die eigene
   Mannschaft im Live-Ergebnis. Beides pflegt der Admin unter ADMIN → Teams.
+- **Teamwechsel (nur Admin):** In der Menüleiste ist der Teamname für den
+  Admin eine Auswahlliste. Ein Wechsel ordnet das eigene Konto dem gewählten
+  Team zu (`profiles.team_id`) – danach zeigt die ganze App dieses Team, mit
+  Trainerrechten.
 - **Neue Teams:** Trainer registrieren sich und geben dabei ihr Team an
   (`profiles.requested_team`). Der Admin (`profiles.is_admin`) ordnet sie auf
   der ADMIN-Seite einem bestehenden oder neuen Team zu und gibt sie als
