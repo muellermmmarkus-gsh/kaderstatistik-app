@@ -102,6 +102,26 @@ async function activateForTeam(supabase: SupabaseClient, exerciseId: string) {
   return error ? `Übung konnte dem Team nicht zugeordnet werden: ${error.message}` : null;
 }
 
+/**
+ * Umschalter "öff"/"n.öff": nicht oeffentliche Uebungen sehen in der
+ * Uebungsdatenbank nur der Admin und das eigene Team (RLS, migration_037).
+ */
+export async function setExercisePublic(exerciseId: string, isPublic: boolean) {
+  try {
+    await requireCanEdit(exerciseId);
+  } catch (e) {
+    return e instanceof Error ? e.message : "Keine Berechtigung.";
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("exercises")
+    .update({ is_public: isPublic })
+    .eq("id", exerciseId);
+  if (error) return `Änderung konnte nicht gespeichert werden: ${error.message}`;
+  revalidateExerciseLists();
+  return null;
+}
+
 /** Checkbox "In Team aktiv" in der Übungsdatenbank. */
 export async function setExerciseActiveInTeam(exerciseId: string, active: boolean) {
   const supabase = await createClient();

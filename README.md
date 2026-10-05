@@ -70,7 +70,11 @@ Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.
   Teams (Erstellerteam) – Änderungen und Löschen wirken auch bei Teams, die
   die Übung übernommen haben; Löschen ist nicht möglich, solange die Übung in
   einem Trainingsplan steckt. Fremde Übungen lassen sich per „Kopie erst." als
-  eigene, bearbeitbare Variante übernehmen. Siehe
+  eigene, bearbeitbare Variante übernehmen. **Sichtbarkeit:** Umschalter
+  „öff"/„n.öff" in „Übungen" (`exercises.is_public`, Standard öffentlich).
+  Nicht öffentliche Übungen sehen nur der Admin, das Erstellerteam und Teams,
+  die sie schon übernommen oder eingeplant haben
+  ([`supabase/migration_037_exercise_public.sql`](supabase/migration_037_exercise_public.sql)). Siehe
   [`supabase/migration_034_exercise_owner_admin_edit.sql`](supabase/migration_034_exercise_owner_admin_edit.sql)
   und [`supabase/migration_035_exercise_edit_own_team.sql`](supabase/migration_035_exercise_edit_own_team.sql).
 - **Teamname** (`teams.name`, z.B. „TVG E1") steht oben in der Menüleiste

@@ -4,7 +4,12 @@ import { useMemo, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { categoryLabels } from "./categoryLabels";
-import { deleteExercise, duplicateExercise, setExerciseActiveInTeam } from "./actions";
+import {
+  deleteExercise,
+  duplicateExercise,
+  setExerciseActiveInTeam,
+  setExercisePublic,
+} from "./actions";
 import DeleteButton from "@/components/DeleteButton";
 
 type ExerciseRow = {
@@ -25,6 +30,8 @@ type ExerciseRow = {
   teamUsage: { team: string; uses: number }[];
   /** Einsaetze des eigenen Teams in der laufenden Saison. */
   ownSeasonCount: number;
+  /** Oeffentlich: fuer andere Teams in der Uebungsdatenbank sichtbar. */
+  isPublic: boolean;
   /** Uebung erscheint unter "Uebungen" des eigenen Teams. */
   activeInTeam: boolean;
   /** Team, das die Uebung angelegt hat. */
@@ -34,6 +41,81 @@ type ExerciseRow = {
 };
 
 const NO_FIELD = "__keine__";
+
+function PublicToggle({
+  exerciseId,
+  exerciseName,
+  initialPublic,
+  disabled,
+}: {
+  exerciseId: string;
+  exerciseName: string;
+  initialPublic: boolean;
+  disabled: boolean;
+}) {
+  const [isPublic, setIsPublic] = useState(initialPublic);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function choose(next: boolean) {
+    if (next === isPublic) return;
+    setIsPublic(next);
+    startTransition(async () => {
+      const result = await setExercisePublic(exerciseId, next);
+      if (result) {
+        setIsPublic(!next);
+        setError(result);
+      } else {
+        setError(null);
+      }
+    });
+  }
+
+  return (
+    <>
+      <div
+        role="radiogroup"
+        aria-label={`Sichtbarkeit von ${exerciseName} in der Übungsdatenbank`}
+        title={
+          disabled
+            ? "Ändern kann nur das Team, das die Übung erstellt hat, oder der Administrator"
+            : undefined
+        }
+        className="inline-flex overflow-hidden rounded border border-zinc-300 text-xs dark:border-zinc-700"
+      >
+        {(
+          [
+            [true, "öff"],
+            [false, "n.öff"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={label}
+            type="button"
+            role="radio"
+            aria-checked={isPublic === value}
+            disabled={disabled || pending}
+            onClick={() => choose(value)}
+            className={`px-1.5 py-1 disabled:cursor-default ${
+              isPublic === value
+                ? value
+                  ? "bg-green-600 text-white"
+                  : "bg-zinc-600 text-white"
+                : "bg-white text-zinc-500 dark:bg-zinc-900"
+            } ${disabled && isPublic !== value ? "opacity-40" : ""}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <span className="block text-xs text-red-600" title={error}>
+          Fehler
+        </span>
+      )}
+    </>
+  );
+}
 
 function TeamToggle({
   exerciseId,
@@ -312,6 +394,7 @@ export default function ExercisesTable({
           <col className="w-14" />
           {showTeamToggle && <col className="w-28" />}
           {showTeamToggle && <col className="w-16" />}
+          {!showTeamToggle && <col className="w-24" />}
           {canWrite && <col className="w-24" />}
         </colgroup>
         <thead>
@@ -346,6 +429,14 @@ export default function ExercisesTable({
                 In Team aktiv
               </th>
             )}
+            {!showTeamToggle && (
+              <th
+                className="py-2 pr-3 text-center"
+                title="öff = für andere Teams in der Übungsdatenbank sichtbar, n.öff = nur für dein Team und den Administrator"
+              >
+                öff.
+              </th>
+            )}
             {canWrite && <th className="py-2" />}
           </tr>
         </thead>
@@ -374,6 +465,14 @@ export default function ExercisesTable({
                   <Link href={`/exercises/${exercise.id}`} className="hover:underline">
                     {exercise.name}
                   </Link>
+                  {showTeamToggle && !exercise.isPublic && (
+                    <span
+                      className="ml-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                      title="Nicht öffentlich: für andere Teams nicht sichtbar"
+                    >
+                      n.öff
+                    </span>
+                  )}
                 </td>
                 {showTeamToggle && (
                   <td className="py-2 pr-3 text-zinc-500">{exercise.createdByTeam ?? "–"}</td>
@@ -415,6 +514,16 @@ export default function ExercisesTable({
                     />
                   </td>
                 )}
+                {!showTeamToggle && (
+                  <td className="py-2 pr-3 text-center">
+                    <PublicToggle
+                      exerciseId={exercise.id}
+                      exerciseName={exercise.name}
+                      initialPublic={exercise.isPublic}
+                      disabled={!exercise.editable}
+                    />
+                  </td>
+                )}
                 {canWrite && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end gap-1">
@@ -447,7 +556,7 @@ export default function ExercisesTable({
           })}
           {!filtered.length && (
             <tr>
-              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 3 : 0)} className="py-4 text-zinc-500">
+              <td colSpan={10 + (canWrite ? 1 : 0) + (showTeamToggle ? 3 : 1)} className="py-4 text-zinc-500">
                 {exercises.length
                   ? "Keine Übungen entsprechen den gewählten Filtern."
                   : "Noch keine Übungen angelegt."}
