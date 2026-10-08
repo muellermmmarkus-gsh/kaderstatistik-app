@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createExercise } from "../actions";
 import ExerciseForm from "../ExerciseForm";
 import BackButton from "@/components/BackButton";
+import DraftPrefill from "./DraftPrefill";
 
 export default async function NewExercisePage() {
   const supabase = await createClient();
@@ -14,6 +15,7 @@ export default async function NewExercisePage() {
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
       <BackButton href="/exercises" />
       <h1 className="mb-6 text-xl font-semibold">Neue Übung</h1>
+      <DraftPrefill />
       <ExerciseForm
         action={createExercise}
         fields={fields ?? []}

@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Übungskonfigurator</title>
+<style>
+  :root {
+    --bg: #eef1f4; --panel: #fff; --line: #d3dae1; --ink: #1f2933; --muted: #66748a;
+    --accent: #2b6cb0; --accent-soft: #e4effa; --danger: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: 14px/1.35 "Segoe UI", Arial, sans-serif; color: var(--ink); background: var(--bg); display: flex; flex-direction: column; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  #backLink { color: var(--accent); text-decoration: none; font-size: 14px; white-space: nowrap; }
+  #backLink:hover { text-decoration: underline; }
+  header h1 { font-size: 16px; margin: 0 6px 0 0; }
+  .grp { display: flex; gap: 4px; align-items: center; }
+  .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  button:hover { background: #f4f7fa; }
+  button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { background: #245c96; }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .4; cursor: default; }
+  label.chk { display: flex; gap: 4px; align-items: center; cursor: pointer; white-space: nowrap; }
+  main { flex: 1; min-height: 0; display: grid; grid-template-columns: 178px minmax(0, 1fr) 270px; }
+  aside { background: var(--panel); overflow-y: auto; padding: 10px; }
+  #palette { border-right: 1px solid var(--line); }
+  #side { border-left: 1px solid var(--line); }
+  aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  aside h2:first-child { margin-top: 0; }
+  .pal { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pal button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; font-size: 11px; line-height: 1.15; text-align: center; cursor: grab; }
+  .pal svg { width: 64px; height: 50px; pointer-events: none; background: linear-gradient(90deg, #86b457 50%, #7aa84d 50%); border-radius: 5px; }
+  #stage { overflow: auto; padding: 12px; display: flex; justify-content: center; align-items: flex-start; min-width: 0; }
+  #board { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.18); touch-action: none; user-select: none; -webkit-user-select: none; flex: none; }
+  .row { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+  .row > span { font-size: 12px; color: var(--muted); }
+  .row input[type=text], .row input[type=number], .row select, .row textarea { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; background: #fff; }
+  .row textarea { resize: vertical; min-height: 64px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+  details { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  details summary { cursor: pointer; font-weight: 600; }
+  details table { border-collapse: collapse; margin-top: 6px; }
+  details td { padding: 2px 8px 2px 0; vertical-align: top; }
+  kbd { background: #f1f4f7; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: 11px Consolas, monospace; color: var(--ink); }
+  .inline-edit { position: fixed; z-index: 20; box-sizing: border-box; padding: 4px 8px; font: 600 16px "Segoe UI", Arial, sans-serif; text-align: center; border: 2px solid var(--accent); border-radius: 6px; background: #fff; color: #111; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+  #toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #1f2933; color: #fff; padding: 8px 14px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; }
+  #toast.show { opacity: .95; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto minmax(360px, 1fr) auto; }
+    #palette { border-right: 0; border-bottom: 1px solid var(--line); }
+    #side { border-left: 0; border-top: 1px solid var(--line); }
+    .pal { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a id="backLink" href="/exercises" hidden>← Übungen</a>
+  <h1>Übungskonfigurator</h1>
+  <div class="grp" id="tools">
+    <button data-tool="select" title="Auswählen und verschieben (V)">Auswahl</button>
+    <button data-tool="pass" title="Passlinie ziehen (P)">Pass</button>
+    <button data-tool="lauf" title="Laufweg ziehen (L)">Laufweg</button>
+    <button data-tool="wurf" title="Wurf ziehen (W)">Wurf</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button id="undo" title="Rückgängig (Strg+Z)">↶</button>
+    <button id="redo" title="Wiederholen (Strg+Y)">↷</button>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <select id="format" title="Format der Zeichenfläche">
+      <option value="hoch">Hochformat</option>
+      <option value="quer">Querformat</option>
+      <option value="quadrat">Quadrat</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="chkGrid" checked> Raster</label>
+    <label class="chk"><input type="checkbox" id="chkSnap" checked> Einrasten</label>
+    <label class="chk"><input type="checkbox" id="chkLegend" checked> Legende</label>
+    <label class="chk"><input type="checkbox" id="chkRasen" checked> Rasen</label>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button id="btnNew">Neu</button>
+    <button id="btnLoad">Laden …</button>
+    <input type="file" id="fileLoad" accept=".json,application/json" hidden>
+    <button id="btnPng">PNG</button>
+    <button id="btnSave">JSON speichern</button>
+    <button id="btnApp" class="primary" hidden title="Name, Aufbau, Ablauf, Spielerzahl, Tore und die Skizze als Bild ins Formular „Neue Übung“ übernehmen">In App übernehmen</button>
+    <button id="btnCopy" class="primary" title="Skizze als JSON in die Zwischenablage kopieren – dann hier im Chat einfügen">JSON kopieren</button>
+  </div>
+</header>
+
+<main>
+  <aside id="palette"></aside>
+  <div id="stage"><svg id="board" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <aside id="side">
+    <h2>Auswahl</h2>
+    <div id="selprops"></div>
+    <h2>Übung</h2>
+    <div class="row"><span>Name</span><input type="text" id="inName" placeholder="z. B. Orientierungsspiel"></div>
+    <div class="row"><span>Aufbau</span><textarea id="inAufbau" placeholder="Feldgröße, Material, Teams …"></textarea></div>
+    <div class="row"><span>Ablauf</span><textarea id="inAblauf" placeholder="Was passiert wann? Regeln, Varianten …"></textarea></div>
+    <details>
+      <summary>Tastenkürzel</summary>
+      <table>
+        <tr><td><kbd>Entf</kbd></td><td>Auswahl löschen</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>C</kbd> / <kbd>V</kbd></td><td>Kopieren / Einfügen</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>D</kbd></td><td>Duplizieren</td></tr>
+        <tr><td><kbd>Alt</kbd> + ziehen</td><td>Kopie wegziehen</td></tr>
+        <tr><td><kbd>Umschalt</kbd> + Klick</td><td>Mehrfachauswahl</td></tr>
+        <tr><td>Doppelklick</td><td>Text, Nummer oder Pfeilnummer direkt ändern</td></tr>
+        <tr><td>Rahmen aufziehen</td><td>mehrere auswählen</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>A</kbd></td><td>alles auswählen</td></tr>
+        <tr><td>Pfeiltasten</td><td>verschieben (mit <kbd>Umschalt</kbd> 10 px)</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Tor drehen (Mini-/Kleinfeldtor)</td></tr>
+        <tr><td><kbd>V</kbd> <kbd>P</kbd> <kbd>L</kbd> <kbd>W</kbd></td><td>Auswahl / Pass / Laufweg / Wurf</td></tr>
+        <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Rückgängig / Wiederholen</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Abwählen, zurück zu Auswahl</td></tr>
+      </table>
+      <p>Pfeile: Linie von einem Element zum nächsten ziehen, dann haften sie daran und folgen beim Verschieben. Den Punkt in der Mitte des Pfeils ziehen, um ihn zu biegen.</p>
+    </details>
+  </aside>
+</main>
+
+<div id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const KEY = 'skizzentool.v1';
+const SIZES = { hoch: [760, 1000], quer: [1000, 640], quadrat: [800, 800] };
+const ARROW = '#1b1b1b';
+
+const TEAM_OPT = [['orange', 'Orange'], ['blau', 'Blau'], ['gelb', 'Gelb (neutral)'], ['gruen', 'Grün (neutral)'], ['rot', 'Rot'], ['weiss', 'Weiß'], ['schwarz', 'Schwarz']];
+const FARBE_COL = { orange: '#ff8a00', gelb: '#f3e61c', gruen: '#43a047', blau: '#2f62c9', rot: '#e5352b', weiss: '#ffffff', grau: '#aaaaaa', lila: '#8e4a8a' };
+const FARBE_OPT = [['orange', 'Orange'], ['gelb', 'Gelb'], ['gruen', 'Grün'], ['blau', 'Blau'], ['rot', 'Rot'], ['weiss', 'Weiß']];
+const TOR_OPT = [['grau', 'Grau (ohne Farbe)'], ['gelb', 'Gelb'], ['gruen', 'Grün'], ['rot', 'Rot'], ['blau', 'Blau']];
+const STANGE_OPT = [['rot', 'Rot'], ['lila', 'Lila'], ['gelb', 'Gelb'], ['weiss', 'Weiß'], ['blau', 'Blau']];
+const LEIB_OPT = [['rot', 'Rot'], ['gelb', 'Gelb'], ['orange', 'Orange'], ['blau', 'Blau'], ['gruen', 'Grün']];
+const OEFF_OPT = [[0, 'nach unten (Tor oben)'], [90, 'nach links (Tor rechts)'], [180, 'nach oben (Tor unten)'], [270, 'nach rechts (Tor links)']];
+const OEFF_NAME = ['unten', 'links', 'oben', 'rechts'];
+const NAMES = { spieler: 'Spieler', gegner: 'Gegnerfigur', leibchen: 'Leibchen', ball: 'Ball', huetchen: 'Hütchen', minitor: 'Mini-Tor', kleinfeldtor: 'Kleinfeldtor', stange: 'Stange', diamant: 'Diamant', text: 'Text', feld: 'Spielfeld' };
+
+const PALETTE = [
+  ['Spieler', [
+    { t: 'spieler', team: 'orange', name: 'Orange' },
+    { t: 'spieler', team: 'blau', name: 'Blau' },
+    { t: 'spieler', team: 'gelb', name: 'Gelb' },
+    { t: 'spieler', team: 'gruen', name: 'Grün' },
+    { t: 'spieler', team: 'rot', name: 'Rot' },
+    { t: 'spieler', team: 'gelb', neutral: true, name: 'Neutral gelb' },
+    { t: 'spieler', team: 'gruen', neutral: true, name: 'Neutral grün' },
+    { t: 'gegner', name: 'Gegnerfigur' },
+  ]],
+  ['Leibchen', [
+    { t: 'leibchen', farbe: 'rot', name: 'Rot' },
+    { t: 'leibchen', farbe: 'gelb', name: 'Gelb' },
+    { t: 'leibchen', farbe: 'orange', name: 'Orange' },
+    { t: 'leibchen', farbe: 'blau', name: 'Blau' },
+    { t: 'leibchen', farbe: 'gruen', name: 'Grün' },
+  ]],
+  ['Material', [
+    { t: 'ball', name: 'Ball' },
+    { t: 'huetchen', farbe: 'orange', name: 'Hütchen' },
+    { t: 'huetchen', farbe: 'gelb', name: 'Hütchen gelb' },
+    { t: 'huetchen', farbe: 'gruen', name: 'Hütchen grün' },
+    { t: 'minitor', name: 'Mini-Tor' },
+    { t: 'kleinfeldtor', name: 'Kleinfeldtor' },
+    { t: 'stange', name: 'Stange' },
+    { t: 'diamant', name: 'Diamant' },
+  ]],
+  ['Sonstiges', [
+    { t: 'feld', name: 'Spielfeld' },
+    { t: 'text', name: 'Text / Maß' },
+  ]],
+];
+
+// ------------------------------------------------------------------ Zustand
+const blank = () => ({ w: 760, h: 1000, legend: true, rasen: true, uebung: '', aufbau: '', ablauf: '', items: [], arrows: [], seq: 1 });
+let S = blank();
+let sel = new Set();
+let tool = 'select';
+let drag = null, marquee = null, clip = null, pasteN = 0, cascade = 0;
+let grid = true, snap = true;
+let hist = [], hidx = -1, soonTimer = null;
+
+const board = $('#board'), stage = $('#stage'), selprops = $('#selprops');
+const isArrow = (o) => 'from' in o;
+const find = (id) => S.items.find((i) => i.id === id) || S.arrows.find((a) => a.id === id);
+const itemById = (id) => S.items.find((i) => i.id === id);
+const sn = (v) => (snap ? Math.round(v / 10) * 10 : v);
+const unit = (x, y) => { const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l }; };
+
+// ------------------------------------------------------------------ Geometrie
+function half(it) {
+  switch (it.type) {
+    case 'spieler': case 'gegner': return [16, 26];
+    case 'leibchen': return [16, 17];
+    case 'ball': return [11, 11];
+    case 'huetchen': return [12, 15];
+    case 'minitor': return it.rot === 90 ? [11, 31] : [31, 11];
+    case 'kleinfeldtor': { const w = (it.laenge || 110) / 2; return it.rot === 90 || it.rot === 270 ? [18, w] : [w, 18]; }
+    case 'stange': return [6, 22];
+    case 'diamant': return [11, 12];
+    case 'text': { const s = it.size || 18; return [Math.max(18, (it.text || '').length * s * 0.32), s * 0.6]; }
+    case 'feld': return [it.w / 2, it.h / 2];
+  }
+  return [12, 12];
+}
+
+function itemAt(p, excl = []) {
+  for (let i = S.items.length - 1; i >= 0; i--) {
+    const it = S.items[i];
+    if (it.type === 'feld' || excl.includes(it.id)) continue;
+    const [rx, ry] = half(it);
+    if (Math.abs(p.x - it.x) <= rx + 5 && Math.abs(p.y - it.y) <= ry + 5) return it;
+  }
+  return null;
+}
+
+function ep(e) {
+  if (e.ref != null) { const it = itemById(e.ref); if (it) return { x: it.x, y: it.y, it }; }
+  return { x: e.x ?? 0, y: e.y ?? 0, it: null };
+}
+function edge(it, d, gap) {
+  if (!it) return 0;
+  const [rx, ry] = half(it);
+  const tx = Math.abs(d.x) > 1e-6 ? rx / Math.abs(d.x) : 1e9;
+  const ty = Math.abs(d.y) > 1e-6 ? ry / Math.abs(d.y) : 1e9;
+  return Math.min(tx, ty) + gap;
+}
+function geom(a) {
+  const A = ep(a.from), B = ep(a.to);
+  const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy);
+  const u = len > 1e-6 ? { x: dx / len, y: dy / len } : { x: 1, y: 0 };
+  const nrm = { x: -u.y, y: u.x };
+  const mAB = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+  const bo = a.bogen || 0;
+  const C = bo ? { x: mAB.x + nrm.x * bo, y: mAB.y + nrm.y * bo } : null;
+  const sd = C ? unit(C.x - A.x, C.y - A.y) : u;
+  const ed = C ? unit(B.x - C.x, B.y - C.y) : u;
+  const e1 = edge(A.it, sd, 3), e2 = edge(B.it, { x: -ed.x, y: -ed.y }, 4);
+  const S0 = { x: A.x + sd.x * e1, y: A.y + sd.y * e1 };
+  const E = { x: B.x - ed.x * e2, y: B.y - ed.y * e2 };
+  const LE = { x: E.x - ed.x * 9, y: E.y - ed.y * 9 };
+  const mid = C ? { x: 0.25 * S0.x + 0.5 * C.x + 0.25 * E.x, y: 0.25 * S0.y + 0.5 * C.y + 0.25 * E.y } : { x: (S0.x + E.x) / 2, y: (S0.y + E.y) / 2 };
+  return { A, B, nrm, mAB, C, ed, S0, E, LE, mid, short: Math.hypot(E.x - S0.x, E.y - S0.y) < 6 };
+}
+
+// ------------------------------------------------------------------ Zeichnen
+// ------------------------------------------------------------------ Bilder
+const INK = '#1b1b1b';
+const SKIN = '#f0c49a';
+const TEAMS = {
+  rot: { shirt: '#e5352b', shorts: '#ffffff', socks: '#e5352b', num: '#ffffff' },
+  orange: { shirt: '#f28c28', shorts: '#ffffff', socks: '#f28c28', num: '#111111' },
+  blau: { shirt: '#2f62c9', shorts: '#ffffff', socks: '#2f62c9', num: '#ffffff' },
+  gelb: { shirt: '#f3c81c', shorts: '#2a2a2a', socks: '#f3c81c', num: '#111111' },
+  gruen: { shirt: '#43a047', shorts: '#ffffff', socks: '#43a047', num: '#ffffff' },
+  weiss: { shirt: '#f7f7f2', shorts: '#2b4a9b', socks: '#f7f7f2', num: '#111111' },
+  schwarz: { shirt: '#333333', shorts: '#333333', socks: '#333333', num: '#ffffff' },
+  gegner: { shirt: '#8e4a8a', shorts: '#3d2a3b', socks: '#8e4a8a', num: '#ffffff' },
+};
+const TEAM_COL = Object.fromEntries(Object.entries(TEAMS).map(([k, v]) => [k, v.shirt]));
+const LEIB_COL = { rot: '#e5352b', gelb: '#f3e61c', orange: '#ff8a00', blau: '#2f62c9', gruen: '#43a047' };
+
+function darken(hex, f = 0.78) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * f).toString(16).padStart(2, '0')).join('');
+}
+function limb(x1, y1, x2, y2, w, c) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${INK}" stroke-width="${w + 2.6}" stroke-linecap="round"/>` +
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+}
+// Spielerfigur von vorn (wie im fertigen Bild); Ursprung = Körpermitte, Nummer auf dem Trikot
+function figure(t, label) {
+  const lb = label || '';
+  const fs = lb.length > 2 ? 14 : lb.length === 2 ? 19 : 22;
+  return (
+    `<ellipse cx="0" cy="39" rx="21" ry="6" fill="#000" opacity=".22"/>` +
+    limb(-6.5, 18, -7, 30, 7, SKIN) + limb(6.5, 18, 7, 30, 7, SKIN) +
+    limb(-7, 26, -7.2, 33, 7.6, t.socks) + limb(7, 26, 7.2, 33, 7.6, t.socks) +
+    `<ellipse cx="-8" cy="37" rx="6.6" ry="3.2" fill="#262626"/><ellipse cx="8" cy="37" rx="6.6" ry="3.2" fill="#262626"/>` +
+    `<path d="M-13 5 L13 5 L14.5 20 L1.2 20 L0 13.5 L-1.2 20 L-14.5 20 Z" fill="${t.shorts}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+    limb(-16, -12, -21, 0, 8, t.shirt) + limb(16, -12, 21, 0, 8, t.shirt) +
+    limb(-21.5, 1, -22.5, 10, 5.4, SKIN) + limb(21.5, 1, 22.5, 10, 5.4, SKIN) +
+    `<path d="M-15 -11 Q-15 -17 -9 -17 L9 -17 Q15 -17 15 -11 L13.5 7 L-13.5 7 Z" fill="${t.shirt}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>` +
+    `<circle cx="0" cy="-27" r="9.6" fill="${SKIN}" stroke="${INK}" stroke-width="1.4"/>` +
+    `<path d="M-9.2 -28 A9.6 9.6 0 0 1 9.2 -28 Q0 -33.5 -9.2 -28 Z" fill="#3b2a20" stroke="${INK}" stroke-width="1.2" stroke-linejoin="round"/>` +
+    (lb ? `<text x="0" y="${-5 + fs * 0.36}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${t.num}">${esc(lb)}</text>` : '')
+  );
+}
+function netLines(w, d) {
+  let s = '';
+  for (let x = -w / 2 + 8; x < w / 2 - 1; x += 8) s += `<line x1="${x}" y1="${-d / 2}" x2="${x}" y2="${d / 2}"/>`;
+  for (let y = -d / 2 + 7; y < d / 2 - 1; y += 7) s += `<line x1="${-w / 2}" y1="${y}" x2="${w / 2}" y2="${y}"/>`;
+  return `<g stroke="#fff" stroke-opacity=".6" stroke-width="1">${s}</g>`;
+}
+const VEST = 'M-9 -14 L-4 -14 Q0 -5 4 -14 L9 -14 Q8 -3 13 -1 L13 14 L-13 14 L-13 -1 Q-8 -3 -9 -14 Z';
+
+function shapeMarkup(it) {
+  switch (it.type) {
+    case 'spieler': case 'gegner': {
+      const t = TEAMS[it.type === 'gegner' ? 'gegner' : it.team] || TEAMS.rot;
+      return `<g transform="translate(0 -2) scale(.62)">${figure(t, it.label)}</g>`;
+    }
+    case 'leibchen': {
+      const c = LEIB_COL[it.farbe] || LEIB_COL.gelb, d = darken(c);
+      return `<g transform="scale(1.12)"><path d="${VEST}" fill="#000" opacity=".22" transform="translate(1.5 2.5)"/>` +
+        `<path d="${VEST}" fill="${c}" stroke="#222" stroke-width="1.2" stroke-linejoin="round"/>` +
+        `<path d="M-13 9 L13 9" stroke="${d}" stroke-width="1.2"/><path d="M-4 -14 Q0 -5 4 -14" fill="none" stroke="${d}" stroke-width="1.3"/></g>`;
+    }
+    case 'ball': {
+      const pent = [0, 1, 2, 3, 4].map((i) => { const a = (-90 + i * 72) * Math.PI / 180; return [Math.cos(a), Math.sin(a)]; });
+      const spokes = pent.map(([x, y]) => `<line x1="${(x * 4.2).toFixed(1)}" y1="${(y * 4.2).toFixed(1)}" x2="${(x * 9.4).toFixed(1)}" y2="${(y * 9.4).toFixed(1)}" stroke="#222" stroke-width="1"/>`).join('');
+      const poly = pent.map(([x, y]) => `${(x * 4.2).toFixed(1)},${(y * 4.2).toFixed(1)}`).join(' ');
+      return `<ellipse cx="1.5" cy="10" rx="9.5" ry="3" fill="#000" opacity=".22"/><circle r="11" fill="#fff" stroke="#222" stroke-width="1.5"/>${spokes}<polygon points="${poly}" fill="#222"/>` +
+        (it.label ? `<text x="15" y="4" font-size="13" font-weight="700" fill="#111" stroke="#fff" stroke-width="3" paint-order="stroke">${esc(it.label)}</text>` : '');
+    }
+    case 'huetchen': {
+      const c = FARBE_COL[it.farbe] || FARBE_COL.orange;
+      return `<ellipse cx="1" cy="6" rx="13" ry="4" fill="#000" opacity=".2"/>` +
+        `<ellipse cx="0" cy="3" rx="11" ry="4" fill="${darken(c)}" stroke="#333" stroke-width="1"/>` +
+        `<path d="M-8 2 L-3 -13 Q0 -15 3 -13 L8 2 Q0 6 -8 2 Z" fill="${c}" stroke="#333" stroke-width="1" stroke-linejoin="round"/>` +
+        `<path d="M-5.3 -6 Q0 -4 5.3 -6 L6.5 -2 Q0 1 -6.5 -2 Z" fill="#fff" opacity=".9"/>`;
+    }
+    case 'minitor': {
+      const col = it.farbe && it.farbe !== 'grau' ? FARBE_COL[it.farbe] : '#fff';
+      const body = `<rect x="-30" y="-10" width="60" height="20" rx="2" fill="#fff" fill-opacity=".3"/>` + netLines(60, 20) +
+        `<rect x="-30" y="-10" width="60" height="20" rx="2" fill="none" stroke="#222" stroke-width="5"/><rect x="-30" y="-10" width="60" height="20" rx="2" fill="none" stroke="#fff" stroke-width="2.4"/>` +
+        `<circle cx="-30" cy="0" r="4.6" fill="${col}" stroke="#222" stroke-width="1.4"/><circle cx="30" cy="0" r="4.6" fill="${col}" stroke="#222" stroke-width="1.4"/>`;
+      return it.rot === 90 ? `<g transform="rotate(90)">${body}</g>` : body;
+    }
+    case 'kleinfeldtor': {
+      const w = it.laenge || 110, d = 34, h = d / 2;
+      const body = `<rect x="${-w / 2}" y="${-h}" width="${w}" height="${d}" fill="#fff" fill-opacity=".25"/>` + netLines(w, d) +
+        `<path d="M${-w / 2} ${h} L${-w / 2} ${-h} L${w / 2} ${-h} L${w / 2} ${h}" fill="none" stroke="#222" stroke-width="6" stroke-linejoin="round"/>` +
+        `<path d="M${-w / 2} ${h} L${-w / 2} ${-h} L${w / 2} ${-h} L${w / 2} ${h}" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>` +
+        `<line x1="${-w / 2}" y1="${h}" x2="${w / 2}" y2="${h}" stroke="#fff" stroke-width="1.6" stroke-dasharray="6 5" opacity=".8"/>` +
+        `<circle cx="${-w / 2}" cy="${h}" r="4.6" fill="#fff" stroke="#222" stroke-width="1.4"/><circle cx="${w / 2}" cy="${h}" r="4.6" fill="#fff" stroke="#222" stroke-width="1.4"/>`;
+      return it.rot ? `<g transform="rotate(${it.rot})">${body}</g>` : body;
+    }
+    case 'stange': {
+      const c = FARBE_COL[it.farbe] || FARBE_COL.rot;
+      return `<ellipse cx="1" cy="17" rx="8" ry="2.8" fill="#000" opacity=".25"/>` +
+        `<rect x="-3" y="-26" width="6" height="43" rx="2.4" fill="${c}" stroke="#333" stroke-width="1.2"/>` +
+        `<rect x="-3" y="-17" width="6" height="7" fill="#fff" opacity=".85"/><rect x="-3" y="-2" width="6" height="7" fill="#fff" opacity=".85"/>` +
+        `<ellipse cx="0" cy="16.5" rx="6.5" ry="2.3" fill="${darken(c)}" stroke="#333" stroke-width="1"/>`;
+    }
+    case 'diamant':
+      return `<ellipse cx="1" cy="11" rx="8" ry="2.4" fill="#000" opacity=".22"/>` +
+        `<polygon points="0,-12 11,-3 7,10 -7,10 -11,-3" fill="#34b4f0" stroke="#1b4f6e" stroke-width="1.4" stroke-linejoin="round"/>` +
+        `<polygon points="0,-12 11,-3 0,3 -11,-3" fill="#fff" opacity=".4"/><line x1="0" y1="-12" x2="0" y2="10" stroke="#1b4f6e" stroke-width=".8" opacity=".5"/>`;
+    case 'text': {
+      const s = it.size || 18;
+      return `<text y="${s * 0.35}" text-anchor="middle" font-size="${s}" font-weight="700" fill="#fff" stroke="#1b1b1b" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">${esc(it.text)}</text>`;
+    }
+  }
+  return '';
+}
+
+function itemMarkup(it, ex) {
+  const s = !ex && sel.has(it.id);
+  const [rx, ry] = half(it);
+  let inner;
+  if (it.type === 'feld') {
+    const w = it.w, h = it.h, n = Math.max(2, Math.round(w / 70));
+    let stripes = '';
+    for (let i = 0; i < n; i += 2) stripes += `<rect x="${-w / 2 + (i * w) / n}" y="${-h / 2}" width="${w / n}" height="${h}" fill="#fff" fill-opacity=".12"/>`;
+    inner = `<clipPath id="cp${it.id}"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}"/></clipPath>` +
+      `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="#d6ec8a" fill-opacity=".3" pointer-events="none"/>` +
+      `<g clip-path="url(#cp${it.id})" pointer-events="none">${stripes}</g>` +
+      `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="none" stroke="${INK}" stroke-width="2.4"/>` +
+      (s ? `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="none" stroke="#0b57d0" stroke-width="2" stroke-dasharray="7 5" pointer-events="none"/>` : '') +
+      (ex ? '' : `<rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="none" stroke="transparent" stroke-width="16" pointer-events="stroke"/>`);
+  } else {
+    const ring = `x="${-rx - 4}" y="${-ry - 4}" width="${rx * 2 + 8}" height="${ry * 2 + 8}" rx="4" fill="none" pointer-events="none"`;
+    inner = (ex ? '' : `<rect x="${-rx}" y="${-ry}" width="${rx * 2}" height="${ry * 2}" fill="transparent"/>`) + shapeMarkup(it) +
+      (s ? `<rect ${ring} stroke="#fff" stroke-width="4.5"/><rect ${ring} stroke="#0b57d0" stroke-width="1.8" stroke-dasharray="4 3"/>` : '');
+  }
+  return `<g data-id="${it.id}" transform="translate(${n1(it.x)} ${n1(it.y)})">${inner}</g>`;
+}
+const n1 = (v) => Math.round(v * 10) / 10;
+
+// Geschlängelte Linie (S-Wellen) entlang einer Geraden bzw. quadratischen Kurve S -> C -> E.
+// Die Welle läuft an beiden Enden sanft aus, damit der Pfeilkopf sauber ansetzt.
+function wavyPath(S0, C, E, amp, wl, step = 3) {
+  const P = (t) => (C
+    ? { x: (1 - t) * (1 - t) * S0.x + 2 * (1 - t) * t * C.x + t * t * E.x, y: (1 - t) * (1 - t) * S0.y + 2 * (1 - t) * t * C.y + t * t * E.y }
+    : { x: S0.x + (E.x - S0.x) * t, y: S0.y + (E.y - S0.y) * t });
+  const N = 120, pts = [P(0)], cum = [0];
+  for (let i = 1; i <= N; i++) { const p = P(i / N); pts.push(p); cum.push(cum[i - 1] + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y)); }
+  const L = cum[N];
+  if (L < 2) return `M${n1(S0.x)} ${n1(S0.y)}`;
+  const ramp = Math.min(wl * 0.75, L / 2), n = Math.max(2, Math.round(L / step));
+  let d = '', j = 0;
+  for (let k = 0; k <= n; k++) {
+    const s = (L * k) / n;
+    while (j < N - 1 && cum[j + 1] < s) j++;
+    const f = (s - cum[j]) / ((cum[j + 1] - cum[j]) || 1);
+    const x = pts[j].x + (pts[j + 1].x - pts[j].x) * f, y = pts[j].y + (pts[j + 1].y - pts[j].y) * f;
+    let tx = pts[j + 1].x - pts[j].x, ty = pts[j + 1].y - pts[j].y; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+    const env = Math.min(1, s / ramp, (L - s) / ramp), e = env * env * (3 - 2 * env);
+    const off = amp * e * Math.sin((2 * Math.PI * s) / wl);
+    d += (k ? 'L' : 'M') + (x - ty * off).toFixed(1) + ' ' + (y + tx * off).toFixed(1) + ' ';
+  }
+  return d;
+}
+
+// Pass = durchgezogen, Laufweg = geschlängelt (S-Welle), Wurf = gepunktet
+function lineStyle(typ, k = 1) {
+  if (typ === 'lauf') return `stroke-width="2.2" stroke-linejoin="round"`;
+  if (typ === 'wurf') return `stroke-width="3.8" stroke-linecap="round" stroke-dasharray="0.1 ${6.5 * k}"`;
+  return 'stroke-width="2.2"';
+}
+
+function arrowMarkup(a, ex) {
+  const g = geom(a);
+  if (g.short) return '';
+  const d = g.C ? `M${n1(g.S0.x)} ${n1(g.S0.y)} Q${n1(g.C.x)} ${n1(g.C.y)} ${n1(g.LE.x)} ${n1(g.LE.y)}` : `M${n1(g.S0.x)} ${n1(g.S0.y)} L${n1(g.LE.x)} ${n1(g.LE.y)}`;
+  const nx = -g.ed.y, ny = g.ed.x, bx = g.E.x - g.ed.x * 12, by = g.E.y - g.ed.y * 12;
+  const head = `<polygon points="${n1(g.E.x)},${n1(g.E.y)} ${n1(bx + nx * 5)},${n1(by + ny * 5)} ${n1(bx - nx * 5)},${n1(by - ny * 5)}" fill="${ARROW}"/>`;
+  const s = !ex && sel.has(a.id);
+  let out = '';
+  const vis = a.typ === 'lauf' ? wavyPath(g.S0, g.C, g.LE, 3.4, 36) : d;
+  if (s) out += `<path d="${vis}" fill="none" stroke="#ffb020" stroke-opacity=".55" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`;
+  out += `<path d="${vis}" fill="none" stroke="${ARROW}" ${lineStyle(a.typ)}/>` + head;
+  if (a.nr) {
+    const t = { x: g.mid.x + g.nrm.x * 13, y: g.mid.y + g.nrm.y * 13 + 5 };
+    out += `<text x="${n1(t.x)}" y="${n1(t.y)}" text-anchor="middle" font-size="15" font-weight="700" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">${esc(a.nr)}</text>`;
+  }
+  if (!ex) out = `<g data-id="${a.id}">` + `<path d="${d}" fill="none" stroke="transparent" stroke-width="16" pointer-events="stroke"/>` + out + '</g>';
+  return out;
+}
+
+function handlesMarkup() {
+  if (sel.size !== 1) return '';
+  const o = find([...sel][0]);
+  if (!o) return '';
+  const hnd = (kind, x, y, sq) => `<${sq ? 'rect x="' + (x - 6) + '" y="' + (y - 6) + '" width="12" height="12"' : 'circle cx="' + x + '" cy="' + y + '" r="6.5"'} data-h="${kind}" data-hid="${o.id}" fill="#fff" stroke="#2b6cb0" stroke-width="2" style="cursor:pointer"/>`;
+  if (isArrow(o)) {
+    const g = geom(o);
+    return hnd('start', g.A.x, g.A.y) + hnd('end', g.B.x, g.B.y) + hnd('mid', g.mid.x, g.mid.y, true);
+  }
+  if (o.type === 'feld') return hnd('resize', o.x + o.w / 2, o.y + o.h / 2, true);
+  return '';
+}
+
+function legendMarkup() {
+  const used = new Set();
+  S.items.forEach((i) => { if (i.type !== 'text' && i.type !== 'feld') used.add(i.type); });
+  S.arrows.forEach((a) => used.add(a.typ));
+  const defs = [['ball', 'Ball'], ['spieler', 'Spieler'], ['gegner', 'Gegnerfigur'], ['leibchen', 'Leibchen'], ['huetchen', 'Hütchen'], ['minitor', 'Mini-Tor'], ['kleinfeldtor', 'Kleinfeldtor'], ['stange', 'Stange'], ['diamant', 'Diamant'], ['pass', 'Pass'], ['lauf', 'Laufweg'], ['wurf', 'Wurf']].filter((d) => used.has(d[0]));
+  if (!defs.length) return '';
+  // [Beispielobjekt, Maßstab, Breite des Symbols]
+  const ICON = {
+    spieler: [{ type: 'spieler', team: 'blau', label: '1' }, 0.5, 30], gegner: [{ type: 'gegner' }, 0.5, 30],
+    leibchen: [{ type: 'leibchen', farbe: 'gelb' }, 0.8, 30], ball: [{ type: 'ball' }, 0.85, 30], huetchen: [{ type: 'huetchen', farbe: 'orange' }, 0.85, 28],
+    minitor: [{ type: 'minitor', rot: 0, farbe: 'grau' }, 0.55, 40], kleinfeldtor: [{ type: 'kleinfeldtor', rot: 0, laenge: 110 }, 0.36, 46],
+    stange: [{ type: 'stange', farbe: 'rot' }, 0.6, 24], diamant: [{ type: 'diamant' }, 0.9, 28],
+  };
+  const isLine = (k) => k === 'pass' || k === 'lauf' || k === 'wurf';
+  const iconW = (k) => (isLine(k) ? 54 : ICON[k][2]);
+  const rows = [[]]; let x = 0; const maxW = S.w - 56;
+  defs.forEach((d) => {
+    const w = iconW(d[0]) + d[1].length * 8 + 26;
+    if (x + w > maxW && rows[rows.length - 1].length) { rows.push([]); x = 0; }
+    rows[rows.length - 1].push({ d, x, w }); x += w;
+  });
+  const rh = 34, boxH = rows.length * rh + 10, y0 = S.h - boxH - 12;
+  let out = `<g pointer-events="none"><rect x="14" y="${y0}" width="${S.w - 28}" height="${boxH}" rx="8" fill="#fff" fill-opacity=".94" stroke="#b9c2cc"/>`;
+  rows.forEach((row, ri) => row.forEach(({ d, x: px }) => {
+    const cy = y0 + 5 + ri * rh + rh / 2, cx = 30 + px, k = d[0];
+    let icon, tx;
+    if (isLine(k)) {
+      icon = (k === 'lauf'
+        ? `<path d="${wavyPath({ x: cx, y: cy }, null, { x: cx + 40, y: cy }, 3.2, 26, 2)}" fill="none" stroke="${ARROW}" ${lineStyle(k)}/>`
+        : `<line x1="${cx}" y1="${cy}" x2="${cx + 40}" y2="${cy}" stroke="${ARROW}" ${lineStyle(k, 0.85)}/>`) +
+        `<polygon points="${cx + 50},${cy} ${cx + 39},${cy - 5} ${cx + 39},${cy + 5}" fill="${ARROW}"/>`;
+      tx = cx + 58;
+    } else {
+      const [proto, sc, w] = ICON[k];
+      icon = `<g transform="translate(${cx + w / 2} ${cy}) scale(${sc})">${shapeMarkup(proto)}</g>`;
+      tx = cx + w + 4;
+    }
+    out += icon + `<text x="${tx}" y="${cy + 5}" font-size="15" fill="#111">${esc(d[1])}</text>`;
+  }));
+  return out + '</g>';
+}
+
+function bgMarkup() {
+  if (S.rasen === false) return `<rect width="${S.w}" height="${S.h}" fill="#fff"/>`;
+  const n = 10, bw = S.w / n;
+  let h = `<rect width="${S.w}" height="${S.h}" fill="#7fb04f"/>`;
+  for (let i = 0; i < n; i += 2) h += `<rect x="${n1(i * bw)}" width="${n1(bw)}" height="${S.h}" fill="#8cba5b"/>`;
+  return h;
+}
+
+function innerMarkup(ex) {
+  const rasen = S.rasen !== false;
+  let h = bgMarkup();
+  if (!ex && grid) h += `<defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="${rasen ? 'rgba(255,255,255,.22)' : '#e6ebf0'}" stroke-width="1"/></pattern></defs><rect width="${S.w}" height="${S.h}" fill="url(#grid)" pointer-events="none"/>`;
+  S.items.filter((i) => i.type === 'feld').forEach((i) => { h += itemMarkup(i, ex); });
+  S.arrows.forEach((a) => { h += arrowMarkup(a, ex); });
+  S.items.filter((i) => i.type !== 'feld').forEach((i) => { h += itemMarkup(i, ex); });
+  if (!ex && !S.items.length && !S.arrows.length)
+    h += `<text x="${S.w / 2}" y="${S.h / 2}" text-anchor="middle" font-size="18" fill="${rasen ? '#fff' : '#9aa5b4'}" fill-opacity=".85" pointer-events="none">Elemente links anklicken oder hierher ziehen</text>`;
+  if (S.legend) h += legendMarkup();
+  if (!ex) {
+    h += handlesMarkup();
+    if (marquee) {
+      const x = Math.min(marquee.x1, marquee.x2), y = Math.min(marquee.y1, marquee.y2);
+      h += `<rect x="${x}" y="${y}" width="${Math.abs(marquee.x2 - marquee.x1)}" height="${Math.abs(marquee.y2 - marquee.y1)}" fill="#2b6cb0" fill-opacity=".08" stroke="#2b6cb0" stroke-dasharray="4 3" pointer-events="none"/>`;
+    }
+  }
+  return h;
+}
+
+function fullSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${S.w}" height="${S.h}" viewBox="0 0 ${S.w} ${S.h}" font-family="'Segoe UI',Arial,sans-serif">${innerMarkup(true)}</svg>`;
+}
+
+function render() {
+  board.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
+  board.setAttribute('font-family', "'Segoe UI',Arial,sans-serif");
+  board.innerHTML = innerMarkup(false);
+}
+function fit() {
+  const aw = stage.clientWidth - 24, ah = stage.clientHeight - 24;
+  const sc = Math.max(0.2, Math.min(aw / S.w, ah / S.h, 1.6));
+  board.style.width = Math.floor(S.w * sc) + 'px';
+  board.style.height = Math.floor(S.h * sc) + 'px';
+}
+new ResizeObserver(fit).observe(stage);
+
+// ------------------------------------------------------------------ Verlauf / Speichern
+function commit() {
+  const s = JSON.stringify(S);
+  if (s !== hist[hidx]) {
+    hist = hist.slice(0, hidx + 1); hist.push(s); hidx++;
+    if (hist.length > 150) { hist.shift(); hidx--; }
+  }
+  try { localStorage.setItem(KEY, s); } catch (e) { /* ignorieren */ }
+  updateUndo();
+}
+function commitSoon() { clearTimeout(soonTimer); soonTimer = setTimeout(commit, 350); }
+function updateUndo() { $('#undo').disabled = hidx <= 0; $('#redo').disabled = hidx >= hist.length - 1; }
+function restore(s) {
+  S = JSON.parse(s);
+  sel = new Set([...sel].filter((id) => find(id)));
+  syncInputs(); fit(); render(); renderProps(); updateUndo();
+}
+function undo() { clearTimeout(soonTimer); commit(); if (hidx > 0) { hidx--; restore(hist[hidx]); } }
+function redo() { if (hidx < hist.length - 1) { hidx++; restore(hist[hidx]); } }
+
+function syncInputs() {
+  $('#inName').value = S.uebung; $('#inAufbau').value = S.aufbau; $('#inAblauf').value = S.ablauf;
+  $('#chkLegend').checked = S.legend;
+  $('#chkRasen').checked = S.rasen !== false;
+  $('#format').value = S.w === 1000 ? 'quer' : S.w === 800 ? 'quadrat' : 'hoch';
+}
+
+// ------------------------------------------------------------------ Elemente
+// Normale Spieler zählen je Team hoch (1, 2, 3 …); neutrale Spieler bekommen Buchstaben (gelb: A, C … / grün: B, D …).
+function nextLabel(team, neutral) {
+  const used = new Set(S.items.filter((i) => i.type === 'spieler' && i.team === team).map((i) => i.label));
+  const pool = !neutral ? [] : team === 'gelb' ? ['A', 'C', 'E', 'G'] : team === 'gruen' ? ['B', 'D', 'F', 'H'] : [];
+  for (const c of pool) if (!used.has(c)) return c;
+  for (let n = 1; n < 100; n++) if (!used.has(String(n))) return String(n);
+  return '';
+}
+function addItem(proto, x, y) {
+  const it = { id: S.seq++, type: proto.t, x: sn(x), y: sn(y) };
+  if (proto.t === 'spieler') { it.team = proto.team; it.label = nextLabel(proto.team, proto.neutral); }
+  if (proto.t === 'gegner') it.label = '';
+  if (proto.t === 'ball') it.label = '';
+  if (proto.t === 'huetchen') it.farbe = proto.farbe || 'orange';
+  if (proto.t === 'minitor') { it.rot = 0; it.farbe = 'grau'; }
+  if (proto.t === 'stange') it.farbe = 'rot';
+  if (proto.t === 'leibchen') it.farbe = proto.farbe || 'gelb';
+  if (proto.t === 'kleinfeldtor') { it.rot = 0; it.laenge = 110; }
+  if (proto.t === 'text') { it.text = 'Text'; it.size = 18; }
+  if (proto.t === 'feld') { it.w = 360; it.h = 360; }
+  S.items.push(it);
+  sel = new Set([it.id]);
+  commit(); render(); renderProps();
+  if (proto.t === 'text') setTimeout(() => editInline(it), 0); // neuen Text gleich eintippen
+  return it;
+}
+function snapshotSel() {
+  const items = [], arrows = [], ids = new Set();
+  sel.forEach((id) => { const o = find(id); if (o && !isArrow(o)) { items.push(o); ids.add(id); } });
+  sel.forEach((id) => {
+    const o = find(id);
+    if (o && isArrow(o)) {
+      const c = JSON.parse(JSON.stringify(o));
+      ['from', 'to'].forEach((k) => {
+        if (c[k].ref != null && !ids.has(c[k].ref)) { const p = ep(c[k]); c[k] = { x: p.x, y: p.y }; }
+      });
+      arrows.push(c);
+    }
+  });
+  return { items: JSON.parse(JSON.stringify(items)), arrows };
+}
+function insertClip(c, dx, dy) {
+  const map = {}, ns = new Set();
+  c.items.forEach((o) => { const n = { ...o, id: S.seq++, x: o.x + dx, y: o.y + dy }; map[o.id] = n.id; S.items.push(n); ns.add(n.id); });
+  c.arrows.forEach((a) => {
+    const n = JSON.parse(JSON.stringify(a)); n.id = S.seq++;
+    ['from', 'to'].forEach((k) => {
+      if (n[k].ref != null) n[k].ref = map[n[k].ref];
+      else { n[k].x += dx; n[k].y += dy; }
+    });
+    S.arrows.push(n); ns.add(n.id);
+  });
+  sel = ns;
+}
+function dupSel(dx, dy) { if (!sel.size) return; insertClip(snapshotSel(), dx, dy); }
+function copySel() { if (!sel.size) return; clip = snapshotSel(); pasteN = 0; toast('Kopiert'); }
+function pasteClip() {
+  if (!clip) return;
+  pasteN++; insertClip(JSON.parse(JSON.stringify(clip)), 24 * pasteN, 24 * pasteN);
+  commit(); render(); renderProps();
+}
+function delSel() {
+  if (!sel.size) return;
+  S.items = S.items.filter((i) => !sel.has(i.id));
+  S.arrows = S.arrows.filter((a) => !sel.has(a.id) && !(a.from.ref != null && sel.has(a.from.ref)) && !(a.to.ref != null && sel.has(a.to.ref)));
+  sel.clear(); commit(); render(); renderProps();
+}
+function rotSel() {
+  let ch = false;
+  sel.forEach((id) => {
+    const o = find(id); if (!o) return;
+    if (o.type === 'minitor') { o.rot = o.rot === 90 ? 0 : 90; ch = true; }
+    if (o.type === 'kleinfeldtor') { o.rot = ((o.rot || 0) + 90) % 360; ch = true; }
+  });
+  if (ch) { commit(); render(); renderProps(); }
+}
+function nudge(dx, dy) {
+  sel.forEach((id) => {
+    const o = find(id); if (!o) return;
+    if (isArrow(o)) { ['from', 'to'].forEach((k) => { if (o[k].ref == null) { o[k].x += dx; o[k].y += dy; } }); }
+    else { o.x += dx; o.y += dy; }
+  });
+  render(); commitSoon();
+}
+
+// ------------------------------------------------------------------ Zeiger
+function pt(e) {
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(board.getScreenCTM().inverse());
+  return { x: p.x, y: p.y };
+}
+function startMove(p) {
+  const orig = {};
+  sel.forEach((id) => {
+    const o = find(id); if (!o) return;
+    orig[id] = isArrow(o)
+      ? { f: o.from.ref == null ? { x: o.from.x, y: o.from.y } : null, t: o.to.ref == null ? { x: o.to.x, y: o.to.y } : null }
+      : { x: o.x, y: o.y };
+  });
+  drag = { mode: 'move', start: p, orig, moved: false };
+}
+
+board.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  board.setPointerCapture(e.pointerId);
+  const p = pt(e);
+  if (tool !== 'select') {
+    const from = itemAt(p);
+    const a = { id: S.seq++, typ: tool, from: from ? { ref: from.id } : { x: sn(p.x), y: sn(p.y) }, to: { x: p.x, y: p.y }, bogen: 0, nr: '' };
+    S.arrows.push(a); sel = new Set([a.id]);
+    drag = { mode: 'newarrow', a };
+    render(); renderProps(); return;
+  }
+  closeEditor();
+  const now = performance.now();
+  const dbl = lastDown && now - lastDown.t < 450 && Math.hypot(p.x - lastDown.x, p.y - lastDown.y) < 10;
+  lastDown = { t: now, x: p.x, y: p.y };
+  if (dbl && tryEdit(p)) { e.preventDefault(); lastDown = null; return; }
+  const hEl = e.target.closest('[data-h]');
+  if (hEl) { drag = { mode: 'handle', kind: hEl.dataset.h, id: +hEl.dataset.hid, moved: false }; return; }
+  const el = e.target.closest('[data-id]');
+  if (el) {
+    const id = +el.dataset.id;
+    if (e.shiftKey) { sel.has(id) ? sel.delete(id) : sel.add(id); }
+    else if (!sel.has(id)) sel = new Set([id]);
+    if (e.altKey && sel.has(id)) dupSel(0, 0);
+    startMove(p); render(); renderProps(); return;
+  }
+  if (!e.shiftKey) sel.clear();
+  drag = { mode: 'marquee', base: new Set(sel) };
+  marquee = { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+  render(); renderProps();
+});
+
+board.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const p = pt(e);
+  const free = e.shiftKey ? (v) => v : sn;
+  switch (drag.mode) {
+    case 'move': {
+      const dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+      if (!drag.moved && Math.hypot(dx, dy) < 3) return;
+      drag.moved = true;
+      for (const id in drag.orig) {
+        const o = find(+id), g = drag.orig[id]; if (!o) continue;
+        if (isArrow(o)) {
+          if (g.f) { o.from.x = free(g.f.x + dx); o.from.y = free(g.f.y + dy); }
+          if (g.t) { o.to.x = free(g.t.x + dx); o.to.y = free(g.t.y + dy); }
+        } else { o.x = free(g.x + dx); o.y = free(g.y + dy); }
+      }
+      render(); break;
+    }
+    case 'newarrow': drag.a.to = { x: p.x, y: p.y }; render(); break;
+    case 'handle': {
+      const o = find(drag.id); if (!o) break;
+      drag.moved = true;
+      if (drag.kind === 'start' || drag.kind === 'end') {
+        const k = drag.kind === 'start' ? 'from' : 'to', other = drag.kind === 'start' ? 'to' : 'from';
+        const hit = itemAt(p, o[other].ref != null ? [o[other].ref] : []);
+        o[k] = hit ? { ref: hit.id } : { x: free(p.x), y: free(p.y) };
+      } else if (drag.kind === 'mid') {
+        const g = geom(o);
+        let b = Math.round(2 * ((p.x - g.mAB.x) * g.nrm.x + (p.y - g.mAB.y) * g.nrm.y));
+        if (Math.abs(b) < 10) b = 0;
+        o.bogen = Math.max(-500, Math.min(500, b));
+      } else if (drag.kind === 'resize') {
+        const l = o.x - o.w / 2, t = o.y - o.h / 2;
+        const nw = Math.max(40, Math.round(free(p.x) - l)), nh = Math.max(40, Math.round(free(p.y) - t));
+        o.w = nw; o.h = nh; o.x = l + nw / 2; o.y = t + nh / 2;
+      }
+      render(); break;
+    }
+    case 'marquee': marquee.x2 = p.x; marquee.y2 = p.y; render(); break;
+  }
+});
+
+function endDrag(e, cancel) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  const p = pt(e);
+  if (d.mode === 'newarrow') {
+    const a = d.a;
+    if (cancel) S.arrows = S.arrows.filter((x) => x !== a);
+    else {
+      const hit = itemAt(p, a.from.ref != null ? [a.from.ref] : []);
+      a.to = hit ? { ref: hit.id } : { x: sn(p.x), y: sn(p.y) };
+      const g = geom(a);
+      if (Math.hypot(g.B.x - g.A.x, g.B.y - g.A.y) < 14) { S.arrows = S.arrows.filter((x) => x !== a); sel.clear(); }
+      else commit();
+    }
+  } else if (d.mode === 'marquee') {
+    const m = marquee; marquee = null;
+    if (m && !cancel && Math.hypot(m.x2 - m.x1, m.y2 - m.y1) > 4) {
+      const x1 = Math.min(m.x1, m.x2), x2 = Math.max(m.x1, m.x2), y1 = Math.min(m.y1, m.y2), y2 = Math.max(m.y1, m.y2);
+      const inside = (x, y) => x >= x1 && x <= x2 && y >= y1 && y <= y2;
+      sel = new Set(d.base);
+      S.items.forEach((i) => { if (inside(i.x, i.y)) sel.add(i.id); });
+      S.arrows.forEach((a) => { if (!geom(a).short && inside(geom(a).mid.x, geom(a).mid.y)) sel.add(a.id); });
+    }
+  } else if (d.moved) commit();
+  render(); renderProps();
+}
+board.addEventListener('pointerup', (e) => endDrag(e, false));
+board.addEventListener('pointercancel', (e) => endDrag(e, true));
+// Direkt bearbeiten: Doppelklick auf Text, Spielernummer, Ball-Beschriftung oder Pfeilnummer
+let activeEditor = null;
+function closeEditor() { if (activeEditor) activeEditor(); }
+function editInline(o) {
+  closeEditor();
+  const arrow = isArrow(o);
+  const key = arrow ? 'nr' : o.type === 'text' ? 'text' : 'label';
+  const pos = arrow ? geom(o).mid : { x: o.x, y: o.y };
+  const m = board.getScreenCTM();
+  const w = o.type === 'text' ? Math.max(140, (o.text || '').length * (o.size || 18) * 0.7) : 76;
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'inline-edit'; input.value = o[key] ?? '';
+  if (!arrow && o.type !== 'text') input.maxLength = 3;
+  input.placeholder = o.type === 'text' ? 'Text' : 'Nr.';
+  Object.assign(input.style, { left: m.a * pos.x + m.e - w / 2 + 'px', top: m.d * pos.y + m.f - 17 + 'px', width: w + 'px' });
+  document.body.appendChild(input);
+  input.focus(); input.select();
+  let done = false;
+  const finish = (ok) => {
+    if (done) return; done = true;
+    activeEditor = null;
+    const v = input.value;
+    input.remove();
+    if (ok && v !== (o[key] ?? '')) { o[key] = v; commit(); }
+    render(); renderProps();
+  };
+  activeEditor = () => finish(true);
+  input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+  input.addEventListener('blur', () => finish(true));
+}
+// Doppelklick selbst erkennen (ein echtes dblclick geht verloren, weil beim ersten Klick neu gezeichnet wird)
+let lastDown = null;
+function tryEdit(p) {
+  const it = itemAt(p);
+  let target = null;
+  if (it && ['text', 'spieler', 'gegner', 'ball'].includes(it.type)) target = it;
+  else if (!it) target = S.arrows.find((a) => { const g = geom(a); return !g.short && Math.hypot(g.mid.x - p.x, g.mid.y - p.y) < 22; }) || null;
+  if (!target) return false;
+  sel = new Set([target.id]); render(); renderProps();
+  setTimeout(() => editInline(target), 50);
+  return true;
+}
+board.addEventListener('dragover', (e) => e.preventDefault());
+board.addEventListener('drop', (e) => {
+  e.preventDefault();
+  try { const proto = JSON.parse(e.dataTransfer.getData('text/plain')); const p = pt(e); addItem(proto, p.x, p.y); } catch (err) { /* ignorieren */ }
+});
+
+// ------------------------------------------------------------------ Tastatur
+window.addEventListener('keydown', (e) => {
+  const tg = e.target;
+  if (tg && tg.matches && (tg.matches('input, textarea, select') || tg.isContentEditable)) return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && k === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && k === 'c') { e.preventDefault(); copySel(); return; }
+  if (mod && k === 'v') { e.preventDefault(); pasteClip(); return; }
+  if (mod && k === 'd') { e.preventDefault(); if (sel.size) { dupSel(24, 24); commit(); render(); renderProps(); } return; }
+  if (mod && k === 'a') { e.preventDefault(); sel = new Set([...S.items.map((i) => i.id), ...S.arrows.map((a) => a.id)]); render(); renderProps(); return; }
+  if (mod) return;
+  if (k === 'delete' || k === 'backspace') { e.preventDefault(); delSel(); return; }
+  if (k === 'escape') { setTool('select'); sel.clear(); render(); renderProps(); return; }
+  if (k === 'v') return setTool('select');
+  if (k === 'p') return setTool('pass');
+  if (k === 'l') return setTool('lauf');
+  if (k === 'w') return setTool('wurf');
+  if (k === 'r') return rotSel();
+  const step = e.shiftKey ? 10 : 1;
+  if (k === 'arrowleft') { e.preventDefault(); nudge(-step, 0); }
+  if (k === 'arrowright') { e.preventDefault(); nudge(step, 0); }
+  if (k === 'arrowup') { e.preventDefault(); nudge(0, -step); }
+  if (k === 'arrowdown') { e.preventDefault(); nudge(0, step); }
+});
+
+// ------------------------------------------------------------------ Werkzeuge / Kopfzeile
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('#tools button').forEach((b) => b.classList.toggle('on', b.dataset.tool === t));
+  board.style.cursor = t === 'select' ? 'default' : 'crosshair';
+}
+document.querySelectorAll('#tools button').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+$('#undo').onclick = undo; $('#redo').onclick = redo;
+$('#format').onchange = (e) => { [S.w, S.h] = SIZES[e.target.value]; fit(); render(); commit(); };
+$('#chkGrid').onchange = (e) => { grid = e.target.checked; render(); };
+$('#chkSnap').onchange = (e) => { snap = e.target.checked; };
+$('#chkLegend').onchange = (e) => { S.legend = e.target.checked; render(); commit(); };
+$('#chkRasen').onchange = (e) => { S.rasen = e.target.checked; render(); commit(); };
+$('#inName').oninput = (e) => { S.uebung = e.target.value; commitSoon(); };
+$('#inAufbau').oninput = (e) => { S.aufbau = e.target.value; commitSoon(); };
+$('#inAblauf').oninput = (e) => { S.ablauf = e.target.value; commitSoon(); };
+$('#btnNew').onclick = () => {
+  if ((S.items.length || S.arrows.length) && !confirm('Alle Elemente verwerfen und neu beginnen?')) return;
+  S = blank(); sel.clear(); syncInputs(); fit(); render(); renderProps(); commit();
+};
+
+// ------------------------------------------------------------------ Eigenschaften
+const opt = (list, v) => list.map(([k, t]) => `<option value="${k}"${String(k) === String(v) ? ' selected' : ''}>${t}</option>`).join('');
+const rowSel = (label, k, list, v, num = false) => `<div class="row"><span>${label}</span><select data-k="${k}"${num ? ' data-t="n"' : ''}>${opt(list, v)}</select></div>`;
+const rowTxt = (label, k, v, t = 'text', extra = '') => `<div class="row"><span>${label}</span><input type="${t}" data-k="${k}" ${t === 'number' ? 'data-t="n"' : ''} value="${esc(v)}" ${extra}></div>`;
+
+function renderProps() {
+  const list = [...sel].map(find).filter(Boolean);
+  if (!list.length) { selprops.innerHTML = '<p class="hint">Nichts ausgewählt. Klicke ein Element an oder ziehe einen Rahmen auf.</p>'; return; }
+  if (list.length > 1) {
+    const allPl = list.every((o) => !isArrow(o) && o.type === 'spieler');
+    selprops.innerHTML = `<p class="hint">${list.length} Elemente ausgewählt.</p>` + (allPl ? rowSel('Team für alle', 'team', TEAM_OPT, '') : '') +
+      `<div class="btns"><button data-act="dup">Duplizieren</button><button data-act="del" class="danger">Löschen</button></div>`;
+    return;
+  }
+  const o = list[0];
+  let h = '';
+  if (isArrow(o)) {
+    h += `<p class="hint"><b>${{ pass: 'Pass', lauf: 'Laufweg', wurf: 'Wurf' }[o.typ] || 'Pfeil'}</b></p>` +
+      rowSel('Art', 'typ', [['pass', 'Pass (durchgezogen)'], ['lauf', 'Laufweg / Dribbling (S-Welle)'], ['wurf', 'Wurf (gepunktet)']], o.typ) +
+      `<div class="row"><span>Biegung</span><input type="range" min="-300" max="300" step="5" data-k="bogen" data-t="n" value="${o.bogen || 0}"></div>` +
+      rowTxt('Nummer (optional)', 'nr', o.nr || '') +
+      `<div class="btns"><button data-act="swap">Richtung umkehren</button><button data-act="del" class="danger">Löschen</button></div>`;
+  } else {
+    h += `<p class="hint"><b>${NAMES[o.type]}</b></p>`;
+    if (o.type === 'spieler') h += rowSel('Team', 'team', TEAM_OPT, o.team) + rowTxt('Nummer / Buchstabe', 'label', o.label || '', 'text', 'maxlength="3"');
+    if (o.type === 'gegner') h += rowTxt('Beschriftung (optional)', 'label', o.label || '', 'text', 'maxlength="3"');
+    if (o.type === 'ball') h += rowTxt('Beschriftung (optional)', 'label', o.label || '', 'text', 'maxlength="3"');
+    if (o.type === 'huetchen') h += rowSel('Farbe', 'farbe', FARBE_OPT, o.farbe);
+    if (o.type === 'minitor') h += rowSel('Farbmarkierung', 'farbe', TOR_OPT, o.farbe) + `<div class="btns"><button data-act="rot">Drehen (R)</button></div>`;
+    if (o.type === 'stange') h += rowSel('Farbe', 'farbe', STANGE_OPT, o.farbe);
+    if (o.type === 'leibchen') h += rowSel('Farbe', 'farbe', LEIB_OPT, o.farbe);
+    if (o.type === 'kleinfeldtor') h += rowSel('Öffnung', 'rot', OEFF_OPT, o.rot || 0, true) + rowTxt('Breite', 'laenge', o.laenge || 110, 'number', 'min="40" step="10"') + `<div class="btns"><button data-act="rot">Drehen (R)</button></div>`;
+    if (o.type === 'text') h += rowTxt('Text', 'text', o.text) + rowTxt('Schriftgröße', 'size', o.size, 'number', 'min="10" max="60"');
+    if (o.type === 'feld') h += rowTxt('Breite', 'w', o.w, 'number', 'min="40" step="10"') + rowTxt('Höhe', 'h', o.h, 'number', 'min="40" step="10"');
+    h += `<div class="btns"><button data-act="dup">Duplizieren</button><button data-act="del" class="danger">Löschen</button></div>`;
+  }
+  selprops.innerHTML = h;
+}
+selprops.addEventListener('input', (e) => {
+  const el = e.target, k = el.dataset.k; if (!k) return;
+  let v = el.value;
+  if (el.dataset.t === 'n') { v = parseFloat(v); if (Number.isNaN(v)) return; }
+  if (k === 'team' && !v) return;
+  sel.forEach((id) => { const o = find(id); if (o) o[k] = v; });
+  render(); commitSoon();
+});
+selprops.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act;
+  if (a === 'del') delSel();
+  if (a === 'dup') { dupSel(24, 24); commit(); render(); renderProps(); }
+  if (a === 'rot') rotSel();
+  if (a === 'swap') { sel.forEach((id) => { const o = find(id); if (o && isArrow(o)) { [o.from, o.to] = [o.to, o.from]; } }); commit(); render(); }
+});
+
+// ------------------------------------------------------------------ Palette
+(function buildPalette() {
+  const pal = $('#palette');
+  PALETTE.forEach(([title, list]) => {
+    const h = document.createElement('h2'); h.textContent = title; pal.appendChild(h);
+    const box = document.createElement('div'); box.className = 'pal'; pal.appendChild(box);
+    list.forEach((proto) => {
+      const b = document.createElement('button');
+      b.draggable = true; b.title = proto.name + ' – klicken oder auf die Fläche ziehen';
+      let icon;
+      if (proto.t === 'feld') icon = `<rect x="-26" y="-16" width="52" height="32" fill="#a9c93c" fill-opacity=".3" stroke="#4c5d3a" stroke-width="2"/>`;
+      else if (proto.t === 'text') icon = `<text y="7" text-anchor="middle" font-size="22" font-weight="600" fill="#111">Aa</text>`;
+      else {
+        const demo = { type: proto.t, team: proto.team, farbe: proto.farbe || (proto.t === 'stange' ? 'rot' : proto.t === 'minitor' ? 'grau' : undefined), label: proto.t === 'spieler' ? (proto.neutral ? (proto.team === 'gelb' ? 'A' : 'B') : '1') : '', rot: 0, laenge: 110 };
+        icon = shapeMarkup(demo);
+        if (proto.t === 'kleinfeldtor') icon = `<g transform="scale(.52)">${icon}</g>`;
+        if (proto.t === 'minitor') icon = `<g transform="scale(.9)">${icon}</g>`;
+      }
+      b.innerHTML = `<svg viewBox="-34 -27 68 54">${icon}</svg><span>${esc(proto.name)}</span>`;
+      b.addEventListener('click', () => {
+        const o = (cascade++ % 6) * 26;
+        addItem(proto, S.w / 2 - 65 + o, S.h / 2 - 65 + o);
+      });
+      b.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', JSON.stringify(proto)); e.dataTransfer.effectAllowed = 'copy'; });
+      box.appendChild(b);
+    });
+  });
+})();
+
+// ------------------------------------------------------------------ Export / Import
+const rnd = (v) => Math.round(v);
+function toSpec() {
+  const spec = { breite: S.w, hoehe: S.h, legende: S.legend };
+  if (S.uebung) spec.uebung = S.uebung;
+  if (S.aufbau) spec.aufbau = S.aufbau;
+  if (S.ablauf) spec.ablauf = S.ablauf;
+  const cnt = {}, ids = new Map();
+  const mk = (pre, it) => { cnt[pre] = (cnt[pre] || 0) + 1; const id = pre + cnt[pre]; ids.set(it.id, id); return id; };
+  const out = { flaechen: [], huetchen: [], spieler: [], leibchen: [], baelle: [], minitore: [], kleinfeldtore: [], stangen: [], diamanten: [], texte: [], aktionen: [] };
+  S.items.forEach((it) => {
+    const x = rnd(it.x), y = rnd(it.y);
+    switch (it.type) {
+      case 'feld': {
+        const l = rnd(it.x - it.w / 2), r = rnd(it.x + it.w / 2), t = rnd(it.y - it.h / 2), b = rnd(it.y + it.h / 2);
+        out.flaechen.push({ punkte: [[l, t], [r, t], [r, b], [l, b]], fuellung: '#a9c93c', deckkraft: 0.28 }); break;
+      }
+      case 'spieler': out.spieler.push({ id: mk('s', it), x, y, team: it.team, label: it.label || '' }); break;
+      case 'gegner': out.spieler.push({ id: mk('s', it), x, y, team: 'gegner', label: it.label || '' }); break;
+      case 'ball': { const o = { id: mk('b', it), x, y }; if (it.label) o.label = it.label; out.baelle.push(o); break; }
+      case 'huetchen': { const o = { id: mk('h', it), x, y }; if (it.farbe && it.farbe !== 'orange') o.farbe = it.farbe; out.huetchen.push(o); break; }
+      case 'minitor': { const o = { id: mk('m', it), x, y, ausrichtung: it.rot === 90 ? 'vertikal' : 'horizontal' }; if (it.farbe && it.farbe !== 'grau') o.farbe = it.farbe; out.minitore.push(o); break; }
+      case 'stange': out.stangen.push({ id: mk('st', it), x, y, farbe: it.farbe || 'rot' }); break;
+      case 'leibchen': out.leibchen.push({ id: mk('l', it), x, y, farbe: it.farbe || 'gelb' }); break;
+      case 'kleinfeldtor': out.kleinfeldtore.push({ id: mk('k', it), x, y, oeffnung: OEFF_NAME[((it.rot || 0) / 90) % 4], laenge: it.laenge || 110 }); break;
+      case 'diamant': out.diamanten.push({ id: mk('d', it), x, y }); break;
+      case 'text': out.texte.push({ x, y, text: it.text, groesse: it.size || 18 }); break;
+    }
+  });
+  S.arrows.forEach((a) => {
+    const g = geom(a);
+    if (g.short) return;
+    const f = (e) => (e.ref != null && ids.has(e.ref) ? ids.get(e.ref) : [rnd(ep(e).x), rnd(ep(e).y)]);
+    const o = { typ: a.typ, von: f(a.from), nach: f(a.to) };
+    if (a.bogen) o.bogen = rnd(a.bogen);
+    if (a.nr) o.nr = a.nr;
+    out.aktionen.push(o);
+  });
+  for (const k in out) if (out[k].length) spec[k] = out[k];
+  return spec;
+}
+
+function fromSpec(sp) {
+  const n = blank();
+  n.w = sp.breite || 760; n.h = sp.hoehe || 1000; n.legend = sp.legende !== false;
+  n.uebung = sp.uebung || ''; n.aufbau = sp.aufbau || ''; n.ablauf = sp.ablauf || '';
+  const map = {};
+  const add = (o, eid) => { o.id = n.seq++; n.items.push(o); if (eid != null) map[String(eid)] = o.id; return o; };
+  (sp.flaechen || []).forEach((f) => {
+    const xs = f.punkte.map((p) => p[0]), ys = f.punkte.map((p) => p[1]);
+    const l = Math.min(...xs), r = Math.max(...xs), t = Math.min(...ys), b = Math.max(...ys);
+    add({ type: 'feld', x: (l + r) / 2, y: (t + b) / 2, w: r - l, h: b - t });
+  });
+  (sp.huetchen || []).forEach((h) => add({ type: 'huetchen', x: h.x, y: h.y, farbe: FARBE_COL[h.farbe] ? h.farbe : 'orange' }, h.id));
+  (sp.spieler || []).forEach((p) => {
+    if (p.team === 'gegner') add({ type: 'gegner', x: p.x, y: p.y, label: p.label ?? '' }, p.id);
+    else add({ type: 'spieler', x: p.x, y: p.y, team: TEAM_COL[p.team] && p.team !== 'gegner' ? p.team : 'rot', label: String(p.label ?? p.id ?? '') }, p.id);
+  });
+  (sp.baelle || []).forEach((b) => add({ type: 'ball', x: b.x, y: b.y, label: b.label || '' }, b.id));
+  (sp.minitore || []).forEach((g) => add({ type: 'minitor', x: g.x, y: g.y, rot: g.ausrichtung === 'vertikal' ? 90 : 0, farbe: ['gelb', 'gruen', 'rot', 'blau'].includes(g.farbe) ? g.farbe : 'grau' }, g.id));
+  (sp.stangen || []).forEach((s) => add({ type: 'stange', x: s.x, y: s.y, farbe: FARBE_COL[s.farbe] ? s.farbe : 'rot' }, s.id));
+  (sp.leibchen || []).forEach((l) => add({ type: 'leibchen', x: l.x, y: l.y, farbe: LEIB_COL[l.farbe] ? l.farbe : 'gelb' }, l.id));
+  (sp.kleinfeldtore || []).forEach((k) => add({ type: 'kleinfeldtor', x: k.x, y: k.y, rot: Math.max(0, OEFF_NAME.indexOf(k.oeffnung)) * 90, laenge: k.laenge || 110 }, k.id));
+  (sp.diamanten || []).forEach((d) => add({ type: 'diamant', x: d.x, y: d.y }, d.id));
+  (sp.texte || []).forEach((t) => add({ type: 'text', x: t.x, y: t.y, text: t.text, size: t.groesse || 18 }));
+  (sp.aktionen || []).forEach((a) => {
+    const f = (v) => (Array.isArray(v) ? { x: v[0], y: v[1] } : map[String(v)] != null ? { ref: map[String(v)] } : null);
+    const from = f(a.von), to = f(a.nach);
+    if (!from || !to) return;
+    n.arrows.push({ id: n.seq++, typ: a.typ === 'pass' ? 'pass' : a.typ === 'wurf' ? 'wurf' : 'lauf', from, to, bogen: a.bogen || 0, nr: a.nr != null ? String(a.nr) : '' });
+  });
+  return n;
+}
+
+function slug() { return (S.uebung || 'skizze').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'skizze'; }
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800); }
+
+$('#btnCopy').onclick = async () => {
+  const text = JSON.stringify(toSpec(), null, 2);
+  try { await navigator.clipboard.writeText(text); toast('JSON kopiert – jetzt im Chat einfügen'); }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); toast('JSON kopiert – jetzt im Chat einfügen');
+  }
+};
+$('#btnSave').onclick = () => { download(new Blob([JSON.stringify(toSpec(), null, 2)], { type: 'application/json' }), slug() + '.json'); toast('Gespeichert'); };
+$('#btnPng').onclick = () => {
+  const img = new Image(), url = URL.createObjectURL(new Blob([fullSvg()], { type: 'image/svg+xml' }));
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = S.w * 2; c.height = S.h * 2;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    c.toBlob((b) => download(b, slug() + '.png'));
+  };
+  img.src = url;
+};
+// Skizze als Bild (JPEG) für die App: SVG -> Canvas -> data:-URL
+function svgToDataUrl(type, quality, scale) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(new Blob([fullSvg()], { type: 'image/svg+xml' }));
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = Math.round(S.w * scale); c.height = Math.round(S.h * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      resolve(c.toDataURL(type, quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Bild konnte nicht erzeugt werden')); };
+    img.src = url;
+  });
+}
+// Entwurf an das Formular "Neue Übung" der App übergeben (gleiche Adresse -> localStorage)
+$('#btnApp').onclick = async () => {
+  closeEditor();
+  const count = (t) => S.items.filter((i) => i.type === t).length;
+  const spieler = count('spieler');
+  const draft = {
+    name: S.uebung, aufbau: S.aufbau, ablauf: S.ablauf,
+    minPlayers: spieler || undefined, maxPlayers: spieler || undefined,
+    smallGoals: count('kleinfeldtor'), miniGoals: count('minitor'),
+  };
+  try {
+    if (S.items.length || S.arrows.length) draft.bild = await svgToDataUrl('image/jpeg', 0.9, 1.5);
+    localStorage.setItem('uebungsentwurf', JSON.stringify(draft));
+  } catch (err) {
+    alert('Übernahme nicht möglich: ' + err.message + ' – Nutze alternativ „PNG“ und lade das Bild im Formular hoch.');
+    return;
+  }
+  location.href = '/exercises/new';
+};
+$('#btnLoad').onclick = () => $('#fileLoad').click();
+$('#fileLoad').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { S = fromSpec(JSON.parse(await f.text())); sel.clear(); syncInputs(); fit(); render(); renderProps(); commit(); toast('Geladen'); }
+  catch (err) { alert('Datei konnte nicht gelesen werden: ' + err.message); }
+};
+
+// ------------------------------------------------------------------ Start
+try {
+  const saved = localStorage.getItem(KEY);
+  if (saved) { const p = JSON.parse(saved); if (p && Array.isArray(p.items) && Array.isArray(p.arrows)) S = Object.assign(blank(), p); }
+} catch (e) { /* ignorieren */ }
+if (/^https?:$/.test(location.protocol)) { $('#backLink').hidden = false; $('#btnApp').hidden = false; $('#btnCopy').classList.remove('primary'); }
+syncInputs(); setTool('select'); fit(); render(); renderProps(); commit();
+window.skizze = { toSpec, fromSpec, svg: fullSvg, state: () => S, load: (sp) => { S = fromSpec(sp); sel.clear(); syncInputs(); fit(); render(); renderProps(); commit(); } };
+})();
+</script>
+</body>
+</html>

@@ -25,14 +25,25 @@ export default async function ExercisesPage({
       <SavedQueryNotice />
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Übungen</h1>
-        {canWrite && (
-          <Link
-            href="/exercises/new"
-            className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+        <div className="flex items-center gap-2">
+          {/* Statische Seite aus public/ (eigenstaendiges Werkzeug), daher normaler Link statt next/link. */}
+          <a
+            href="/uebungskonfigurator.html"
+            target="_blank"
+            rel="noopener"
+            className="rounded border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
-            Neue Übung
-          </Link>
-        )}
+            Übungskonfigurator
+          </a>
+          {canWrite && (
+            <Link
+              href="/exercises/new"
+              className="rounded bg-zinc-900 px-4 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              Neue Übung
+            </Link>
+          )}
+        </div>
       </div>
       <p className="mb-6 text-sm text-zinc-500">
         Die Übungen deines Teams. Weitere Übungen anderer Teams holst du dir
