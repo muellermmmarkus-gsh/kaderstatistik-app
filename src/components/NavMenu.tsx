@@ -31,6 +31,7 @@ const menu: MenuGroup[] = [
     items: [
       { label: "Live-Ergebnis", href: "/results/live" },
       { label: "Spielberichte", href: "/results/recent" },
+      { label: "Wettbewerbe", href: "/competitions" },
     ],
   },
   {

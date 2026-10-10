@@ -81,6 +81,13 @@ Grundlage ist [`supabase/migration_033_teams.sql`](supabase/migration_033_teams.
   und unter „Kaderstatistik"; der **Name im Spielbetrieb**
   (`teams.match_name`, z.B. „TV Geisenhausen E7 1") erkennt die eigene
   Mannschaft im Live-Ergebnis. Beides pflegt der Admin unter ADMIN → Teams.
+- **Wettbewerbe:** „Spielbetrieb → Wettbewerbe" zeigt das BFV-Widget
+  (Ergebnisse, Tabelle, Torschützen) des Teams. Die Wettbewerbs-ID aus dem
+  BFV-Widget-Code (`zeigeWettbewerb("<ID>", …)`) pflegt der Admin unter
+  ADMIN → Teams (`teams.bfv_competition_id`,
+  [`supabase/migration_038_team_bfv_widget.sql`](supabase/migration_038_team_bfv_widget.sql)).
+  Eingebettet wird direkt der iframe von widget-prod.bfv.de statt des
+  BFV-Skripts, damit kein fremder Code in der App läuft.
 - **Teamwechsel (nur Admin):** In der Menüleiste ist der Teamname für den
   Admin eine Auswahlliste. Ein Wechsel ordnet das eigene Konto dem gewählten
   Team zu (`profiles.team_id`) – danach zeigt die ganze App dieses Team, mit

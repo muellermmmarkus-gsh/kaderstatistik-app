@@ -8,6 +8,8 @@ export type CurrentProfile = {
   teamName: string | null;
   /** Mannschaftsname im Spielbetrieb (Live-Ergebnis, Spielberichte). */
   teamMatchName: string | null;
+  /** BFV-Wettbewerbs-ID fuer das Widget unter "Wettbewerbe". */
+  teamBfvCompetitionId: string | null;
   requestedTeam: string | null;
 };
 
@@ -21,13 +23,13 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, is_admin, team_id, requested_team, teams(name, match_name)")
+    .select("role, is_admin, team_id, requested_team, teams(name, match_name, bfv_competition_id)")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile) return null;
 
   const team = (Array.isArray(profile.teams) ? profile.teams[0] : profile.teams) as
-    | { name: string; match_name: string }
+    | { name: string; match_name: string; bfv_competition_id: string | null }
     | null;
   return {
     role: profile.role,
@@ -35,6 +37,7 @@ export const getCurrentProfile = cache(async (): Promise<CurrentProfile | null> 
     teamId: profile.team_id,
     teamName: team?.name ?? null,
     teamMatchName: team?.match_name ?? null,
+    teamBfvCompetitionId: team?.bfv_competition_id ?? null,
     requestedTeam: profile.requested_team,
   };
 });

@@ -16,7 +16,7 @@ type Profile = {
   created_at: string;
 };
 
-type Team = { id: string; name: string; match_name: string };
+type Team = { id: string; name: string; match_name: string; bfv_competition_id: string | null };
 
 type LoginEvent = {
   user_id: string;
@@ -178,7 +178,7 @@ export default async function AdminPage({
       .from("login_events")
       .select("user_id, created_at")
       .order("created_at", { ascending: false }),
-    supabase.from("teams").select("id, name, match_name").order("name"),
+    supabase.from("teams").select("id, name, match_name, bfv_competition_id").order("name"),
     searchParams,
   ]);
 
@@ -381,6 +381,18 @@ export default async function AdminPage({
                   required
                   maxLength={80}
                   className="w-56 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-zinc-500" title="Aus dem BFV-Widget-Code: zeigeWettbewerb(&quot;…&quot;, …)">
+                  BFV-Wettbewerbs-ID
+                </span>
+                <input
+                  name="bfvCompetitionId"
+                  defaultValue={team.bfv_competition_id ?? ""}
+                  placeholder="leer = kein Widget"
+                  maxLength={66}
+                  className="w-72 rounded border border-zinc-300 px-2 py-1 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </label>
               <span className="pb-1.5 text-xs text-zinc-500">

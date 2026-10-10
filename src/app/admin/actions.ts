@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/supabase/profile";
+import { BFV_COMPETITION_ID_PATTERN } from "@/app/competitions/BfvWidget";
 
 const ROLES = new Set(["pending", "parent_player", "trainer"]);
 const NEW_TEAM = "__new__";
@@ -85,13 +86,18 @@ export async function switchTeam(teamId: string) {
 export async function updateTeam(teamId: string, formData: FormData) {
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
   const matchName = String(formData.get("matchName") ?? "").trim().slice(0, 80);
+  // Aus dem BFV-Widget-Code: zeigeWettbewerb("<ID>", ...). Leer = kein Widget.
+  const bfvCompetitionId = String(formData.get("bfvCompetitionId") ?? "").trim().replace(/^"|"$/g, "");
   if (!name || !matchName) fail("Teamname und Name im Spielbetrieb dürfen nicht leer sein.");
+  if (bfvCompetitionId && !BFV_COMPETITION_ID_PATTERN.test(bfvCompetitionId)) {
+    fail("Die BFV-Wettbewerbs-ID darf nur Buchstaben, Ziffern und Bindestriche enthalten (10–64 Zeichen).");
+  }
   if (!(await isAdmin())) fail("Keine Berechtigung.");
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("teams")
-    .update({ name, match_name: matchName })
+    .update({ name, match_name: matchName, bfv_competition_id: bfvCompetitionId || null })
     .eq("id", teamId);
   if (error) {
     fail(
