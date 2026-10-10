@@ -97,7 +97,7 @@ export default function LiveResultBoard({
       const el = listRef.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
-      // 32px = unteres Padding der Seite (py-8)
+      // 32px = unteres Padding der Seite (py-8; die Hoehe greift nur ab xl)
       setListMaxHeight(Math.max(240, window.innerHeight - top - 32));
     }
     measure();
@@ -105,12 +105,60 @@ export default function LiveResultBoard({
     return () => window.removeEventListener("resize", measure);
   }, []);
 
+  // Eingabe fuer das naechste Tor. Wird zweimal gerendert und per CSS nur
+  // einmal angezeigt: auf dem Handy direkt unter dem Spielstand (ohne Scrollen
+  // erreichbar), am PC wie bisher am Ende der Tabelle.
+  const renderNewRow = (placement: "mobile" | "desktop") => (
+    <EntryRow
+      key={`new-${placement}-${newRowKey}`}
+      eventId={eventId}
+      teamNames={{ a: teamA, b: teamB }}
+      entry={null}
+      ownSide={ownSide}
+      optionsFor={optionsFor}
+      canWrite
+      autoFocus={newRowKey > 0 || isFinished}
+      onSaved={(saved) => {
+        setEntries((prev) => [...prev, saved]);
+        // Neue, leere Zeile fuer den naechsten Eintrag (live) bzw.
+        // Zeile wieder ausblenden (beendetes Spiel).
+        setNewRowKey((k) => k + 1);
+        if (isFinished) setShowNewRow(false);
+      }}
+      onDeleted={() => {}}
+    />
+  );
+
+  const finishedControls = canWrite && isFinished && (
+    <div className="flex gap-3">
+      {showNewRow ? (
+        <button
+          type="button"
+          onClick={() => setShowNewRow(false)}
+          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          Abbrechen
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowNewRow(true)}
+          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+        >
+          + Zusätzlicher Toreintrag
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold">{isFinished ? "Ergebnis" : "Live-Ergebnis"}</h1>
-          <p className="text-sm text-zinc-500">{subtitle}</p>
+      <div className="mb-3 flex items-start justify-between gap-3 xl:mb-6 xl:flex-wrap xl:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold xl:text-xl">
+            {isFinished ? "Ergebnis" : "Live-Ergebnis"}
+          </h1>
+          <p className="text-xs text-zinc-500 xl:text-sm">{subtitle}</p>
           {isFinished && (
             <p className="mt-1 text-sm font-medium text-green-700 dark:text-green-400">
               Spiel ist beendet und archiviert – Einträge können weiterhin geändert werden.
@@ -130,7 +178,7 @@ export default function LiveResultBoard({
           (isFinished ? (
             <Link
               href="/results/recent"
-              className="rounded-lg bg-zinc-900 px-6 py-3 text-base font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
+              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white xl:px-6 xl:py-3 xl:text-base dark:bg-zinc-100 dark:text-zinc-900"
             >
               Fertig
             </Link>
@@ -139,28 +187,52 @@ export default function LiveResultBoard({
               type="button"
               disabled={finishing}
               onClick={() => setConfirmFinish(true)}
-              className="rounded-lg bg-red-600 px-8 py-4 text-lg font-bold text-white shadow hover:bg-red-700 disabled:opacity-60"
+              className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-red-700 disabled:opacity-60 xl:px-8 xl:py-4 xl:text-lg"
             >
               {finishing ? "Wird archiviert…" : "Spiel beendet"}
             </button>
           ))}
       </div>
 
-      <div className="mb-6 flex items-center justify-center gap-6 rounded-lg border border-zinc-200 py-4 dark:border-zinc-800">
-        <span className="flex-1 text-right text-sm font-medium">{teamA}</span>
-        <span className="text-4xl font-bold tabular-nums">
+      <div className="mb-3 flex items-center justify-center gap-3 rounded-lg border border-zinc-200 py-2 xl:mb-6 xl:gap-6 xl:py-4 dark:border-zinc-800">
+        <span className="flex-1 text-right text-xs font-medium xl:text-sm">{teamA}</span>
+        <span className="text-3xl font-bold tabular-nums xl:text-4xl">
           {scoreA} : {scoreB}
         </span>
-        <span className="flex-1 text-sm font-medium">{teamB}</span>
+        <span className="flex-1 text-xs font-medium xl:text-sm">{teamB}</span>
       </div>
 
-      {/* Eigener Scrollbereich fuer die Eintraege: Kopf mit Mannschaften und
-          Spielstand oben bleibt immer sichtbar, die Spaltenueberschrift klebt
-          oben im Scrollbereich. */}
+      {/* Handy: Eingabe fuer das naechste Tor als eigener, klar abgesetzter
+          Bereich direkt unter dem Spielstand. */}
+      {canWrite && (
+        <div className="mb-4 space-y-2 xl:hidden">
+          {finishedControls}
+          {showNewRow && (
+            <section aria-label="Neues Tor eintragen">
+              <h2 className="mb-1 text-sm font-semibold text-green-800 dark:text-green-400">
+                Neues Tor eintragen
+              </h2>
+              {renderNewRow("mobile")}
+            </section>
+          )}
+        </div>
+      )}
+
+      <h2 className="mb-1 text-sm font-semibold text-zinc-600 xl:hidden dark:text-zinc-400">
+        Bisherige Tore ({entries.length})
+      </h2>
+
+      {/* Am PC eigener Scrollbereich fuer die Eintraege (Kopf mit Mannschaften
+          und Spielstand bleibt sichtbar, die Spaltenueberschrift klebt oben).
+          Auf dem Handy scrollt einfach die Seite. */}
       <div
         ref={listRef}
-        style={listMaxHeight ? { maxHeight: listMaxHeight } : undefined}
-        className="overflow-auto rounded-lg border border-zinc-200 dark:border-zinc-800"
+        style={
+          listMaxHeight
+            ? ({ "--list-max-height": `${listMaxHeight}px` } as React.CSSProperties)
+            : undefined
+        }
+        className="rounded-lg border border-zinc-200 xl:max-h-[var(--list-max-height)] xl:overflow-auto dark:border-zinc-800"
       >
         <div className="flex flex-col gap-2 px-2 py-2 xl:min-w-[76rem] xl:pt-0">
           <div
@@ -194,54 +266,26 @@ export default function LiveResultBoard({
             />
           ))}
 
-          {/* Auf dem Handy steht die Eingabe fuer das naechste Tor oben, damit
-              sie ohne Scrollen erreichbar bleibt. */}
-          {canWrite && showNewRow && (
-            <EntryRow
-              className="order-first xl:order-none"
-              key={`new-${newRowKey}`}
-              eventId={eventId}
-              teamNames={{ a: teamA, b: teamB }}
-              entry={null}
-              ownSide={ownSide}
-              optionsFor={optionsFor}
-              canWrite
-              autoFocus={newRowKey > 0 || isFinished}
-              onSaved={(saved) => {
-                setEntries((prev) => [...prev, saved]);
-                // Neue, leere Zeile fuer den naechsten Eintrag (live) bzw.
-                // Zeile wieder ausblenden (beendetes Spiel).
-                setNewRowKey((k) => k + 1);
-                if (isFinished) setShowNewRow(false);
-              }}
-              onDeleted={() => {}}
-            />
+          {!entries.length && (
+            <p className="py-2 text-sm text-zinc-500 xl:hidden">Noch keine Tore eingetragen.</p>
           )}
 
-          {canWrite && isFinished && (
-            <div className="flex gap-3 pt-1">
-              {showNewRow ? (
-                <button
-                  type="button"
-                  onClick={() => setShowNewRow(false)}
-                  className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-                >
-                  Abbrechen
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowNewRow(true)}
-                  className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-                >
-                  + Zusätzlicher Toreintrag
-                </button>
-              )}
+          {/* PC: Eingabe fuer das naechste Tor am Tabellenende, durch eine
+              Trennlinie mit Ueberschrift klar von den gespeicherten Toren abgesetzt. */}
+          {canWrite && showNewRow && (
+            <div className="hidden xl:block">
+              <div className="flex items-center gap-3 pb-2 pt-3 text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
+                <span>Neues Tor eintragen</span>
+                <span className="h-px flex-1 bg-green-600/40" />
+              </div>
+              {renderNewRow("desktop")}
             </div>
           )}
 
+          {finishedControls && <div className="hidden pt-1 xl:block">{finishedControls}</div>}
+
           {!canWrite && !entries.length && (
-            <p className="py-4 text-sm text-zinc-500">Noch keine Einträge.</p>
+            <p className="hidden py-4 text-sm text-zinc-500 xl:block">Noch keine Einträge.</p>
           )}
         </div>
       </div>
@@ -360,7 +404,11 @@ function EntryRow({
 
   return (
     <div
-      className={`${className} rounded-lg p-2 ${isNew ? "border border-dashed border-zinc-300 dark:border-zinc-700" : "bg-zinc-50 dark:bg-zinc-900/60"}`}
+      className={`${className} rounded-lg p-2 ${
+        isNew
+          ? "border-2 border-green-600 bg-green-50 dark:border-green-700 dark:bg-green-950/40"
+          : "border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/60"
+      }`}
     >
       <form
         className={ROW_GRID}
@@ -509,7 +557,9 @@ function SideInputs({
   return (
     <div
       className={`${className} ${hiddenOnMobile ? "hidden xl:flex" : "flex"} flex-wrap items-center gap-2 rounded-lg p-1 transition xl:flex-nowrap ${
-        active ? "ring-2 ring-green-600" : ""
+        // Gruen nur bei Eingabe/Bearbeitung - gespeicherte Tore neutral, damit
+        // sie sich klar vom neuen Eintrag abheben.
+        active ? (disabled ? "ring-1 ring-zinc-300 dark:ring-zinc-700" : "ring-2 ring-green-600") : ""
       } ${dimmed ? "opacity-40" : ""}`}
     >
       <span className="w-full truncate text-xs font-medium text-zinc-500 xl:hidden">{teamName}</span>
@@ -542,7 +592,9 @@ function SideInputs({
         value={value.note}
         disabled={disabled}
         onChange={(event) => onChange({ note: event.target.value })}
-        className="w-full rounded border border-zinc-300 px-2 py-2 text-sm disabled:bg-transparent xl:w-auto xl:min-w-24 xl:flex-1 dark:border-zinc-700 dark:bg-zinc-900"
+        // Handy: Notiz nur bei der gewaehlten Mannschaft (oder wenn schon eine
+        // Notiz existiert) - spart Hoehe, damit die Eingabe ohne Scrollen passt.
+        className={`${active || value.note ? "" : "hidden xl:block"} w-full rounded border border-zinc-300 bg-white px-2 py-2 text-sm disabled:bg-transparent xl:w-auto xl:min-w-24 xl:flex-1 dark:border-zinc-700 dark:bg-zinc-900`}
       />
     </div>
   );
