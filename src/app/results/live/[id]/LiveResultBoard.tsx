@@ -1,8 +1,18 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import ConfirmDialog from "@/components/ConfirmDialog";
+
+// Stoppuhr nur im Browser: sie liest ihren Stand aus dem localStorage.
+// Platzhalter in gleicher Hoehe, damit nichts springt.
+const Stopwatch = dynamic(() => import("./Stopwatch"), {
+  ssr: false,
+  loading: () => (
+    <div className="mb-2 h-[46px] rounded-lg border border-zinc-200 xl:mb-6 xl:h-[50px] dark:border-zinc-800" />
+  ),
+});
 import { deleteGoalEntry, finishMatch, saveGoalEntry } from "../../actions";
 import {
   scoreOf,
@@ -84,6 +94,12 @@ export default function LiveResultBoard({
   // Live immer eine leere Zeile fuer den naechsten Eintrag; bei beendeten
   // Spielen nur auf Klick auf "Zusätzlicher Toreintrag".
   const [showNewRow, setShowNewRow] = useState(!isFinished);
+  // Minute der Stoppuhr als Vorschlag fuer den naechsten Toreintrag.
+  const [suggestedMinute, setSuggestedMinute] = useState<string | null>(null);
+  const handleMinuteChange = useCallback(
+    (minute: number | null) => setSuggestedMinute(minute === null ? null : String(minute)),
+    [],
+  );
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [finishing, startFinish] = useTransition();
   const [scoreA, scoreB] = scoreOf(entries);
@@ -117,6 +133,7 @@ export default function LiveResultBoard({
       ownSide={ownSide}
       optionsFor={optionsFor}
       canWrite
+      suggestedMinute={isFinished ? null : suggestedMinute}
       autoFocus={newRowKey > 0 || isFinished}
       onSaved={(saved) => {
         setEntries((prev) => [...prev, saved]);
@@ -158,7 +175,9 @@ export default function LiveResultBoard({
           <h1 className="text-lg font-semibold xl:text-xl">
             {isFinished ? "Ergebnis" : "Live-Ergebnis"}
           </h1>
-          <p className="text-xs text-zinc-500 xl:text-sm">{subtitle}</p>
+          <p className="truncate text-xs text-zinc-500 xl:whitespace-normal xl:text-sm" title={subtitle}>
+            {subtitle}
+          </p>
           {isFinished && (
             <p className="mt-1 text-sm font-medium text-green-700 dark:text-green-400">
               Spiel ist beendet und archiviert – Einträge können weiterhin geändert werden.
@@ -194,7 +213,11 @@ export default function LiveResultBoard({
           ))}
       </div>
 
-      <div className="mb-3 flex items-center justify-center gap-3 rounded-lg border border-zinc-200 py-2 xl:mb-6 xl:gap-6 xl:py-4 dark:border-zinc-800">
+      {canWrite && !isFinished && (
+        <Stopwatch eventId={eventId} onMinuteChange={handleMinuteChange} />
+      )}
+
+      <div className="mb-2 flex items-center justify-center gap-3 rounded-lg border border-zinc-200 py-1.5 xl:mb-6 xl:gap-6 xl:py-4 dark:border-zinc-800">
         <span className="flex-1 text-right text-xs font-medium xl:text-sm">{teamA}</span>
         <span className="text-3xl font-bold tabular-nums xl:text-4xl">
           {scoreA} : {scoreB}
@@ -314,6 +337,7 @@ function EntryRow({
   optionsFor,
   canWrite,
   autoFocus = false,
+  suggestedMinute = null,
   runningScore,
   onSaved,
   onDeleted,
@@ -326,6 +350,8 @@ function EntryRow({
   optionsFor: (side: TeamSide) => Option[];
   canWrite: boolean;
   autoFocus?: boolean;
+  /** Minute laut Stoppuhr - Vorschlag fuer einen neuen Eintrag. */
+  suggestedMinute?: string | null;
   /** Zwischenstand nach diesem Eintrag (nur gespeicherte Eintraege). */
   runningScore?: string;
   onSaved: (entry: GoalEntry) => void;
@@ -349,6 +375,9 @@ function EntryRow({
       const other: TeamSide = side === "a" ? "b" : "a";
       return {
         ...d,
+        // Neuer Eintrag: beim ersten Antippen die Minute der Stoppuhr
+        // uebernehmen (bleibt danach frei ueberschreibbar).
+        minute: isNew && !d.minute && suggestedMinute ? suggestedMinute : d.minute,
         team: side,
         [side]: { ...d[side], ...patch },
         [other]: d.team === side ? d[other] : EMPTY_SIDE,
@@ -369,7 +398,7 @@ function EntryRow({
     startTransition(async () => {
       try {
         const saved = await saveGoalEntry(eventId, entry?.id ?? null, {
-          minute: draft.minute,
+          minute: draft.minute || (isNew ? (suggestedMinute ?? "") : ""),
           team: draft.team!,
           kind: side.kind,
           shirtNumber,
@@ -420,7 +449,8 @@ function EntryRow({
         <input
           type="text"
           inputMode="numeric"
-          placeholder="Min."
+          placeholder={isNew && suggestedMinute ? suggestedMinute : "Min."}
+          title={isNew && suggestedMinute ? "Vorschlag aus der Stoppuhr – überschreibbar" : undefined}
           aria-label="Spielminute"
           value={draft.minute}
           disabled={!editable}
