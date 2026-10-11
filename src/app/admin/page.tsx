@@ -13,6 +13,7 @@ type Profile = {
   team_id: string | null;
   requested_team: string | null;
   is_admin: boolean;
+  last_activity_at: string | null;
   created_at: string;
 };
 
@@ -172,7 +173,7 @@ export default async function AdminPage({
     supabase.auth.getUser(),
     supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, role, team_id, requested_team, is_admin, created_at")
+      .select("id, first_name, last_name, email, role, team_id, requested_team, is_admin, last_activity_at, created_at")
       .order("created_at", { ascending: true }),
     supabase
       .from("login_events")
@@ -256,7 +257,10 @@ export default async function AdminPage({
               <th className="py-2 pr-3">Team und Rolle</th>
               <th className="py-2 pr-3">Registriert am</th>
               <th className="py-2 pr-3">Logins</th>
-              <th className="py-2">Letzter Login</th>
+              <th className="py-2 pr-3">Letzter Login</th>
+              <th className="py-2" title="Zuletzt etwas gespeichert, geändert oder gelöscht">
+                Letzte Aktivität
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -330,16 +334,19 @@ export default async function AdminPage({
                 </td>
                 <td className="py-2 pr-3 whitespace-nowrap">{formatDate(u.created_at)}</td>
                 <td className="py-2 pr-3">{loginCountByUser.get(u.id) ?? 0}</td>
-                <td className="py-2 whitespace-nowrap">
+                <td className="py-2 pr-3 whitespace-nowrap">
                   {lastLoginByUser.has(u.id)
                     ? formatDateTime(lastLoginByUser.get(u.id)!)
                     : "–"}
+                </td>
+                <td className="py-2 whitespace-nowrap">
+                  {u.last_activity_at ? formatDateTime(u.last_activity_at) : "–"}
                 </td>
               </tr>
             ))}
             {!users.length && (
               <tr>
-                <td colSpan={7} className="py-4 text-zinc-500">
+                <td colSpan={8} className="py-4 text-zinc-500">
                   Noch keine Nutzer registriert.
                 </td>
               </tr>
