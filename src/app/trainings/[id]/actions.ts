@@ -12,6 +12,10 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
   const durations = formData.getAll("duration_minutes").map(String);
   const blocks = formData.getAll("block").map(String);
   const groupsPerRow = formData.getAll("groups").map(String);
+  // Freitext-Anpassungen je Zeile; leer = Wert aus der Uebung.
+  const fieldTexts = formData.getAll("field_text").map(String);
+  const smallGoalsTexts = formData.getAll("small_goals_text").map(String);
+  const miniGoalsTexts = formData.getAll("mini_goals_text").map(String);
   const playerIds = formData.getAll("player_id").map(String);
   const playerGroupLabels = formData.getAll("player_group").map(String);
 
@@ -33,6 +37,9 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
       exercise_id: exerciseId,
       duration_minutes: Number(durations[index] ?? 0),
       block: Number(blocks[index] ?? 1),
+      field_text: (fieldTexts[index] ?? "").trim().slice(0, 100) || null,
+      small_goals_text: (smallGoalsTexts[index] ?? "").trim().slice(0, 50) || null,
+      mini_goals_text: (miniGoalsTexts[index] ?? "").trim().slice(0, 50) || null,
       groups: (groupsPerRow[index] ?? "")
         .split(",")
         .map((g) => g.trim())
@@ -70,6 +77,9 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
           sort_order: row.sort_order,
           duration_minutes: row.duration_minutes,
           block: row.block,
+          field_text: row.field_text,
+          small_goals_text: row.small_goals_text,
+          mini_goals_text: row.mini_goals_text,
         })),
       )
       .select("id, sort_order");

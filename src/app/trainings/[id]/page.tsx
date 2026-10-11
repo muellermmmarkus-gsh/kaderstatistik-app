@@ -23,6 +23,9 @@ type ExerciseOption = {
 
 type TrainingExerciseRow = {
   duration_minutes: number;
+  field_text: string | null;
+  small_goals_text: string | null;
+  mini_goals_text: string | null;
   sort_order: number;
   block: number;
   training_exercise_groups: { group_label: string }[];
@@ -65,7 +68,7 @@ export default async function TrainingDetailPage({
     supabase
       .from("trainings")
       .select(
-        "focus, notes, training_exercises(duration_minutes, sort_order, block, training_exercise_groups(group_label), exercises(id, name, hauptzweck, min_players, max_players, image_url)), training_player_groups(player_id, group_label)",
+        "focus, notes, training_exercises(duration_minutes, field_text, small_goals_text, mini_goals_text, sort_order, block, training_exercise_groups(group_label), exercises(id, name, hauptzweck, min_players, max_players, image_url)), training_player_groups(player_id, group_label)",
       )
       .eq("event_id", id)
       .maybeSingle(),
@@ -207,6 +210,9 @@ export default async function TrainingDetailPage({
               duration: i.duration_minutes,
               block: i.block,
               groups: i.training_exercise_groups.map((g) => g.group_label),
+              fieldText: i.field_text,
+              smallGoalsText: i.small_goals_text,
+              miniGoalsText: i.mini_goals_text,
             }))}
           initialPlayerGroups={initialPlayerGroups}
           submitLabel="Änderungen speichern"

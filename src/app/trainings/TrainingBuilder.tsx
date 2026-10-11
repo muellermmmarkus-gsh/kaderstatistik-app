@@ -44,7 +44,24 @@ type Row = {
   duration: number;
   block: number;
   groups: string[];
+  // Freitext je Trainingsplan; null = Wert der Uebung (Vorschlag).
+  fieldText: string | null;
+  smallGoalsText: string | null;
+  miniGoalsText: string | null;
 };
+
+const NO_OVERRIDES = { fieldText: null, smallGoalsText: null, miniGoalsText: null };
+
+// Vorschlaege aus der Uebung fuer die Freitextfelder der Detailplanung.
+function exerciseDefaults(exercise: Exercise | undefined) {
+  return {
+    field: exercise?.fields
+      ? `${exercise.fields.name} (${exercise.fields.length_m}×${exercise.fields.width_m} m)`
+      : "",
+    smallGoals: exercise ? String(exercise.small_goals) : "",
+    miniGoals: exercise ? String(exercise.mini_goals) : "",
+  };
+}
 
 function nextBlock(rows: Row[]): number {
   const used = new Set(rows.map((r) => r.block));
@@ -62,6 +79,7 @@ function makeRow(block: number): Row {
     duration: 15,
     block,
     groups: [""],
+    ...NO_OVERRIDES,
   };
 }
 
@@ -85,7 +103,15 @@ export default function TrainingBuilder({
   action: (formData: FormData) => void;
   initialFocus?: string;
   initialNotes?: string;
-  initialRows?: { exerciseId: string; duration: number; block: number; groups: string[] }[];
+  initialRows?: {
+    exerciseId: string;
+    duration: number;
+    block: number;
+    groups: string[];
+    fieldText?: string | null;
+    smallGoalsText?: string | null;
+    miniGoalsText?: string | null;
+  }[];
   initialPlayerGroups?: { playerId: string; group: string }[];
   submitLabel: string;
   backHref: string;
@@ -116,6 +142,9 @@ export default function TrainingBuilder({
           key: crypto.randomUUID(),
           category: exerciseById.get(row.exerciseId)?.category ?? "",
           groups: row.groups.length ? row.groups : [""],
+          fieldText: row.fieldText ?? null,
+          smallGoalsText: row.smallGoalsText ?? null,
+          miniGoalsText: row.miniGoalsText ?? null,
         }))
       : [makeRow(1)],
   );
@@ -229,7 +258,7 @@ export default function TrainingBuilder({
     const firstMatch = exercises.find(
       (ex) => ex.category === category && (!applyFocus || exerciseMatchesFocus(ex, trainingFocus)),
     );
-    updateRow(key, { category, exerciseId: firstMatch?.id ?? "" });
+    updateRow(key, { category, exerciseId: firstMatch?.id ?? "", ...NO_OVERRIDES });
   }
 
   // Setzt nur den Trainings-Schwerpunkt, ohne bereits gewaehlte Uebungen
@@ -270,6 +299,7 @@ export default function TrainingBuilder({
         duration: block.duration,
         block: index + 1,
         groups: [""],
+        ...NO_OVERRIDES,
       };
     });
 
@@ -505,6 +535,7 @@ export default function TrainingBuilder({
                 >
                   {blockRows.map((row, indexInBlock) => {
                   const exercise = exerciseById.get(row.exerciseId);
+                  const defaults = exerciseDefaults(exercise);
                   const categoryExercises = row.category
                     ? exercises.filter(
                         (ex) =>
@@ -636,7 +667,10 @@ export default function TrainingBuilder({
                           <select
                             name="exercise_id"
                             value={row.exerciseId}
-                            onChange={(e) => updateRow(row.key, { exerciseId: e.target.value })}
+                            // Andere Uebung -> deren Werte wieder als Vorschlag.
+                            onChange={(e) =>
+                              updateRow(row.key, { exerciseId: e.target.value, ...NO_OVERRIDES })
+                            }
                             className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
                           >
                             {!categoryExercises.some((ex) => ex.id === row.exerciseId) && (
@@ -705,30 +739,38 @@ export default function TrainingBuilder({
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap items-end gap-3">
-                        <div className="min-w-[140px] flex-1">
-                          <label className="mb-1 block text-sm font-medium">
-                            Übungsfläche
-                          </label>
-                          <p className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
-                            {exercise?.fields
-                              ? `${exercise.fields.name} (${exercise.fields.length_m}×${exercise.fields.width_m} m)`
-                              : "–"}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-medium">
-                            Kleinfeldtore
-                          </label>
-                          <p className="w-24 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
-                            {exercise ? exercise.small_goals : "–"}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-medium">Minitore</label>
-                          <p className="w-24 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50">
-                            {exercise ? exercise.mini_goals : "–"}
-                          </p>
-                        </div>
+                        {(
+                          [
+                            ["fieldText", "field_text", "Übungsfläche", defaults.field, 100, "min-w-[140px] flex-1"],
+                            ["smallGoalsText", "small_goals_text", "Kleinfeldtore", defaults.smallGoals, 50, "w-28"],
+                            ["miniGoalsText", "mini_goals_text", "Minitore", defaults.miniGoals, 50, "w-28"],
+                          ] as const
+                        ).map(([key, name, label, suggestion, maxLength, width]) => {
+                          const override = row[key];
+                          return (
+                            <div key={key} className={width}>
+                              <label className="mb-1 block text-sm font-medium">{label}</label>
+                              <input
+                                type="text"
+                                value={override ?? suggestion}
+                                maxLength={maxLength}
+                                onChange={(e) => updateRow(row.key, { [key]: e.target.value })}
+                                title={
+                                  override === null
+                                    ? "Vorschlag aus der Übung – frei änderbar"
+                                    : `Angepasst (Übung: ${suggestion || "–"}) – leeren für den Vorschlag`
+                                }
+                                className={`w-full rounded border px-3 py-2 dark:bg-zinc-900 ${
+                                  override === null
+                                    ? "border-zinc-300 text-zinc-600 dark:border-zinc-700 dark:text-zinc-400"
+                                    : "border-amber-400 dark:border-amber-600"
+                                }`}
+                              />
+                              {/* Nur Anpassungen speichern; leer = Wert der Uebung. */}
+                              <input type="hidden" name={name} value={override ?? ""} />
+                            </div>
+                          );
+                        })}
                       </div>
                       {exercise && (
                         <p className="mt-2 text-xs text-zinc-500">
