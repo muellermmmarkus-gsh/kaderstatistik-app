@@ -5,6 +5,7 @@ import { isTrainer } from "@/lib/supabase/profile";
 import { saveTrainingPlan } from "./actions";
 import TrainingBuilder from "../TrainingBuilder";
 import BackButton from "@/components/BackButton";
+import { optimizedImage } from "@/lib/optimizedImage";
 
 type ExerciseOption = {
   id: string;
@@ -234,7 +235,8 @@ export default async function TrainingDetailPage({
                 {item.exercises?.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
                   <img
-                    src={item.exercises.image_url}
+                    src={optimizedImage(item.exercises.image_url, 128)}
+                    loading="lazy"
                     alt=""
                     className="h-12 w-12 rounded border border-zinc-300 object-cover dark:border-zinc-700"
                   />

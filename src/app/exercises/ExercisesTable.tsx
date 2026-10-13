@@ -11,6 +11,7 @@ import {
   setExercisePublic,
 } from "./actions";
 import DeleteButton from "@/components/DeleteButton";
+import { optimizedImage } from "@/lib/optimizedImage";
 
 type ExerciseRow = {
   id: string;
@@ -453,7 +454,8 @@ export default function ExercisesTable({
                   {exercise.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
                     <img
-                      src={exercise.image_url}
+                      src={optimizedImage(exercise.image_url, 96)}
+                      loading="lazy"
                       alt=""
                       className="h-10 w-10 rounded border border-zinc-300 object-cover dark:border-zinc-700"
                     />

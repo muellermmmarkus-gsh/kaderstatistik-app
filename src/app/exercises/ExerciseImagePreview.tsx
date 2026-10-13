@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { removeExerciseImage } from "./actions";
+import { optimizedImage } from "@/lib/optimizedImage";
 
 /**
  * Bild-Vorschau im Aenderungsformular mit rotem X oben rechts: Klick
@@ -27,7 +28,7 @@ export default function ExerciseImagePreview({
         <a href={imageUrl} target="_blank" rel="noreferrer">
           {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL, next/image benoetigt bekannte Domains */}
           <img
-            src={imageUrl}
+            src={optimizedImage(imageUrl, 128)}
             alt=""
             className={`h-16 w-16 rounded border border-zinc-300 object-cover dark:border-zinc-700 ${pending ? "opacity-50" : ""}`}
           />

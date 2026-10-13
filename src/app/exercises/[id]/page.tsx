@@ -7,6 +7,7 @@ import DeleteButton from "@/components/DeleteButton";
 import ExerciseForm from "../ExerciseForm";
 import { categoryLabels } from "../categoryLabels";
 import BackButton from "@/components/BackButton";
+import { optimizedImage } from "@/lib/optimizedImage";
 
 export default async function ExerciseDetailPage({
   params,
@@ -96,7 +97,7 @@ export default async function ExerciseDetailPage({
             <a href={exercise.image_url} target="_blank" rel="noreferrer" className="mb-4 block">
               {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}
               <img
-                src={exercise.image_url}
+                src={optimizedImage(exercise.image_url, 384)}
                 alt=""
                 className="h-40 w-40 rounded border border-zinc-300 object-cover dark:border-zinc-700"
               />

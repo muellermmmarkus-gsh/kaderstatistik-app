@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { categoryLabels } from "@/app/exercises/categoryLabels";
 import SaveNotice from "@/components/SaveNotice";
 import AiPlanModal from "./AiPlanModal";
+import { optimizedImage } from "@/lib/optimizedImage";
 
 const GROUP_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 const BLOCK_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -387,7 +388,7 @@ export default function TrainingBuilder({
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}
           <img
-            src={zoomImage.url}
+            src={optimizedImage(zoomImage.url, 1200)}
             alt={zoomImage.name}
             className="max-h-[85vh] max-w-full rounded object-contain shadow-lg"
           />
@@ -423,7 +424,7 @@ export default function TrainingBuilder({
                 >
                   {exercise?.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL
-                    <img src={exercise.image_url} alt="" className="h-80 w-full object-cover" />
+                    <img src={optimizedImage(exercise.image_url, 828)} loading="lazy" alt="" className="h-80 w-full object-cover" />
                   ) : (
                     <div className="flex h-80 w-full items-center justify-center border-b border-dashed border-zinc-300 text-sm text-zinc-400 dark:border-zinc-700">
                       Kein Bild
@@ -720,7 +721,8 @@ export default function TrainingBuilder({
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element -- externe Supabase-Storage-URL */}
                               <img
-                                src={exercise.image_url}
+                                src={optimizedImage(exercise.image_url, 256)}
+                                loading="lazy"
                                 alt={exercise.name}
                                 className="h-24 w-24 rounded border border-zinc-300 object-cover dark:border-zinc-700"
                               />

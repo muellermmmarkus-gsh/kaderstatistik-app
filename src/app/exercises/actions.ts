@@ -44,7 +44,8 @@ async function uploadImage(
 
   const { error } = await supabase.storage
     .from("exercise-images")
-    .upload(path, file, { upsert: true });
+    // Pfad enthaelt einen Zeitstempel und ist eindeutig: Browser duerfen ein Jahr cachen.
+    .upload(path, file, { upsert: true, cacheControl: "31536000" });
   if (error) return undefined;
 
   const { data } = supabase.storage.from("exercise-images").getPublicUrl(path);
