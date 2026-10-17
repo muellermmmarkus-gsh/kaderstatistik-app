@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import LineupView from "./LineupView";
 import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
@@ -37,7 +39,7 @@ export default async function MatchReportPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, { data: result }, canWrite] = await Promise.all([
+  const [{ data: event }, { data: result }, { data: lineup }, { data: players }, canWrite] = await Promise.all([
     supabase
       .from("events")
       .select("event_date, event_time, location")
@@ -51,6 +53,14 @@ export default async function MatchReportPage({
       )
       .eq("event_id", id)
       .maybeSingle(),
+    // Aufstellung aus Termine -> Aufstellung fuer dieses Spiel.
+    supabase
+      .from("lineups")
+      .select("formation, assignments, bench_formation, bench_assignments")
+      .eq("event_id", id)
+      .maybeSingle(),
+    // Auch inaktive Spieler, damit Namen in alten Aufstellungen erhalten bleiben.
+    supabase.from("players").select("id, first_name, last_name"),
     isTrainer(),
   ]);
 
@@ -140,12 +150,37 @@ export default async function MatchReportPage({
         </section>
 
         <section className="md:w-1/2">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="font-medium">Aufstellung</h2>
+            {canWrite && (
+              <Link href={`/events/${id}/lineup`} className="text-sm text-zinc-500 hover:underline">
+                {lineup ? "bearbeiten" : "anlegen"}
+              </Link>
+            )}
+          </div>
+          {lineup ? (
+            <LineupView
+              lineup={{
+                formation: lineup.formation,
+                assignments: lineup.assignments as Record<string, string> | null,
+                bench_formation: lineup.bench_formation,
+                bench_assignments: lineup.bench_assignments as Record<string, string> | null,
+              }}
+              players={players ?? []}
+            />
+          ) : (
+            <p className="text-sm text-zinc-500">Für dieses Spiel ist keine Aufstellung hinterlegt.</p>
+          )}
+        </section>
+      </div>
+
+      <section className="mt-8">
           <h2 className="mb-3 font-medium">Spielbericht</h2>
           {canWrite ? (
             <form action={save} className="space-y-3">
               <textarea
                 name="report"
-                rows={20}
+                rows={10}
                 defaultValue={result.report ?? ""}
                 placeholder="Eindrücke, Stärken, Schwächen, besondere Szenen …"
                 className="w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -165,8 +200,7 @@ export default async function MatchReportPage({
           ) : (
             <p className="text-sm text-zinc-500">Noch kein Spielbericht erfasst.</p>
           )}
-        </section>
-      </div>
+      </section>
     </div>
   );
 }
