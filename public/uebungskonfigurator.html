@@ -151,7 +151,7 @@ const STANGE_OPT = [['rot', 'Rot'], ['lila', 'Lila'], ['gelb', 'Gelb'], ['weiss'
 const LEIB_OPT = [['rot', 'Rot'], ['gelb', 'Gelb'], ['orange', 'Orange'], ['blau', 'Blau'], ['gruen', 'Grün']];
 const OEFF_OPT = [[0, 'nach unten (Tor oben)'], [90, 'nach links (Tor rechts)'], [180, 'nach oben (Tor unten)'], [270, 'nach rechts (Tor links)']];
 const OEFF_NAME = ['unten', 'links', 'oben', 'rechts'];
-const NAMES = { spieler: 'Spieler', gegner: 'Gegnerfigur', leibchen: 'Leibchen', ball: 'Ball', huetchen: 'Hütchen', minitor: 'Mini-Tor', kleinfeldtor: 'Kleinfeldtor', stange: 'Stange', diamant: 'Diamant', text: 'Text', feld: 'Spielfeld' };
+const NAMES = { spieler: 'Spieler', gegner: 'Gegnerfigur', leibchen: 'Leibchen', ball: 'Ball', huetchen: 'Hütchen', minitor: 'Mini-Tor', kleinfeldtor: 'Kleinfeldtor', stange: 'Stange', diamant: 'Diamant', reihenfolge: 'Reihenfolge', text: 'Text', feld: 'Spielfeld' };
 
 const PALETTE = [
   ['Spieler', [
@@ -183,6 +183,7 @@ const PALETTE = [
   ]],
   ['Sonstiges', [
     { t: 'feld', name: 'Spielfeld' },
+    { t: 'reihenfolge', name: 'Reihenfolge' },
     { t: 'text', name: 'Text / Maß' },
   ]],
 ];
@@ -214,6 +215,7 @@ function half(it) {
     case 'kleinfeldtor': { const w = (it.laenge || 110) / 2; return it.rot === 90 || it.rot === 270 ? [18, w] : [w, 18]; }
     case 'stange': return [6, 22];
     case 'diamant': return [11, 12];
+    case 'reihenfolge': return [14, 14];
     case 'text': { const s = it.size || 18; return [Math.max(18, (it.text || '').length * s * 0.32), s * 0.6]; }
     case 'feld': return [it.w / 2, it.h / 2];
   }
@@ -365,6 +367,11 @@ function shapeMarkup(it) {
       return `<ellipse cx="1" cy="11" rx="8" ry="2.4" fill="#000" opacity=".22"/>` +
         `<polygon points="0,-12 11,-3 7,10 -7,10 -11,-3" fill="#34b4f0" stroke="#1b4f6e" stroke-width="1.4" stroke-linejoin="round"/>` +
         `<polygon points="0,-12 11,-3 0,3 -11,-3" fill="#fff" opacity=".4"/><line x1="0" y1="-12" x2="0" y2="10" stroke="#1b4f6e" stroke-width=".8" opacity=".5"/>`;
+    case 'reihenfolge': {
+      const nr = String(it.nr ?? '');
+      return `<circle r="13" fill="#fff" stroke="${INK}" stroke-width="2.2"/>` +
+        `<text y="${nr.length > 2 ? 4 : 5.5}" text-anchor="middle" font-size="${nr.length > 2 ? 11 : nr.length === 2 ? 14 : 16}" font-weight="800" fill="${INK}">${esc(nr)}</text>`;
+    }
     case 'text': {
       const s = it.size || 18;
       return `<text y="${s * 0.35}" text-anchor="middle" font-size="${s}" font-weight="700" fill="#fff" stroke="#1b1b1b" stroke-width="3.5" paint-order="stroke" stroke-linejoin="round">${esc(it.text)}</text>`;
@@ -583,6 +590,12 @@ function nextLabel(team, neutral) {
   for (let n = 1; n < 100; n++) if (!used.has(String(n))) return String(n);
   return '';
 }
+// Reihenfolge-Kreise: kleinste noch freie Nummer ab 1 (1, 2, 3 …); eine gelöschte Nummer wird wieder vergeben
+function nextNr() {
+  const used = new Set(S.items.filter((i) => i.type === 'reihenfolge').map((i) => String(i.nr)));
+  for (let n = 1; n < 100; n++) if (!used.has(String(n))) return String(n);
+  return '';
+}
 function addItem(proto, x, y) {
   const it = { id: S.seq++, type: proto.t, x: sn(x), y: sn(y) };
   if (proto.t === 'spieler') { it.team = proto.team; it.label = nextLabel(proto.team, proto.neutral); }
@@ -593,6 +606,7 @@ function addItem(proto, x, y) {
   if (proto.t === 'stange') it.farbe = 'rot';
   if (proto.t === 'leibchen') it.farbe = proto.farbe || 'gelb';
   if (proto.t === 'kleinfeldtor') { it.rot = 0; it.laenge = 110; }
+  if (proto.t === 'reihenfolge') it.nr = nextNr();
   if (proto.t === 'text') { it.text = 'Text'; it.size = 18; }
   if (proto.t === 'feld') { it.w = 360; it.h = 360; }
   S.items.push(it);
@@ -784,7 +798,7 @@ function closeEditor() { if (activeEditor) activeEditor(); }
 function editInline(o) {
   closeEditor();
   const arrow = isArrow(o);
-  const key = arrow ? 'nr' : o.type === 'text' ? 'text' : 'label';
+  const key = arrow || o.type === 'reihenfolge' ? 'nr' : o.type === 'text' ? 'text' : 'label';
   const pos = arrow ? geom(o).mid : { x: o.x, y: o.y };
   const m = board.getScreenCTM();
   const w = o.type === 'text' ? Math.max(140, (o.text || '').length * (o.size || 18) * 0.7) : 76;
@@ -813,7 +827,7 @@ let lastDown = null;
 function tryEdit(p) {
   const it = itemAt(p);
   let target = null;
-  if (it && ['text', 'spieler', 'gegner', 'ball'].includes(it.type)) target = it;
+  if (it && ['text', 'spieler', 'gegner', 'ball', 'reihenfolge'].includes(it.type)) target = it;
   else if (!it) target = S.arrows.find((a) => { const g = geom(a); return !g.short && Math.hypot(g.mid.x - p.x, g.mid.y - p.y) < 22; }) || null;
   if (!target) return false;
   sel = new Set([target.id]); render(); renderProps();
@@ -905,6 +919,7 @@ function renderProps() {
     if (o.type === 'stange') h += rowSel('Farbe', 'farbe', STANGE_OPT, o.farbe);
     if (o.type === 'leibchen') h += rowSel('Farbe', 'farbe', LEIB_OPT, o.farbe);
     if (o.type === 'kleinfeldtor') h += rowSel('Öffnung', 'rot', OEFF_OPT, o.rot || 0, true) + rowTxt('Breite', 'laenge', o.laenge || 110, 'number', 'min="40" step="10"') + `<div class="btns"><button data-act="rot">Drehen (R)</button></div>`;
+    if (o.type === 'reihenfolge') h += rowTxt('Nummer', 'nr', o.nr || '', 'text', 'maxlength="3"');
     if (o.type === 'text') h += rowTxt('Text', 'text', o.text) + rowTxt('Schriftgröße', 'size', o.size, 'number', 'min="10" max="60"');
     if (o.type === 'feld') h += rowTxt('Breite', 'w', o.w, 'number', 'min="40" step="10"') + rowTxt('Höhe', 'h', o.h, 'number', 'min="40" step="10"');
     h += `<div class="btns"><button data-act="dup">Duplizieren</button><button data-act="del" class="danger">Löschen</button></div>`;
@@ -941,7 +956,7 @@ selprops.addEventListener('click', (e) => {
       if (proto.t === 'feld') icon = `<rect x="-26" y="-16" width="52" height="32" fill="#a9c93c" fill-opacity=".3" stroke="#4c5d3a" stroke-width="2"/>`;
       else if (proto.t === 'text') icon = `<text y="7" text-anchor="middle" font-size="22" font-weight="600" fill="#111">Aa</text>`;
       else {
-        const demo = { type: proto.t, team: proto.team, farbe: proto.farbe || (proto.t === 'stange' ? 'rot' : proto.t === 'minitor' ? 'grau' : undefined), label: proto.t === 'spieler' ? (proto.neutral ? (proto.team === 'gelb' ? 'A' : 'B') : '1') : '', rot: 0, laenge: 110 };
+        const demo = { type: proto.t, team: proto.team, farbe: proto.farbe || (proto.t === 'stange' ? 'rot' : proto.t === 'minitor' ? 'grau' : undefined), label: proto.t === 'spieler' ? (proto.neutral ? (proto.team === 'gelb' ? 'A' : 'B') : '1') : '', nr: '1', rot: 0, laenge: 110 };
         icon = shapeMarkup(demo);
         if (proto.t === 'kleinfeldtor') icon = `<g transform="scale(.52)">${icon}</g>`;
         if (proto.t === 'minitor') icon = `<g transform="scale(.9)">${icon}</g>`;
@@ -966,7 +981,7 @@ function toSpec() {
   if (S.ablauf) spec.ablauf = S.ablauf;
   const cnt = {}, ids = new Map();
   const mk = (pre, it) => { cnt[pre] = (cnt[pre] || 0) + 1; const id = pre + cnt[pre]; ids.set(it.id, id); return id; };
-  const out = { flaechen: [], huetchen: [], spieler: [], leibchen: [], baelle: [], minitore: [], kleinfeldtore: [], stangen: [], diamanten: [], texte: [], aktionen: [] };
+  const out = { flaechen: [], huetchen: [], spieler: [], leibchen: [], baelle: [], minitore: [], kleinfeldtore: [], stangen: [], diamanten: [], reihenfolge: [], texte: [], aktionen: [] };
   S.items.forEach((it) => {
     const x = rnd(it.x), y = rnd(it.y);
     switch (it.type) {
@@ -983,6 +998,7 @@ function toSpec() {
       case 'leibchen': out.leibchen.push({ id: mk('l', it), x, y, farbe: it.farbe || 'gelb' }); break;
       case 'kleinfeldtor': out.kleinfeldtore.push({ id: mk('k', it), x, y, oeffnung: OEFF_NAME[((it.rot || 0) / 90) % 4], laenge: it.laenge || 110 }); break;
       case 'diamant': out.diamanten.push({ id: mk('d', it), x, y }); break;
+      case 'reihenfolge': out.reihenfolge.push({ id: mk('r', it), x, y, nr: String(it.nr ?? '') }); break;
       case 'text': out.texte.push({ x, y, text: it.text, groesse: it.size || 18 }); break;
     }
   });
@@ -1021,6 +1037,7 @@ function fromSpec(sp) {
   (sp.leibchen || []).forEach((l) => add({ type: 'leibchen', x: l.x, y: l.y, farbe: LEIB_COL[l.farbe] ? l.farbe : 'gelb' }, l.id));
   (sp.kleinfeldtore || []).forEach((k) => add({ type: 'kleinfeldtor', x: k.x, y: k.y, rot: Math.max(0, OEFF_NAME.indexOf(k.oeffnung)) * 90, laenge: k.laenge || 110 }, k.id));
   (sp.diamanten || []).forEach((d) => add({ type: 'diamant', x: d.x, y: d.y }, d.id));
+  (sp.reihenfolge || []).forEach((r) => add({ type: 'reihenfolge', x: r.x, y: r.y, nr: String(r.nr ?? '') }, r.id));
   (sp.texte || []).forEach((t) => add({ type: 'text', x: t.x, y: t.y, text: t.text, size: t.groesse || 18 }));
   (sp.aktionen || []).forEach((a) => {
     const f = (v) => (Array.isArray(v) ? { x: v[0], y: v[1] } : map[String(v)] != null ? { ref: map[String(v)] } : null);
