@@ -31,6 +31,8 @@ async function persistAttendance(
       registered: formData.get(`registered_player_${playerId}`) === "on",
       // Rueckennummer nur bei Spielen (Auswahl des Torschuetzen im Live-Ergebnis)
       ...(isGame && {
+        is_captain: formData.get(`captain_player_${playerId}`) === "on",
+        is_goalkeeper: formData.get(`goalkeeper_player_${playerId}`) === "on",
         shirt_number:
           Number.isInteger(shirt) && shirt >= 1 && shirt <= SHIRT_NUMBER_MAX ? shirt : null,
       }),

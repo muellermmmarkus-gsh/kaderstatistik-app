@@ -46,7 +46,7 @@ export default async function EventDetailPage({
       .order("last_name"),
     supabase
       .from("attendance")
-      .select("player_id, present, excused, registered")
+      .select("player_id, present, excused, registered, is_captain, is_goalkeeper")
       .eq("event_id", id),
     supabase
       .from("attendance_assessments")
@@ -101,6 +101,8 @@ export default async function EventDetailPage({
   const registeredByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.registered]),
   );
+  const captainByPlayer = new Map(attendance?.map((a) => [a.player_id, a.is_captain]));
+  const goalkeeperByPlayer = new Map(attendance?.map((a) => [a.player_id, a.is_goalkeeper]));
   const performanceByPlayer = new Map(
     assessments?.map((a) => [a.player_id, a.performance]),
   );
@@ -134,7 +136,7 @@ export default async function EventDetailPage({
 
   const playerColSpan =
     2 +
-    (isGame ? 2 : 0) +
+    (isGame ? 4 : 0) +
     (event.type === "training" ? 1 : 0) +
     (hasGoals ? 1 : 0) +
     (showAssessment ? 4 : 0);
@@ -210,6 +212,8 @@ export default async function EventDetailPage({
                   <th className="py-2">Anwesend</th>
                   {event.type === "training" && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
+                  {isGame && <th className="py-2 pl-2">Kapitän</th>}
+                  {isGame && <th className="py-2 pl-2">Torwart</th>}
                   {showAssessment && (
                     <>
                       <th className="py-2">Leistung</th>
@@ -292,6 +296,30 @@ export default async function EventDetailPage({
                           defaultValue={goalsByPlayer.get(player.id) ?? 0}
                           disabled={!canWrite}
                           className="w-16 rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+                        />
+                      </td>
+                    )}
+                    {isGame && (
+                      <td className="py-2 pl-2">
+                        <input
+                          type="checkbox"
+                          name={`captain_player_${player.id}`}
+                          aria-label={`${player.first_name} ${player.last_name} ist Kapitän`}
+                          defaultChecked={captainByPlayer.get(player.id) ?? false}
+                          disabled={!canWrite}
+                          className="h-4 w-4"
+                        />
+                      </td>
+                    )}
+                    {isGame && (
+                      <td className="py-2 pl-2">
+                        <input
+                          type="checkbox"
+                          name={`goalkeeper_player_${player.id}`}
+                          aria-label={`${player.first_name} ${player.last_name} ist Torwart`}
+                          defaultChecked={goalkeeperByPlayer.get(player.id) ?? false}
+                          disabled={!canWrite}
+                          className="h-4 w-4"
                         />
                       </td>
                     )}
