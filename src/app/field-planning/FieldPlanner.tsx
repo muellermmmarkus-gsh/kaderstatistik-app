@@ -33,9 +33,28 @@ const LONG_PRESS_MS = 550;
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const formatM = (v: number) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 
+type Point = { x: number; y: number };
 type Drag =
-  | { mode: "move"; id: string; dx: number; dy: number }
-  | { mode: "resize"; id: string; ax: number; ay: number };
+  | {
+      mode: "move";
+      start: Point;
+      origins: Record<string, Point>;
+      primaryId: string;
+      /** Ohne Bewegung losgelassen: Auswahl auf dieses Element reduzieren bzw. es abwaehlen. */
+      clickAction: "collapse" | "toggle" | null;
+      dx: number;
+      dy: number;
+      moved: boolean;
+    }
+  | { mode: "resize"; id: string; ax: number; ay: number }
+  | { mode: "marquee"; start: Point; additive: boolean; base: string[]; clickedId: string | null; moved: boolean };
+
+/** Mittelpunkt eines Elements (fuer die Rahmenauswahl). */
+function centerOf(item: FieldItem): Point {
+  if (!isArea(item.kind)) return { x: item.x, y: item.y };
+  const { w, h } = areaSize(item);
+  return { x: item.x + w / 2, y: item.y + h / 2 };
+}
 
 /** Linien eines E-Jugend-Kleinfelds, laengs zur laengeren Seite der Flaeche. */
 function FieldEMarkings({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
@@ -167,7 +186,10 @@ export default function FieldPlanner({
   const [planId, setPlanId] = useState(initialPlan.id);
   const [name, setName] = useState(initialPlan.name);
   const [items, setItems] = useState<FieldItem[]>(initialPlan.items);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Mehrfachauswahl-Modus: Rahmen ziehen bzw. Elemente antippen (auch auf Touch-Geraeten).
+  const [selectMode, setSelectMode] = useState(false);
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [dirty, setDirty] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -179,7 +201,8 @@ export default function FieldPlanner({
   const [menu, setMenu] = useState<{ id: string; left: number; top: number } | null>(null);
   const menuItem = menu ? (items.find((i) => i.id === menu.id) ?? null) : null;
 
-  const selected = items.find((i) => i.id === selectedId) ?? null;
+  const isSelected = (id: string) => selectedIds.includes(id);
+  const selected = selectedIds.length === 1 ? (items.find((i) => i.id === selectedIds[0]) ?? null) : null;
   const goalCounts = Object.fromEntries(
     GOAL_KINDS.map((k) => [k, items.filter((i) => i.kind === k).length]),
   ) as Record<GoalKind, number>;
@@ -202,21 +225,27 @@ export default function FieldPlanner({
     change(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   }
 
-  function remove(id: string) {
-    change(items.filter((i) => i.id !== id));
-    setSelectedId(null);
+  function removeSelected() {
+    change(items.filter((i) => !isSelected(i.id)));
+    setSelectedIds([]);
   }
 
-  // Tastatur: Entf loescht, R dreht das ausgewaehlte Element.
+  // Tastatur: Entf loescht die Auswahl, R dreht ein einzelnes Element,
+  // Strg+A waehlt alles aus, Escape hebt die Auswahl auf.
   useEffect(() => {
-    if (!canWrite || !selected) return;
+    if (!canWrite) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") return;
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        remove(selected.id);
-      } else if (e.key === "r" || e.key === "R") {
+        setSelectedIds(items.map((i) => i.id));
+      } else if (e.key === "Escape") {
+        setSelectedIds([]);
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
+        e.preventDefault();
+        removeSelected();
+      } else if ((e.key === "r" || e.key === "R") && selected) {
         rotate(selected);
       }
     };
@@ -252,7 +281,7 @@ export default function FieldPlanner({
   function openMenu(item: FieldItem, clientX: number, clientY: number) {
     if (!canWrite || !isArea(item.kind)) return;
     const box = wrapRef.current!.getBoundingClientRect();
-    setSelectedId(item.id);
+    setSelectedIds([item.id]);
     setMenu({
       id: item.id,
       left: clamp(clientX - box.left, 0, Math.max(0, box.width - 240)),
@@ -298,7 +327,7 @@ export default function FieldPlanner({
       item = { id, kind, x: roundTo(pos.x, 0.5), y: roundTo(pos.y, 0.5), rotation: 0 };
     }
     change([...items, item]);
-    setSelectedId(id);
+    setSelectedIds([id]);
   }
 
   function rotate(item: FieldItem) {
@@ -317,16 +346,61 @@ export default function FieldPlanner({
     }
   }
 
+  function startMarquee(e: PointerEvent, clickedId: string | null) {
+    drag.current = {
+      mode: "marquee",
+      start: toPitch(e.clientX, e.clientY),
+      additive: selectMode || e.shiftKey || e.ctrlKey || e.metaKey,
+      base: selectedIds,
+      clickedId,
+      moved: false,
+    };
+    svgRef.current?.setPointerCapture(e.pointerId);
+  }
+
+  function onBackgroundPointerDown(e: PointerEvent) {
+    if (e.button !== 0) return;
+    if (!canWrite) {
+      setSelectedIds([]);
+      return;
+    }
+    startMarquee(e, null);
+  }
+
   function onItemPointerDown(e: PointerEvent, item: FieldItem) {
     e.stopPropagation();
     if (e.button !== 0) return;
-    setSelectedId(item.id);
-    if (!canWrite) return;
-    const p = toPitch(e.clientX, e.clientY);
-    drag.current = { mode: "move", id: item.id, dx: p.x - item.x, dy: p.y - item.y };
+    if (!canWrite) {
+      setSelectedIds([item.id]);
+      return;
+    }
+    const wasSelected = isSelected(item.id);
+    // Im Auswahlmodus startet ein nicht markiertes Element einen Rahmen bzw. wird per Tippen markiert.
+    if (selectMode && !wasSelected) {
+      startMarquee(e, item.id);
+      return;
+    }
+    if (!selectMode && (e.shiftKey || e.ctrlKey || e.metaKey)) {
+      setSelectedIds(wasSelected ? selectedIds.filter((id) => id !== item.id) : [...selectedIds, item.id]);
+      return;
+    }
+    const ids = wasSelected ? selectedIds : [item.id];
+    if (!wasSelected) setSelectedIds(ids);
+    const origins: Record<string, Point> = {};
+    for (const i of items) if (ids.includes(i.id)) origins[i.id] = { x: i.x, y: i.y };
+    drag.current = {
+      mode: "move",
+      start: toPitch(e.clientX, e.clientY),
+      origins,
+      primaryId: item.id,
+      clickAction: selectMode ? "toggle" : wasSelected && ids.length > 1 ? "collapse" : null,
+      dx: 0,
+      dy: 0,
+      moved: false,
+    };
     svgRef.current?.setPointerCapture(e.pointerId);
     // Auf Touch-Geraeten oeffnet langes Druecken das Kontextmenue.
-    if (e.pointerType !== "mouse" && isArea(item.kind)) {
+    if (e.pointerType !== "mouse" && isArea(item.kind) && ids.length === 1) {
       const { clientX, clientY } = e;
       cancelLongPress();
       longPress.current = {
@@ -366,18 +440,59 @@ export default function FieldPlanner({
             : i,
         ),
       );
+    } else if (d.mode === "marquee") {
+      const x = Math.min(d.start.x, p.x);
+      const y = Math.min(d.start.y, p.y);
+      const w = Math.abs(p.x - d.start.x);
+      const h = Math.abs(p.y - d.start.y);
+      if (!d.moved && Math.hypot(w, h) < 1) return;
+      d.moved = true;
+      setMarquee({ x, y, w, h });
+      return;
     } else {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === d.id
-            ? isArea(i.kind)
-              ? { ...i, x: p.x - d.dx, y: p.y - d.dy }
-              : { ...i, x: roundTo(p.x - d.dx, 0.5), y: roundTo(p.y - d.dy, 0.5) }
-            : i,
-        ),
-      );
+      const { dx, dy } = clampGroupDelta(d.origins, p.x - d.start.x, p.y - d.start.y);
+      if (!d.moved && Math.hypot(dx, dy) < 0.3) return;
+      d.moved = true;
+      d.dx = dx;
+      d.dy = dy;
+      setItems((prev) => moveGroup(prev, d.origins, dx, dy, true));
     }
     setDirty(true);
+  }
+
+  /** Bei mehreren Elementen bleiben alle Flaechen innerhalb des Platzes. */
+  function clampGroupDelta(origins: Record<string, Point>, dx: number, dy: number) {
+    const ids = Object.keys(origins);
+    if (ids.length < 2) return { dx, dy };
+    let [minX, maxX, minY, maxY] = [-Infinity, Infinity, -Infinity, Infinity];
+    for (const i of items) {
+      if (!origins[i.id] || !isArea(i.kind)) continue;
+      const { w, h } = areaSize(i);
+      const o = origins[i.id];
+      minX = Math.max(minX, -o.x);
+      maxX = Math.min(maxX, L - w - o.x);
+      minY = Math.max(minY, -o.y);
+      maxY = Math.min(maxY, W - h - o.y);
+    }
+    return {
+      dx: minX <= maxX ? clamp(dx, minX, maxX) : dx,
+      dy: minY <= maxY ? clamp(dy, minY, maxY) : dy,
+    };
+  }
+
+  /** Verschiebt alle Elemente aus origins um dx/dy; Tore auf einen halben Meter genau. */
+  function moveGroup(list: FieldItem[], origins: Record<string, Point>, dx: number, dy: number, live: boolean) {
+    const single = Object.keys(origins).length === 1;
+    return list.map((i) => {
+      const o = origins[i.id];
+      if (!o) return i;
+      const free = live && single && isArea(i.kind);
+      return {
+        ...i,
+        x: free ? o.x + dx : roundTo(o.x + dx, 0.5),
+        y: free ? o.y + dy : roundTo(o.y + dy, 0.5),
+      };
+    });
   }
 
   function onPointerUp() {
@@ -385,8 +500,57 @@ export default function FieldPlanner({
     const d = drag.current;
     if (!d) return;
     drag.current = null;
-    // Flaechen rasten beim Loslassen ein (siehe snapArea).
-    setItems((prev) => prev.map((i) => (i.id === d.id ? snapArea(i) : i)));
+    if (d.mode === "resize") {
+      setItems((prev) => prev.map((i) => (i.id === d.id ? snapArea(i) : i)));
+      return;
+    }
+    if (d.mode === "marquee") {
+      setMarquee(null);
+      if (!d.moved) {
+        if (d.clickedId) {
+          setSelectedIds(d.base.includes(d.clickedId) ? d.base.filter((id) => id !== d.clickedId) : [...d.base, d.clickedId]);
+        } else if (!d.additive) {
+          setSelectedIds([]);
+        }
+        return;
+      }
+      const m = marquee;
+      if (!m) return;
+      const hits = items
+        .filter((i) => {
+          const c = centerOf(i);
+          return c.x >= m.x && c.x <= m.x + m.w && c.y >= m.y && c.y <= m.y + m.h;
+        })
+        .map((i) => i.id);
+      setSelectedIds(d.additive ? [...new Set([...d.base, ...hits])] : hits);
+      return;
+    }
+    if (!d.moved) {
+      if (d.clickAction === "collapse") setSelectedIds([d.primaryId]);
+      if (d.clickAction === "toggle") setSelectedIds(selectedIds.filter((id) => id !== d.primaryId));
+      return;
+    }
+    const ids = Object.keys(d.origins);
+    if (ids.length === 1) {
+      // Einzelne Flaeche rastet beim Loslassen ein (siehe snapArea).
+      setItems((prev) => prev.map((i) => (i.id === d.primaryId ? snapArea(i) : i)));
+      return;
+    }
+    // Gruppe: an der ersten einrastenden Flaeche ausrichten, Abstaende bleiben erhalten.
+    let dx = roundTo(d.dx, 0.5);
+    let dy = roundTo(d.dy, 0.5);
+    const anchor =
+      items.find((i) => i.id === d.primaryId && isArea(i.kind) && !i.custom && i.kind !== "field_e") ??
+      items.find((i) => d.origins[i.id] && isArea(i.kind) && !i.custom && i.kind !== "field_e");
+    if (anchor) {
+      const o = d.origins[anchor.id];
+      const moved = { ...anchor, x: o.x + dx, y: o.y + dy };
+      const snapped = snapArea(moved);
+      dx += snapped.x - moved.x;
+      dy += snapped.y - moved.y;
+    }
+    ({ dx, dy } = clampGroupDelta(d.origins, dx, dy));
+    setItems((prev) => moveGroup(prev, d.origins, dx, dy, false));
   }
 
   function onDrop(e: DragEvent) {
@@ -432,6 +596,9 @@ export default function FieldPlanner({
     setDirty(false);
     router.push(target === "new" ? "/field-planning?new=1" : `/field-planning?plan=${target}`);
   }
+
+  const itemCursor = (id: string) =>
+    canWrite ? (selectMode && !isSelected(id) ? "cursor-crosshair" : "cursor-move") : undefined;
 
   const areas = items.filter((i) => isArea(i.kind));
   const goals = items.filter((i) => !isArea(i.kind));
@@ -495,7 +662,8 @@ export default function FieldPlanner({
           </>
         )}
       </div>
-      <p className="mb-3 text-xs text-zinc-500">
+      {/* Feste Hoehe, damit das Spielfeld beim ersten Aendern nicht unter dem Zeiger verrutscht */}
+      <p className="mb-3 min-h-4 text-xs text-zinc-500">
         {dirty ? "Ungespeicherte Änderungen. " : ""}
         {message && <span className={message.error ? "text-red-600" : "text-green-700"}>{message.text} </span>}
         {lastChange && !dirty && <span>{lastChange}</span>}
@@ -533,14 +701,48 @@ export default function FieldPlanner({
 
         {/* Spielfeld */}
         <div ref={wrapRef} className="relative min-w-0 flex-1">
+          {canWrite && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+              <button
+                type="button"
+                aria-pressed={selectMode}
+                onClick={() => setSelectMode((on) => !on)}
+                className={`rounded border px-3 py-1.5 ${selectMode ? "border-yellow-500 bg-yellow-50 font-medium dark:bg-yellow-950" : "border-zinc-300 dark:border-zinc-700"}`}
+              >
+                ⬚ Mehrfachauswahl {selectMode ? "an" : "aus"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(items.map((i) => i.id))}
+                disabled={!items.length}
+                className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-50 dark:border-zinc-700"
+              >
+                Alle auswählen
+              </button>
+              {selectedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  className="rounded border border-zinc-300 px-3 py-1.5 dark:border-zinc-700"
+                >
+                  Auswahl aufheben ({selectedIds.length})
+                </button>
+              )}
+              <span className="text-xs text-zinc-500">
+                {selectMode
+                  ? "Rahmen aufziehen oder Elemente antippen; markierte Elemente gemeinsam ziehen."
+                  : "Mehrere markieren: Shift/Strg + Klick oder Rahmen auf freier Fläche ziehen."}
+              </span>
+            </div>
+          )}
           <svg
             ref={svgRef}
             viewBox={`${-MARGIN} ${-MARGIN} ${L + 2 * MARGIN} ${W + 2 * MARGIN}`}
-            className="w-full touch-none select-none rounded-lg bg-[#3f8a32]"
+            className={`w-full touch-none select-none rounded-lg bg-[#3f8a32] ${selectMode ? "cursor-crosshair" : ""}`}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            onPointerDown={() => setSelectedId(null)}
+            onPointerDown={onBackgroundPointerDown}
             onDragOver={(e) => canWrite && e.preventDefault()}
             onDrop={onDrop}
             onContextMenu={(e) => e.preventDefault()}
@@ -550,7 +752,7 @@ export default function FieldPlanner({
             <Pitch />
             {areas.map((item) => {
               const { w, h } = areaSize(item);
-              const isSel = item.id === selectedId;
+              const isSel = isSelected(item.id);
               return (
                 <g
                   key={item.id}
@@ -559,7 +761,7 @@ export default function FieldPlanner({
                     e.preventDefault();
                     openMenu(item, e.clientX, e.clientY);
                   }}
-                  className={canWrite ? "cursor-move" : undefined}
+                  className={itemCursor(item.id)}
                 >
                   <rect
                     x={item.x + 0.3}
@@ -600,7 +802,7 @@ export default function FieldPlanner({
                       ✎ angepasst · {formatM(w)} × {formatM(h)} m
                     </text>
                   )}
-                  {isSel && item.custom && canWrite &&
+                  {isSel && selectedIds.length === 1 && item.custom && canWrite &&
                     [
                       [item.x, item.y],
                       [item.x + w, item.y],
@@ -626,13 +828,26 @@ export default function FieldPlanner({
                 key={item.id}
                 transform={`translate(${item.x} ${item.y}) rotate(${item.rotation})`}
                 onPointerDown={(e) => onItemPointerDown(e, item)}
-                className={canWrite ? "cursor-move" : undefined}
+                className={itemCursor(item.id)}
               >
                 {/* Groessere, unsichtbare Klickflaeche fuer kleine Tore */}
                 <rect x={-4} y={-2} width={8} height={5} fill="transparent" />
-                <GoalShape kind={item.kind as GoalKind} selected={item.id === selectedId} />
+                <GoalShape kind={item.kind as GoalKind} selected={isSelected(item.id)} />
               </g>
             ))}
+            {marquee && (
+              <rect
+                x={marquee.x}
+                y={marquee.y}
+                width={marquee.w}
+                height={marquee.h}
+                fill="rgba(250,204,21,0.15)"
+                stroke="#facc15"
+                strokeWidth={0.3}
+                strokeDasharray="1 0.6"
+                pointerEvents="none"
+              />
+            )}
           </svg>
 
           {menu && menuItem && (
@@ -745,11 +960,36 @@ export default function FieldPlanner({
                   </button>
                   <button
                     type="button"
-                    onClick={() => remove(selected.id)}
+                    onClick={removeSelected}
                     className="rounded border border-red-300 px-3 py-1.5 text-red-700 dark:border-red-900 dark:text-red-400"
                     title="Taste Entf"
                   >
                     Entfernen
+                  </button>
+                </div>
+              </div>
+            ) : selectedIds.length > 1 ? (
+              <div className="space-y-3">
+                <p className="font-medium">{selectedIds.length} Elemente ausgewählt</p>
+                <p className="text-xs text-zinc-500">
+                  Ein markiertes Element ziehen, um alle gemeinsam zu verschieben. Abstände bleiben
+                  erhalten.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds([])}
+                    className="rounded border border-zinc-300 px-3 py-1.5 dark:border-zinc-700"
+                  >
+                    Auswahl aufheben
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeSelected}
+                    className="rounded border border-red-300 px-3 py-1.5 text-red-700 dark:border-red-900 dark:text-red-400"
+                    title="Taste Entf"
+                  >
+                    Alle entfernen
                   </button>
                 </div>
               </div>
