@@ -141,3 +141,17 @@ export async function saveAttendanceAndReturn(
   revalidatePath("/events");
   redirect("/events");
 }
+
+/** Speichert die Anwesenheit und springt zum Trainingsplatzplan des Termins. */
+export async function saveAttendanceAndOpenFieldPlan(
+  eventId: string,
+  playerIds: string[],
+  trainerIds: string[],
+  formData: FormData,
+) {
+  await persistAttendance(eventId, playerIds, trainerIds, formData);
+  revalidatePath(`/events/${eventId}`);
+  const supabase = await createClient();
+  const { data: event } = await supabase.from("events").select("event_date").eq("id", eventId).single();
+  redirect(event ? `/field-planning?date=${event.event_date}` : "/field-planning");
+}

@@ -22,7 +22,15 @@ import {
   type ItemKind,
 } from "./model";
 
-export type PlanSummary = { id: string; name: string; updatedAt: string; teamName: string | null };
+/** Eintrag im Plan-Dropdown: value "date:JJJJ-MM-TT" (Trainingstermin), Plan-ID oder "new". */
+export type PlanOption = { value: string; label: string; group: "Trainingstermine" | "Weitere Pläne" };
+
+const hrefFor = (value: string) =>
+  value === "new"
+    ? "/field-planning?new=1"
+    : value.startsWith("date:")
+      ? `/field-planning?date=${value.slice(5)}`
+      : `/field-planning?plan=${value}`;
 
 const MARGIN = 4;
 const LINE = 0.15;
@@ -171,12 +179,20 @@ function GoalShape({ kind, selected }: { kind: GoalKind; selected: boolean }) {
 }
 
 export default function FieldPlanner({
-  plans,
+  options,
+  selection,
+  planDate,
+  eventHref,
   initialPlan,
   lastChange,
   canWrite,
 }: {
-  plans: PlanSummary[];
+  options: PlanOption[];
+  selection: string;
+  /** Datum des Trainingstermins, falls der Plan zu einem Termin gehoert. */
+  planDate: string | null;
+  /** Eigener Trainingstermin an diesem Tag (Button "Zurück zum Termin"). */
+  eventHref: string | null;
   initialPlan: { id: string | null; name: string; items: FieldItem[] };
   lastChange: string | null;
   canWrite: boolean;
@@ -560,21 +576,27 @@ export default function FieldPlanner({
     addItem(kind, toPitch(e.clientX, e.clientY));
   }
 
+  /** Speichert den Plan; liefert die Plan-ID oder null bei einem Fehler. */
+  async function persist() {
+    const result = await saveFieldPlan(planId, name, items, planDate);
+    if (result.error || !result.id) {
+      setMessage({ text: result.error ?? "Plan konnte nicht gespeichert werden.", error: true });
+      return null;
+    }
+    setDirty(false);
+    setMessage({ text: "Gespeichert." });
+    setPlanId(result.id);
+    return result.id;
+  }
+
   function save() {
     startTransition(async () => {
-      const result = await saveFieldPlan(planId, name, items);
-      if (result.error) {
-        setMessage({ text: result.error, error: true });
-        return;
-      }
-      setDirty(false);
-      setMessage({ text: "Gespeichert." });
-      if (!planId && result.id) {
-        setPlanId(result.id);
-        router.replace(`/field-planning?plan=${result.id}`);
-      } else {
-        router.refresh();
-      }
+      const isNew = !planId;
+      const id = await persist();
+      if (!id) return;
+      // Neuer Plan ohne Termin: in der URL festhalten, damit er nach dem Neuladen offen bleibt.
+      if (isNew && !planDate) router.replace(hrefFor(id));
+      else router.refresh();
     });
   }
 
@@ -587,14 +609,48 @@ export default function FieldPlanner({
         return;
       }
       setDirty(false);
-      router.replace("/field-planning");
+      if (planDate) {
+        // Der Termin bleibt, nur sein Plan ist wieder leer.
+        setPlanId(null);
+        setItems([]);
+        setSelectedIds([]);
+        router.refresh();
+      } else {
+        router.replace("/field-planning");
+      }
     });
   }
 
-  function openPlan(target: string) {
-    if (dirty && !window.confirm("Ungespeicherte Änderungen verwerfen?")) return;
+  // Verlassen mit ungespeicherten Aenderungen: erst nachfragen (Speichern / Verwerfen / Abbrechen).
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+
+  function navigate(href: string) {
+    if (dirty && canWrite) {
+      setLeaveTarget(href);
+      return;
+    }
+    router.push(href);
+  }
+
+  function saveAndLeave() {
+    const target = leaveTarget;
+    if (!target) return;
+    startTransition(async () => {
+      if (!(await persist())) {
+        // Fehlermeldung steht in der Statuszeile; auf der Seite bleiben.
+        setLeaveTarget(null);
+        return;
+      }
+      setLeaveTarget(null);
+      router.push(target);
+    });
+  }
+
+  function discardAndLeave() {
+    const target = leaveTarget;
+    setLeaveTarget(null);
     setDirty(false);
-    router.push(target === "new" ? "/field-planning?new=1" : `/field-planning?plan=${target}`);
+    if (target) router.push(target);
   }
 
   const itemCursor = (id: string) =>
@@ -607,31 +663,51 @@ export default function FieldPlanner({
     <div>
       {/* Plan-Auswahl und Speichern */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        {eventHref && (
+          <button
+            type="button"
+            onClick={() => navigate(eventHref)}
+            className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
+          >
+            ← Zurück zum Termin
+          </button>
+        )}
         <select
-          value={planId ?? "new"}
-          onChange={(e) => openPlan(e.target.value)}
-          aria-label="Plan auswählen"
-          className="rounded border border-zinc-300 px-2 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          value={selection}
+          onChange={(e) => navigate(hrefFor(e.target.value))}
+          aria-label="Trainingstermin oder Plan auswählen"
+          className="max-w-full rounded border border-zinc-300 px-2 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          {!planId && <option value="new">– neuer Plan –</option>}
-          {plans.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
+          {selection === "new" && <option value="new">– neuer Plan –</option>}
+          {(["Trainingstermine", "Weitere Pläne"] as const).map((group) => {
+            const groupOptions = options.filter((o) => o.group === group);
+            if (!groupOptions.length) return null;
+            return (
+              <optgroup key={group} label={group}>
+                {groupOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
         </select>
-        <input
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setDirty(true);
-          }}
-          disabled={!canWrite}
-          maxLength={100}
-          placeholder="Name, z.B. Di 17:00 Kunstrasen"
-          aria-label="Name des Plans"
-          className="min-w-48 flex-1 rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
+        {/* Plaene zu Trainingsterminen heissen automatisch nach dem Datum */}
+        {!planDate && (
+          <input
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setDirty(true);
+            }}
+            disabled={!canWrite}
+            maxLength={100}
+            placeholder="Name, z.B. Di 17:00 Kunstrasen"
+            aria-label="Name des Plans"
+            className="min-w-48 flex-1 rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+        )}
         {canWrite && (
           <>
             <button
@@ -644,7 +720,8 @@ export default function FieldPlanner({
             </button>
             <button
               type="button"
-              onClick={() => openPlan("new")}
+              onClick={() => navigate(hrefFor("new"))}
+              title="Plan ohne Trainingstermin, z.B. für Turniere oder Vorlagen"
               className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
             >
               Neuer Plan
@@ -1001,6 +1078,42 @@ export default function FieldPlanner({
           </aside>
         )}
       </div>
+
+      {leaveTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-900">
+            <p className="mb-4 text-sm font-medium">
+              Es gibt ungespeicherte Änderungen am Trainingsplatzplan. Sollen sie gespeichert werden?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={saveAndLeave}
+                disabled={pending}
+                className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+              >
+                {pending ? "Speichert…" : "Speichern und weiter"}
+              </button>
+              <button
+                type="button"
+                onClick={discardAndLeave}
+                disabled={pending}
+                className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+              >
+                Verwerfen
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeaveTarget(null)}
+                disabled={pending}
+                className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+              >
+                Abbrechen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

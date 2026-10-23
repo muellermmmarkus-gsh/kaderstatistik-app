@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, isTrainer } from "@/lib/supabase/profile";
-import { saveAttendance, saveAttendanceAndReturn } from "./actions";
+import { saveAttendance, saveAttendanceAndOpenFieldPlan, saveAttendanceAndReturn } from "./actions";
 import BackButton from "@/components/BackButton";
 import SaveNotice from "@/components/SaveNotice";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import EventDetailActions from "./EventDetailActions";
+import FieldPlanButton from "./FieldPlanButton";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 import { ownSideOf } from "@/app/results/teams";
@@ -129,6 +130,7 @@ export default async function EventDetailPage({
   const trainerIds = trainers?.map((t) => t.id) ?? [];
   const save = saveAttendance.bind(null, id, playerIds, trainerIds);
   const saveAndBack = saveAttendanceAndReturn.bind(null, id, playerIds, trainerIds);
+  const saveAndOpenFieldPlan = saveAttendanceAndOpenFieldPlan.bind(null, id, playerIds, trainerIds);
 
   const hasGoals = event.type === "game" || event.type === "tournament";
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
@@ -163,13 +165,23 @@ export default async function EventDetailPage({
         {event.label ? ` · ${event.label}` : ""}
       </p>
 
+      {/* Das Formular beginnt schon hier, damit "Zum Trainingsplatzplan" ungespeicherte
+          Aenderungen erkennt und auf Wunsch mitspeichert (siehe FieldPlanButton). */}
+      <form action={save}>
       {event.type === "training" && (
-        <Link
-          href={`/trainings/${event.id}`}
-          className="mb-6 inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-        >
-          Zum Trainingsplan
-        </Link>
+        <div className="mb-6 flex flex-wrap gap-3">
+          <Link
+            href={`/trainings/${event.id}`}
+            className="inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+          >
+            Zum Trainingsplan
+          </Link>
+          <FieldPlanButton
+            canWrite={canWrite}
+            href={`/field-planning?date=${event.event_date}`}
+            saveAndOpen={saveAndOpenFieldPlan}
+          />
+        </div>
       )}
 
       {event.type === "game" && (
@@ -187,7 +199,6 @@ export default async function EventDetailPage({
         </p>
       )}
 
-      <form action={save}>
         {isGame && canWrite && <ShirtNumberGuard />}
         <section className="mb-8">
           <h2 className="mb-3 font-medium">Spieler</h2>
