@@ -24,6 +24,7 @@ const menu: MenuGroup[] = [
       { label: "Abwesenheiten", href: "/absences" },
       { label: "Saisonverwaltung", href: "/seasons" },
       { label: "Checklisten", href: "/checklists" },
+      { label: "Kalender TVG Fussball", href: "/club-calendar" },
     ],
   },
   {
