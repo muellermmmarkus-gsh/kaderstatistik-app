@@ -9,10 +9,12 @@ import {
   GOAL_SIZES,
   KIND_LABELS,
   MIN_AREA,
+  SEGMENTS,
   PITCH_LENGTH as L,
   PITCH_WIDTH as W,
   areaSize,
   isArea,
+  isSplit,
   roundTo,
   setCustom,
   snapArea,
@@ -202,6 +204,10 @@ export default function FieldPlanner({
   const [planId, setPlanId] = useState(initialPlan.id);
   const [name, setName] = useState(initialPlan.name);
   const [items, setItems] = useState<FieldItem[]>(initialPlan.items);
+  // Optionale Aufteilung in Zeitabschnitte; angezeigt wird nur der aktive Abschnitt.
+  const [split, setSplit] = useState(() => isSplit(initialPlan.items));
+  const [segment, setSegment] = useState(0);
+  const visible = split ? items.filter((i) => (i.segment ?? 0) === segment) : items;
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   // Mehrfachauswahl-Modus: Rahmen ziehen bzw. Elemente antippen (auch auf Touch-Geraeten).
   const [selectMode, setSelectMode] = useState(false);
@@ -220,7 +226,7 @@ export default function FieldPlanner({
   const isSelected = (id: string) => selectedIds.includes(id);
   const selected = selectedIds.length === 1 ? (items.find((i) => i.id === selectedIds[0]) ?? null) : null;
   const goalCounts = Object.fromEntries(
-    GOAL_KINDS.map((k) => [k, items.filter((i) => i.kind === k).length]),
+    GOAL_KINDS.map((k) => [k, visible.filter((i) => i.kind === k).length]),
   ) as Record<GoalKind, number>;
 
   // Warnung beim Verlassen mit ungespeicherten Aenderungen.
@@ -255,7 +261,7 @@ export default function FieldPlanner({
       if (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA") return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        setSelectedIds(items.map((i) => i.id));
+        setSelectedIds(visible.map((i) => i.id));
       } else if (e.key === "Escape") {
         setSelectedIds([]);
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedIds.length) {
@@ -327,7 +333,7 @@ export default function FieldPlanner({
     let item: FieldItem;
     if (isArea(kind)) {
       const { w, h } = standardAreaSize(kind, 0);
-      const used = items.filter((i) => isArea(i.kind)).length;
+      const used = visible.filter((i) => isArea(i.kind)).length;
       const pos = at ?? { x: L / 2, y: W / 2 };
       item = snapArea({
         id,
@@ -342,7 +348,7 @@ export default function FieldPlanner({
       const pos = at ?? { x: L / 2, y: W / 2 };
       item = { id, kind, x: roundTo(pos.x, 0.5), y: roundTo(pos.y, 0.5), rotation: 0 };
     }
-    change([...items, item]);
+    change([...items, split ? { ...item, segment } : item]);
     setSelectedIds([id]);
   }
 
@@ -532,7 +538,7 @@ export default function FieldPlanner({
       }
       const m = marquee;
       if (!m) return;
-      const hits = items
+      const hits = visible
         .filter((i) => {
           const c = centerOf(i);
           return c.x >= m.x && c.x <= m.x + m.w && c.y >= m.y && c.y <= m.y + m.h;
@@ -656,8 +662,47 @@ export default function FieldPlanner({
   const itemCursor = (id: string) =>
     canWrite ? (selectMode && !isSelected(id) ? "cursor-crosshair" : "cursor-move") : undefined;
 
-  const areas = items.filter((i) => isArea(i.kind));
-  const goals = items.filter((i) => !isArea(i.kind));
+  const areas = visible.filter((i) => isArea(i.kind));
+  const goals = visible.filter((i) => !isArea(i.kind));
+
+  function showSegment(index: number) {
+    setSegment(index);
+    setSelectedIds([]);
+    setMenu(null);
+  }
+
+  function toggleSplit() {
+    if (!split) {
+      // Die bisherige Belegung gilt zunaechst fuer alle drei Abschnitte.
+      change(items.flatMap((i) => SEGMENTS.map((_, s) => ({ ...i, id: s ? crypto.randomUUID() : i.id, segment: s }))));
+      setSplit(true);
+      showSegment(0);
+      return;
+    }
+    const others = items.some((i) => (i.segment ?? 0) !== segment);
+    if (
+      others &&
+      !window.confirm(
+        `Aufteilung aufheben? Erhalten bleibt die Belegung von ${SEGMENTS[segment]}, die anderen Abschnitte werden entfernt.`,
+      )
+    ) {
+      return;
+    }
+    change(visible.map((i) => ({ ...i, segment: undefined })));
+    setSplit(false);
+    showSegment(0);
+  }
+
+  /** Belegung des vorherigen Abschnitts in den aktiven Abschnitt kopieren. */
+  function copyPreviousSegment() {
+    if (segment === 0) return;
+    if (visible.length && !window.confirm(`Belegung von ${SEGMENTS[segment]} durch ${SEGMENTS[segment - 1]} ersetzen?`)) return;
+    const copies = items
+      .filter((i) => i.segment === segment - 1)
+      .map((i) => ({ ...i, id: crypto.randomUUID(), segment }));
+    change([...items.filter((i) => i.segment !== segment), ...copies]);
+    setSelectedIds([]);
+  }
 
   return (
     <div>
@@ -778,6 +823,54 @@ export default function FieldPlanner({
 
         {/* Spielfeld */}
         <div ref={wrapRef} className="relative min-w-0 flex-1">
+          {/* Optionale Aufteilung in Zeitabschnitte */}
+          {(canWrite || split) && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+              {canWrite && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={split}
+                  onClick={toggleSplit}
+                  className="flex items-center gap-2 rounded border border-zinc-300 px-3 py-1.5 dark:border-zinc-700"
+                >
+                  <span
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${split ? "bg-green-600" : "bg-zinc-300 dark:bg-zinc-700"}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${split ? "left-[1.125rem]" : "left-0.5"}`}
+                    />
+                  </span>
+                  In 3 Zeitabschnitte aufteilen
+                </button>
+              )}
+              {split && (
+                <div role="tablist" aria-label="Zeitabschnitt" className="flex overflow-hidden rounded border border-zinc-300 dark:border-zinc-700">
+                  {SEGMENTS.map((label, index) => (
+                    <button
+                      key={label}
+                      type="button"
+                      role="tab"
+                      aria-selected={segment === index}
+                      onClick={() => showSegment(index)}
+                      className={`px-3 py-1.5 ${index ? "border-l border-zinc-300 dark:border-zinc-700" : ""} ${segment === index ? "bg-zinc-900 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900" : ""}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {split && canWrite && segment > 0 && (
+                <button
+                  type="button"
+                  onClick={copyPreviousSegment}
+                  className="rounded border border-zinc-300 px-3 py-1.5 dark:border-zinc-700"
+                >
+                  Belegung aus {SEGMENTS[segment - 1]} übernehmen
+                </button>
+              )}
+            </div>
+          )}
           {canWrite && (
             <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
               <button
@@ -790,8 +883,8 @@ export default function FieldPlanner({
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedIds(items.map((i) => i.id))}
-                disabled={!items.length}
+                onClick={() => setSelectedIds(visible.map((i) => i.id))}
+                disabled={!visible.length}
                 className="rounded border border-zinc-300 px-3 py-1.5 disabled:opacity-50 dark:border-zinc-700"
               >
                 Alle auswählen
@@ -866,6 +959,19 @@ export default function FieldPlanner({
                   >
                     {item.label?.trim() || (canWrite ? "Mannschaft?" : "")}
                   </text>
+                  {/* Dezente Massangabe Laenge x Breite (laengere Seite zuerst) */}
+                  <text
+                    x={item.x + w / 2}
+                    y={item.y + h / 2 + Math.min(4, w / 8, h / 3) * 0.6 + Math.min(1.8, h / 8)}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                    fontSize={Math.min(1.8, w / 10, h / 8)}
+                    fill="white"
+                    fillOpacity={0.8}
+                    pointerEvents="none"
+                  >
+                    {formatM(Math.max(w, h))} × {formatM(Math.min(w, h))} m
+                  </text>
                   {/* Dezente Markierung fuer vom Standard abweichende Flaechen */}
                   {item.custom && (
                     <text
@@ -876,7 +982,7 @@ export default function FieldPlanner({
                       fillOpacity={0.85}
                       pointerEvents="none"
                     >
-                      ✎ angepasst · {formatM(w)} × {formatM(h)} m
+                      ✎ angepasst
                     </text>
                   )}
                   {isSel && selectedIds.length === 1 && item.custom && canWrite &&
@@ -963,7 +1069,7 @@ export default function FieldPlanner({
           )}
 
           <p className="mt-2 text-xs text-zinc-500">
-            Tore auf dem Platz: {GOAL_KINDS.map((k) => `${KIND_LABELS[k]} ${goalCounts[k]}`).join(" · ")}
+            Tore auf dem Platz{split ? ` (${SEGMENTS[segment]})` : ""}: {GOAL_KINDS.map((k) => `${KIND_LABELS[k]} ${goalCounts[k]}`).join(" · ")}
             {" · "}Flächen rasten auf halbe/drittel/viertel Platzpositionen ein. Rechtsklick (Handy:
             lange drücken) auf eine Fläche, um sie vom Standard abweichend anzupassen.
           </p>
@@ -1005,12 +1111,12 @@ export default function FieldPlanner({
                     {selected.custom ? (
                       <div className="grid grid-cols-2 gap-2">
                         <SizeInput
-                          label="Länge (m)"
+                          label="Waagrecht (m)"
                           value={areaSize(selected).w}
                           onCommit={(v) => resize(selected, v, areaSize(selected).h)}
                         />
                         <SizeInput
-                          label="Breite (m)"
+                          label="Senkrecht (m)"
                           value={areaSize(selected).h}
                           onCommit={(v) => resize(selected, areaSize(selected).w, v)}
                         />

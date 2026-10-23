@@ -25,7 +25,15 @@ export type FieldItem = {
   custom?: boolean;
   w?: number;
   h?: number;
+  /** Zeitabschnitt (Index in SEGMENTS), nur wenn das Training aufgeteilt ist. */
+  segment?: number;
 };
+
+/** Optionale Aufteilung eines Trainings in drei Zeitabschnitte. */
+export const SEGMENTS = ["0.–30. Min", "30.–60. Min", "60.–90. Min"];
+
+/** Ein Plan ist aufgeteilt, sobald seine Elemente einen Zeitabschnitt tragen. */
+export const isSplit = (items: FieldItem[]) => items.some((i) => i.segment !== undefined);
 
 export const AREA_COLORS = ["#2563eb", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#db2777"];
 
@@ -114,7 +122,10 @@ const MAX_ITEMS = 200;
 /** Prueft und bereinigt Elemente aus dem Client, bevor sie gespeichert werden. */
 export function sanitizeItems(input: unknown): FieldItem[] {
   if (!Array.isArray(input)) return [];
-  return input.slice(0, MAX_ITEMS).flatMap((raw): FieldItem[] => {
+  const list = input.slice(0, MAX_ITEMS * SEGMENTS.length);
+  // Aufgeteilt: alle Elemente brauchen einen Abschnitt (fehlend = erster Abschnitt).
+  const split = list.some((raw) => raw && typeof raw === "object" && (raw as { segment?: unknown }).segment != null);
+  return list.flatMap((raw): FieldItem[] => {
     if (!raw || typeof raw !== "object") return [];
     const r = raw as Record<string, unknown>;
     const kind = r.kind as ItemKind;
@@ -132,6 +143,10 @@ export function sanitizeItems(input: unknown): FieldItem[] {
         ? rotation === 90 ? 90 : 0
         : [0, 90, 180, 270].includes(rotation) ? rotation : 0,
     };
+    if (split) {
+      const segment = Number((r as { segment?: unknown }).segment);
+      item.segment = Number.isInteger(segment) && segment >= 0 && segment < SEGMENTS.length ? segment : 0;
+    }
     if (isArea(kind)) {
       item.label = typeof r.label === "string" ? r.label.slice(0, 40) : "";
       item.color = AREA_COLORS.includes(r.color as string) ? (r.color as string) : AREA_COLORS[0];
