@@ -24,15 +24,11 @@ import {
   type ItemKind,
 } from "./model";
 
-/** Eintrag im Plan-Dropdown: value "date:JJJJ-MM-TT" (Trainingstermin), Plan-ID oder "new". */
+/** Eintrag im Plan-Dropdown: value "date:JJJJ-MM-TT" (Trainingstermin) oder Plan-ID (aeltere Plaene ohne Termin). */
 export type PlanOption = { value: string; label: string; group: "Trainingstermine" | "Weitere Pläne" };
 
 const hrefFor = (value: string) =>
-  value === "new"
-    ? "/field-planning?new=1"
-    : value.startsWith("date:")
-      ? `/field-planning?date=${value.slice(5)}`
-      : `/field-planning?plan=${value}`;
+  value.startsWith("date:") ? `/field-planning?date=${value.slice(5)}` : `/field-planning?plan=${value}`;
 
 const MARGIN = 4;
 const LINE = 0.15;
@@ -597,12 +593,7 @@ export default function FieldPlanner({
 
   function save() {
     startTransition(async () => {
-      const isNew = !planId;
-      const id = await persist();
-      if (!id) return;
-      // Neuer Plan ohne Termin: in der URL festhalten, damit er nach dem Neuladen offen bleibt.
-      if (isNew && !planDate) router.replace(hrefFor(id));
-      else router.refresh();
+      if (await persist()) router.refresh();
     });
   }
 
@@ -723,7 +714,6 @@ export default function FieldPlanner({
           aria-label="Trainingstermin oder Plan auswählen"
           className="max-w-full rounded border border-zinc-300 px-2 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          {selection === "new" && <option value="new">– neuer Plan –</option>}
           {(["Trainingstermine", "Weitere Pläne"] as const).map((group) => {
             const groupOptions = options.filter((o) => o.group === group);
             if (!groupOptions.length) return null;
@@ -762,14 +752,6 @@ export default function FieldPlanner({
               className="rounded bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
             >
               {pending ? "Speichert…" : "Speichern"}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(hrefFor("new"))}
-              title="Plan ohne Trainingstermin, z.B. für Turniere oder Vorlagen"
-              className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
-            >
-              Neuer Plan
             </button>
             {planId && (
               <button

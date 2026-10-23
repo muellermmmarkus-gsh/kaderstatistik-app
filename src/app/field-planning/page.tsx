@@ -31,9 +31,9 @@ const todayBerlin = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Eu
 export default async function FieldPlanningPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string; date?: string; new?: string }>;
+  searchParams: Promise<{ plan?: string; date?: string }>;
 }) {
-  const { plan: planParam, date: dateParam, new: newParam } = await searchParams;
+  const { plan: planParam, date: dateParam } = await searchParams;
   const supabase = await createClient();
   const [{ data: planRows }, { data: dateRows }, canWrite, profile] = await Promise.all([
     supabase
@@ -53,8 +53,9 @@ export default async function FieldPlanningPage({
   const trainingDates = (dateRows ?? []) as { event_date: string; teams: string | null }[];
   const knownDates = new Set(trainingDates.map((d) => d.event_date));
 
-  // Auswahl: ?date= (Trainingstermin), ?plan= (Plan ohne Datum), ?new=1, sonst
+  // Auswahl: ?date= (Trainingstermin), ?plan= (aelterer Plan ohne Datum), sonst
   // der naechste anstehende Trainingstermin bzw. der zuletzt geaenderte Plan.
+  // Neue Plaene entstehen nur zu Trainingsterminen.
   let date: string | null = null;
   let current: (typeof plans)[number] | undefined;
   if (dateParam && DATE_RE.test(dateParam)) {
@@ -62,7 +63,7 @@ export default async function FieldPlanningPage({
   } else if (planParam) {
     current = plans.find((p) => p.id === planParam);
     date = current?.plan_date ?? null;
-  } else if (!newParam) {
+  } else {
     const today = todayBerlin();
     date = trainingDates.find((d) => d.event_date >= today)?.event_date ?? trainingDates.at(-1)?.event_date ?? null;
     if (!date) current = [...plans].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
@@ -86,7 +87,7 @@ export default async function FieldPlanningPage({
   if (date && !options.some((o) => o.value === `date:${date}`)) {
     options.unshift({ value: `date:${date}`, label: formatDay(date), group: "Trainingstermine" });
   }
-  const selection = date ? `date:${date}` : (current?.id ?? "new");
+  const selection = date ? `date:${date}` : (current?.id ?? null);
 
   // Eigener Trainingstermin an diesem Tag fuer den Button "Zurück zum Termin".
   let eventHref: string | null = null;
@@ -116,6 +117,12 @@ export default async function FieldPlanningPage({
         Trainingstermin (aller Teams) gibt es einen gemeinsamen Plan.
         {!canWrite && " Du hast Nur-Lese-Zugriff."}
       </p>
+      {!selection ? (
+        <p className="text-sm text-zinc-500">
+          Noch keine Trainingstermine vorhanden. Sobald ein Team ein Training anlegt, gibt es hier
+          den Platzplan dazu.
+        </p>
+      ) : (
       <FieldPlanner
         key={selection}
         options={options}
@@ -130,6 +137,7 @@ export default async function FieldPlanningPage({
         lastChange={lastChange}
         canWrite={canWrite}
       />
+      )}
     </div>
   );
 }
