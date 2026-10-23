@@ -43,6 +43,7 @@ const menu: MenuGroup[] = [
       { label: "Übungshistorie", href: "/exercise-history" },
       { label: "Trainingsplanung", href: "/trainings" },
       { label: "Flächenplanung", href: "/fields" },
+      { label: "Trainingsplatzplanung", href: "/field-planning" },
     ],
   },
   {
