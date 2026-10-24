@@ -127,7 +127,7 @@
         <tr><td><kbd>Strg</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Rückgängig / Wiederholen</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Abwählen, zurück zu Auswahl</td></tr>
       </table>
-      <p>Pfeile: Linie von einem Element zum nächsten ziehen, dann haften sie daran und folgen beim Verschieben. Den Punkt in der Mitte des Pfeils ziehen, um ihn zu biegen.</p>
+      <p>Pfeile: Linie von einem Element zum nächsten ziehen, dann haften sie daran und folgen beim Verschieben. Den Punkt in der Mitte des Pfeils ziehen, um ihn zu biegen. Neue Pfeile werden automatisch nummeriert (Reihenfolge); die Nummer lässt sich ändern oder mit „Nummer entfernen“ weglöschen.</p>
     </details>
   </aside>
 </main>
@@ -596,6 +596,13 @@ function nextNr() {
   for (let n = 1; n < 100; n++) if (!used.has(String(n))) return String(n);
   return '';
 }
+// Pfeile (Pass, Laufweg, Wurf) bekommen wie Spieler automatisch die kleinste freie Nummer ab 1
+// (gemeinsame Reihenfolge über alle Pfeilarten); eine gelöschte oder entfernte Nummer wird wieder vergeben.
+function nextArrowNr() {
+  const used = new Set(S.arrows.map((a) => String(a.nr ?? '')));
+  for (let n = 1; n < 100; n++) if (!used.has(String(n))) return String(n);
+  return '';
+}
 function addItem(proto, x, y) {
   const it = { id: S.seq++, type: proto.t, x: sn(x), y: sn(y) };
   if (proto.t === 'spieler') { it.team = proto.team; it.label = nextLabel(proto.team, proto.neutral); }
@@ -696,7 +703,7 @@ board.addEventListener('pointerdown', (e) => {
   const p = pt(e);
   if (tool !== 'select') {
     const from = itemAt(p);
-    const a = { id: S.seq++, typ: tool, from: from ? { ref: from.id } : { x: sn(p.x), y: sn(p.y) }, to: { x: p.x, y: p.y }, bogen: 0, nr: '' };
+    const a = { id: S.seq++, typ: tool, from: from ? { ref: from.id } : { x: sn(p.x), y: sn(p.y) }, to: { x: p.x, y: p.y }, bogen: 0, nr: nextArrowNr() };
     S.arrows.push(a); sel = new Set([a.id]);
     drag = { mode: 'newarrow', a };
     render(); renderProps(); return;
@@ -908,7 +915,7 @@ function renderProps() {
       rowSel('Art', 'typ', [['pass', 'Pass (durchgezogen)'], ['lauf', 'Laufweg / Dribbling (S-Welle)'], ['wurf', 'Wurf (gepunktet)']], o.typ) +
       `<div class="row"><span>Biegung</span><input type="range" min="-300" max="300" step="5" data-k="bogen" data-t="n" value="${o.bogen || 0}"></div>` +
       rowTxt('Nummer (optional)', 'nr', o.nr || '') +
-      `<div class="btns"><button data-act="swap">Richtung umkehren</button><button data-act="del" class="danger">Löschen</button></div>`;
+      `<div class="btns"><button data-act="swap">Richtung umkehren</button>${o.nr ? '<button data-act="nonr">Nummer entfernen</button>' : ''}<button data-act="del" class="danger">Löschen</button></div>`;
   } else {
     h += `<p class="hint"><b>${NAMES[o.type]}</b></p>`;
     if (o.type === 'spieler') h += rowSel('Team', 'team', TEAM_OPT, o.team) + rowTxt('Nummer / Buchstabe', 'label', o.label || '', 'text', 'maxlength="3"');
@@ -940,6 +947,7 @@ selprops.addEventListener('click', (e) => {
   if (a === 'del') delSel();
   if (a === 'dup') { dupSel(24, 24); commit(); render(); renderProps(); }
   if (a === 'rot') rotSel();
+  if (a === 'nonr') { sel.forEach((id) => { const o = find(id); if (o && isArrow(o)) o.nr = ''; }); commit(); render(); renderProps(); }
   if (a === 'swap') { sel.forEach((id) => { const o = find(id); if (o && isArrow(o)) { [o.from, o.to] = [o.to, o.from]; } }); commit(); render(); }
 });
 
