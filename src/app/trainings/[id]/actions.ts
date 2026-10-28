@@ -127,3 +127,117 @@ export async function saveTrainingPlan(eventId: string, formData: FormData) {
 
   if (afterSaveRedirect) redirect(afterSaveRedirect);
 }
+
+type SourceExercise = {
+  exercise_id: string;
+  sort_order: number;
+  duration_minutes: number;
+  block: number;
+  field_text: string | null;
+  small_goals_text: string | null;
+  mini_goals_text: string | null;
+  training_exercise_groups: { group_label: string }[];
+};
+
+/**
+ * Kopiert den gespeicherten Trainingsplan (Schwerpunkt, Notizen, Uebungen inkl.
+ * Bloecke, Gruppen und Freitexte, Spielergruppen) auf einen anderen
+ * Trainingstermin. Der bisherige Inhalt des Zieltermins wird ersetzt.
+ */
+export async function copyTrainingPlan(
+  sourceEventId: string,
+  targetEventId: string,
+): Promise<{ error?: string }> {
+  if (sourceEventId === targetEventId) return { error: "Quell- und Zieltermin sind identisch." };
+  const supabase = await createClient();
+
+  const [{ data: source }, { data: target }] = await Promise.all([
+    supabase
+      .from("trainings")
+      .select(
+        "focus, notes, training_exercises(exercise_id, sort_order, duration_minutes, block, field_text, small_goals_text, mini_goals_text, training_exercise_groups(group_label)), training_player_groups(player_id, group_label)",
+      )
+      .eq("event_id", sourceEventId)
+      .maybeSingle(),
+    // Ueber RLS nur Trainingstermine des eigenen Teams.
+    supabase
+      .from("events")
+      .select("id")
+      .eq("id", targetEventId)
+      .eq("type", "training")
+      .is("deleted_at", null)
+      .maybeSingle(),
+  ]);
+  if (!source) return { error: "Für diesen Termin ist noch kein Trainingsplan gespeichert." };
+  if (!target) return { error: "Der Zieltermin wurde nicht gefunden." };
+
+  const { data: training, error: upsertError } = await supabase
+    .from("trainings")
+    .upsert(
+      { event_id: targetEventId, focus: source.focus, notes: source.notes },
+      { onConflict: "event_id" },
+    )
+    .select("id")
+    .single();
+  if (upsertError || !training) {
+    return { error: `Trainingsplan konnte nicht kopiert werden: ${upsertError?.message ?? "unbekannter Fehler"}` };
+  }
+
+  // Vorhandene Inhalte im Zieltermin ersetzen (Gruppen haengen per cascade dran).
+  await supabase.from("training_exercises").delete().eq("training_id", training.id);
+  await supabase.from("training_player_groups").delete().eq("training_id", training.id);
+
+  const exercises = ((source.training_exercises ?? []) as SourceExercise[])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order);
+  if (exercises.length) {
+    const { data: inserted, error } = await supabase
+      .from("training_exercises")
+      .insert(
+        exercises.map((e) => ({
+          training_id: training.id,
+          exercise_id: e.exercise_id,
+          sort_order: e.sort_order,
+          duration_minutes: e.duration_minutes,
+          block: e.block,
+          field_text: e.field_text,
+          small_goals_text: e.small_goals_text,
+          mini_goals_text: e.mini_goals_text,
+        })),
+      )
+      .select("id, sort_order");
+    if (error) return { error: `Übungen konnten nicht kopiert werden: ${error.message}` };
+
+    const idBySortOrder = new Map((inserted ?? []).map((r) => [r.sort_order, r.id]));
+    const groupRows = exercises.flatMap((e) => {
+      const trainingExerciseId = idBySortOrder.get(e.sort_order);
+      if (!trainingExerciseId) return [];
+      return (e.training_exercise_groups ?? []).map((g) => ({
+        training_exercise_id: trainingExerciseId,
+        group_label: g.group_label,
+      }));
+    });
+    if (groupRows.length) {
+      const { error: groupError } = await supabase.from("training_exercise_groups").insert(groupRows);
+      if (groupError) return { error: `Gruppen konnten nicht kopiert werden: ${groupError.message}` };
+    }
+  }
+
+  const playerGroups = (source.training_player_groups ?? []) as { player_id: string; group_label: string }[];
+  if (playerGroups.length) {
+    const { error: playerGroupError } = await supabase.from("training_player_groups").insert(
+      playerGroups.map((pg) => ({
+        training_id: training.id,
+        player_id: pg.player_id,
+        group_label: pg.group_label,
+      })),
+    );
+    if (playerGroupError) {
+      return { error: `Spielergruppen konnten nicht kopiert werden: ${playerGroupError.message}` };
+    }
+  }
+
+  revalidatePath(`/trainings/${targetEventId}`);
+  revalidatePath("/trainings");
+  return {};
+}

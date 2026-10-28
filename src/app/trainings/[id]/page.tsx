@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { saveTrainingPlan } from "./actions";
+import CopyPlanButton, { type CopyTarget } from "./CopyPlanButton";
 import TrainingBuilder from "../TrainingBuilder";
 import BackButton from "@/components/BackButton";
 import { optimizedImage } from "@/lib/optimizedImage";
@@ -57,6 +58,7 @@ export default async function TrainingDetailPage({
     { data: players },
     { data: focuses },
     { data: latestGrades },
+    { data: futureTrainings },
     canWrite,
   ] = await Promise.all([
     supabase
@@ -87,6 +89,15 @@ export default async function TrainingDetailPage({
       .order("last_name"),
     supabase.from("exercise_focuses").select("label").order("sort_order"),
     supabase.from("performance_latest").select("player_id, focus, grade"),
+    // Zieltermine fuer "Trainingsplan kopieren nach": kuenftige Trainings des eigenen Teams (RLS).
+    supabase
+      .from("events")
+      .select("id, event_date, trainings(training_exercises(count))")
+      .eq("type", "training")
+      .is("deleted_at", null)
+      .gte("event_date", new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }))
+      .neq("id", id)
+      .order("event_date"),
     isTrainer(),
   ]);
 
@@ -151,6 +162,24 @@ export default async function TrainingDetailPage({
   ).map((pg) => ({ playerId: pg.player_id, group: pg.group_label }));
 
   const save = saveTrainingPlan.bind(null, id);
+
+  const copyTargets: CopyTarget[] = (futureTrainings ?? []).map((t) => {
+    const tr = (Array.isArray(t.trainings) ? t.trainings[0] : t.trainings) as
+      | { training_exercises: { count: number }[] }
+      | null
+      | undefined;
+    return {
+      eventId: t.id,
+      label: new Date(`${t.event_date}T12:00:00Z`).toLocaleDateString("de-DE", {
+        timeZone: "UTC",
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      exerciseCount: tr?.training_exercises?.[0]?.count ?? 0,
+    };
+  });
 
   // TrainingBuilder haelt seinen Zustand in useState, das bei einem erneuten
   // Server-Render mit neuen initialRows/initialFocus NICHT automatisch
@@ -217,6 +246,7 @@ export default async function TrainingDetailPage({
             }))}
           initialPlayerGroups={initialPlayerGroups}
           submitLabel="Änderungen speichern"
+          headerActions={<CopyPlanButton sourceEventId={id} targets={copyTargets} />}
         />
       ) : (
         <>

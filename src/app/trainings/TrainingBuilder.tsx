@@ -96,6 +96,7 @@ export default function TrainingBuilder({
   initialPlayerGroups,
   submitLabel,
   backHref,
+  headerActions,
 }: {
   exercises: Exercise[];
   players: Player[];
@@ -116,6 +117,8 @@ export default function TrainingBuilder({
   initialPlayerGroups?: { playerId: string; group: string }[];
   submitLabel: string;
   backHref: string;
+  /** Zusaetzliche Buttons in der Kopfzeile neben "Visuelle Ansicht". */
+  headerActions?: React.ReactNode;
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
 
@@ -402,13 +405,16 @@ export default function TrainingBuilder({
         >
           ← Zurück
         </button>
-        <button
-          type="button"
-          onClick={() => setViewMode((mode) => (mode === "edit" ? "visual" : "edit"))}
-          className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
-        >
-          {viewMode === "edit" ? "Visuelle Ansicht" : "Zur Bearbeitungsansicht"}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {headerActions}
+          <button
+            type="button"
+            onClick={() => setViewMode((mode) => (mode === "edit" ? "visual" : "edit"))}
+            className="rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"
+          >
+            {viewMode === "edit" ? "Visuelle Ansicht" : "Zur Bearbeitungsansicht"}
+          </button>
+        </div>
       </div>
       {viewMode === "visual" ? (
         <div className="space-y-6">
