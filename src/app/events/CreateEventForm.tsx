@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { createEvent } from "./actions";
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const HOURS = Array.from({ length: 24 }, (_, i) => pad(i));
+// 5-Minuten-Schritte, Standard ist 00
+const MINUTES = Array.from({ length: 12 }, (_, i) => pad(i * 5));
+
 export default function CreateEventForm({
   seasons,
   defaultSeason,
@@ -15,6 +20,8 @@ export default function CreateEventForm({
   eventTypes: { key: string; label: string }[];
 }) {
   const [type, setType] = useState(eventTypes[0]?.key ?? "");
+  const [hour, setHour] = useState("");
+  const [minute, setMinute] = useState("00");
   const needsOpponentFields = type === "game" || type === "tournament";
   // Terminarten ohne eigene Sonderfelder (also nicht Training/Spiel/Turnier)
   // verhalten sich wie "Event": nur eine Bezeichnung noetig - das gilt
@@ -60,17 +67,43 @@ export default function CreateEventForm({
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
-      {/* Startuhrzeit fuer alle Terminarten, optional */}
+      {/* Startuhrzeit fuer alle Terminarten, optional: Stunde waehlen, Minute steht auf 00 */}
       <div>
-        <label className="mb-1 block text-sm font-medium" htmlFor="eventTime">
+        <label className="mb-1 block text-sm font-medium" htmlFor="eventHour">
           Startuhrzeit <span className="font-normal text-zinc-500">(optional)</span>
         </label>
-        <input
-          id="eventTime"
-          name="eventTime"
-          type="time"
-          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        />
+        <div className="flex items-center gap-1">
+          <select
+            id="eventHour"
+            value={hour}
+            onChange={(e) => setHour(e.target.value)}
+            aria-label="Stunde"
+            className="rounded border border-zinc-300 px-2 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <option value="">--</option>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
+          <span aria-hidden="true">:</span>
+          <select
+            value={minute}
+            onChange={(e) => setMinute(e.target.value)}
+            disabled={!hour}
+            aria-label="Minute"
+            className="rounded border border-zinc-300 px-2 py-2 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            {MINUTES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <span className="text-sm text-zinc-500">Uhr</span>
+        </div>
+        <input type="hidden" name="eventTime" value={hour ? `${hour}:${minute}` : ""} />
       </div>
       {needsOpponentFields && (
         <>
