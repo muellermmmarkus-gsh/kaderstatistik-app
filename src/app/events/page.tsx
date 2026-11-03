@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import { deleteEvent } from "./actions";
@@ -23,14 +24,16 @@ export default async function EventsPage({
   searchParams: Promise<{ type?: string; season?: string }>;
 }) {
   const { type: filterType, season: filterSeason } = await searchParams;
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
 
   const supabase = await createClient();
   let eventsQuery = supabase
     .from("events")
     .select("id, type, event_date, opponent, event_time, location, season")
     .is("deleted_at", null)
-    .order("event_date", { ascending: true })
-    .order("event_time", { ascending: true, nullsFirst: false });
+    // Neueste bzw. am weitesten in der Zukunft liegende Termine oben.
+    .order("event_date", { ascending: false })
+    .order("event_time", { ascending: false, nullsFirst: true });
   if (filterType) eventsQuery = eventsQuery.eq("type", filterType);
   if (filterSeason) eventsQuery = eventsQuery.eq("season", filterSeason);
 
@@ -158,12 +161,26 @@ export default async function EventsPage({
           </tr>
         </thead>
         <tbody>
-          {events?.map((event) => {
+          {events?.map((event, index) => {
             const remove = deleteEvent.bind(null, event.id);
+            const isPast = event.event_date < today;
+            // Dezente Trennlinie vor dem ersten vergangenen Termin
+            const showDivider = isPast && (index === 0 || events[index - 1].event_date >= today);
             return (
+              <Fragment key={event.id}>
+              {showDivider && (
+                <tr aria-hidden="true">
+                  <td colSpan={canWrite ? 8 : 7} className="pb-1 pt-5">
+                    <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                      <span className="h-px flex-1 bg-zinc-300 dark:bg-zinc-700" />
+                      Vergangene Termine
+                      <span className="h-px flex-1 bg-zinc-300 dark:bg-zinc-700" />
+                    </div>
+                  </td>
+                </tr>
+              )}
               <tr
-                key={event.id}
-                className="border-b border-zinc-100 dark:border-zinc-900"
+                className={`border-b border-zinc-100 dark:border-zinc-900 ${isPast ? "text-zinc-500 dark:text-zinc-400" : ""}`}
               >
                 <td className="py-2 pr-8">
                   <Link href={`/events/${event.id}`} className="hover:underline">
@@ -187,6 +204,7 @@ export default async function EventsPage({
                   </td>
                 )}
               </tr>
+              </Fragment>
             );
           })}
           {!events?.length && (
