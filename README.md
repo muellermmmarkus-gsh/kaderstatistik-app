@@ -197,7 +197,7 @@ und [`supabase/migration_031_datenschutz.sql`](supabase/migration_031_datenschut
 - **player_private** – Geburtsdatum (erscheint als Geburtstag im Kalender) und Passnummer je Spieler, nur fuer Trainer lesbar
 - **trainers** – Trainer-Stammdaten (inkl. `birth_date`, erscheint als Geburtstag im Kalender)
 - **seasons** – auswaehlbare Saisons (inkl. Standard-Markierung), verwaltet unter „Saisonverwaltung"
-- **events** – Termine (`type`: `training`/`game`/`tournament`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`, `event_time`/`location`/`opponent` fuer Uhrzeit/Ort/Gegner bei `game` und `tournament`)
+- **events** – Termine (`type`: `training`/`game`/`tournament`/`event`, `season` als Text passend zu `seasons.name`, `label` fuer die Bezeichnung bei `event`, `event_time` als optionale Startuhrzeit bei allen Terminarten, `location`/`opponent` fuer Ort/Gegner bei `game` und `tournament`)
 - **attendance** – Anwesenheit pro Spieler und Termin
 - **attendance_assessments** – bei Terminen vom Typ `training` Leistung (`stark`/`mittel`/`schwach`), Motivation (`hoch`/`mittel`/`niedrig`), Disziplin (`sehr gut`/`mittel`/`gering`) und ein Freitext-Notizfeld (`player_notes`, max. 50 Zeichen) je Spieler, nur fuer Trainer lesbar
 - **trainer_attendance** – Anwesenheit/Zusage pro Trainer und Termin

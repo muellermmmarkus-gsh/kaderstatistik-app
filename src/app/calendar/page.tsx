@@ -230,7 +230,8 @@ export default async function CalendarPage({
       .is("deleted_at", null)
       .gte("event_date", rangeStart)
       .lte("event_date", rangeEnd)
-      .order("event_date"),
+      .order("event_date")
+      .order("event_time", { ascending: true, nullsFirst: false }),
     supabase
       .from("trainer_absences")
       .select("id, trainer_id, start_date, end_date, trainers(first_name, last_name)")

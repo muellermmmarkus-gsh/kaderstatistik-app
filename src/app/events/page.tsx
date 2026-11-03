@@ -28,7 +28,8 @@ export default async function EventsPage({
     .from("events")
     .select("id, type, event_date, opponent, event_time, location, season")
     .is("deleted_at", null)
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .order("event_time", { ascending: true, nullsFirst: false });
   if (filterType) eventsQuery = eventsQuery.eq("type", filterType);
   if (filterSeason) eventsQuery = eventsQuery.eq("season", filterSeason);
 

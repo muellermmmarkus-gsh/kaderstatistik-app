@@ -29,7 +29,8 @@ export async function createEvent(formData: FormData) {
       event_date: eventDate,
       season,
       opponent: hasOpponentFields ? opponent || null : null,
-      event_time: hasOpponentFields ? eventTime || null : null,
+      // Startuhrzeit ist bei allen Terminarten optional.
+      event_time: /^\d{2}:\d{2}(:\d{2})?$/.test(eventTime) ? eventTime : null,
       location: hasOpponentFields ? location || null : null,
       label: needsLabel ? label || null : null,
     })

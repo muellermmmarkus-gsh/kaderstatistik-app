@@ -57,6 +57,18 @@ export default function CreateEventForm({
           className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
       </div>
+      {/* Startuhrzeit fuer alle Terminarten, optional */}
+      <div>
+        <label className="mb-1 block text-sm font-medium" htmlFor="eventTime">
+          Startuhrzeit <span className="font-normal text-zinc-500">(optional)</span>
+        </label>
+        <input
+          id="eventTime"
+          name="eventTime"
+          type="time"
+          className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+        />
+      </div>
       {needsOpponentFields && (
         <>
           <div>
@@ -66,17 +78,6 @@ export default function CreateEventForm({
             <input
               id="opponent"
               name="opponent"
-              className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="eventTime">
-              Uhrzeit
-            </label>
-            <input
-              id="eventTime"
-              name="eventTime"
-              type="time"
               className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
             />
           </div>
