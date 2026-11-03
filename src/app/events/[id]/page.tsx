@@ -8,6 +8,7 @@ import SaveNotice from "@/components/SaveNotice";
 import SavedQueryNotice from "@/components/SavedQueryNotice";
 import EventDetailActions from "./EventDetailActions";
 import FieldPlanButton from "./FieldPlanButton";
+import SeasonSelect from "./SeasonSelect";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 import { ownSideOf } from "@/app/results/teams";
@@ -45,6 +46,7 @@ export default async function EventDetailPage({
     { data: goals },
     { data: trainers },
     { data: trainerAttendance },
+    { data: seasons },
     canWrite,
   ] = await Promise.all([
     supabase
@@ -70,6 +72,7 @@ export default async function EventDetailPage({
       .from("trainer_attendance")
       .select("trainer_id, present, confirmed")
       .eq("event_id", id),
+    supabase.from("seasons").select("name").order("name", { ascending: false }),
     isTrainer(),
   ]);
 
@@ -158,7 +161,11 @@ export default async function EventDetailPage({
         {eventTypeLabel(typeLabels, event.type)} – {event.event_date}
       </h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Saison {event.season}
+        {canWrite ? (
+          <SeasonSelect eventId={event.id} season={event.season} seasons={(seasons ?? []).map((s) => s.name)} />
+        ) : (
+          <>Saison {event.season}</>
+        )}
         {event.opponent ? ` · gegen ${event.opponent}` : ""}
         {event.event_time ? ` · ${event.event_time.slice(0, 5)} Uhr` : ""}
         {event.location ? ` · ${event.location}` : ""}

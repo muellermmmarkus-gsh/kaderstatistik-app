@@ -157,3 +157,22 @@ export async function saveAttendanceAndOpenFieldPlan(
   const { data: event } = await supabase.from("events").select("event_date").eq("id", eventId).single();
   redirect(event ? `/field-planning?date=${event.event_date}` : "/field-planning");
 }
+
+/** Aendert die Saison eines Termins; nur Saisons des eigenen Teams (RLS). */
+export async function updateEventSeason(eventId: string, season: string): Promise<{ error?: string }> {
+  const name = season.trim();
+  if (!name) return { error: "Bitte eine Saison wählen." };
+  const supabase = await createClient();
+  const { data: known } = await supabase.from("seasons").select("name").eq("name", name).limit(1).maybeSingle();
+  if (!known) return { error: "Diese Saison gibt es nicht." };
+  const { data, error } = await supabase
+    .from("events")
+    .update({ season: name })
+    .eq("id", eventId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { error: `Saison konnte nicht geändert werden: ${error?.message ?? "keine Berechtigung"}` };
+  // Saison steckt in Listen, Kalender und Statistik.
+  revalidatePath("/", "layout");
+  return {};
+}
