@@ -20,6 +20,9 @@ export default function CreateEventForm({
   // verhalten sich wie "Event": nur eine Bezeichnung noetig - das gilt
   // automatisch auch fuer neu unter Einstellungen angelegte Terminarten.
   const needsLabel = type !== "training" && !needsOpponentFields;
+  // Bei "Event" ist die Bezeichnung der eigentliche Name und daher Pflicht;
+  // eigene Terminarten (z.B. "Hallentraining") heissen schon nach ihrer Art.
+  const labelRequired = type === "event";
 
   return (
     <form
@@ -96,12 +99,13 @@ export default function CreateEventForm({
       {needsLabel && (
         <div>
           <label className="mb-1 block text-sm font-medium" htmlFor="label">
-            Bezeichnung
+            Bezeichnung{" "}
+            {!labelRequired && <span className="font-normal text-zinc-500">(optional)</span>}
           </label>
           <input
             id="label"
             name="label"
-            required
+            required={labelRequired}
             className="rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
           />
         </div>

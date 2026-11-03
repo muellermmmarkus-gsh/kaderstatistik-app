@@ -5,6 +5,7 @@ import { deleteEvent } from "./actions";
 import CreateEventForm from "./CreateEventForm";
 import DeleteEventButton from "./DeleteEventButton";
 import BackButton from "@/components/BackButton";
+import { eventTypeLabel } from "@/lib/eventTypes";
 
 type EventRow = {
   id: string;
@@ -169,7 +170,7 @@ export default async function EventsPage({
                     {event.event_date}
                   </Link>
                 </td>
-                <td className="py-2">{typeLabels.get(event.type) ?? event.type}</td>
+                <td className="py-2">{eventTypeLabel(typeLabels, event.type)}</td>
                 <td className="py-2 text-zinc-500">{event.opponent ?? "–"}</td>
                 <td className="py-2 text-zinc-500">
                   {event.event_time ? event.event_time.slice(0, 5) : "–"}

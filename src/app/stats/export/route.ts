@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { eventTypeLabel, loadEventTypeLabels } from "@/lib/eventTypes";
 
 function csvEscape(value: string | number) {
   const str = String(value);
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
+  const typeLabels = await loadEventTypeLabels(supabase);
 
   const [{ data: attendance }, { data: trainerAttendance }, { data: goals }] =
     await Promise.all([
@@ -41,7 +43,7 @@ export async function GET(request: NextRequest) {
     ["Spieler", "Art", "Anwesend", "Gesamt", "Prozent"],
     (attendance ?? []).map((r) => [
       `${r.first_name} ${r.last_name}`,
-      r.type === "training" ? "Training" : "Spiel",
+      eventTypeLabel(typeLabels, r.type),
       r.attended,
       r.total,
       r.attendance_pct,
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
     ["Trainer", "Art", "Anwesend", "Gesamt", "Prozent"],
     (trainerAttendance ?? []).map((r) => [
       `${r.first_name} ${r.last_name}`,
-      r.type === "training" ? "Training" : "Spiel",
+      eventTypeLabel(typeLabels, r.type),
       r.attended,
       r.total,
       r.attendance_pct,

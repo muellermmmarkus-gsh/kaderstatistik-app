@@ -11,6 +11,7 @@ import FieldPlanButton from "./FieldPlanButton";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 import { ownSideOf } from "@/app/results/teams";
+import { eventTypeLabel, loadEventTypeLabels } from "@/lib/eventTypes";
 
 const SHIRT_NUMBERS = Array.from({ length: SHIRT_NUMBER_MAX }, (_, i) => i + 1);
 
@@ -22,12 +23,15 @@ export default async function EventDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id, type, event_date, opponent, event_time, location, label, season")
-    .eq("id", id)
-    .is("deleted_at", null)
-    .single();
+  const [{ data: event }, typeLabels] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, type, event_date, opponent, event_time, location, label, season")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .single(),
+    loadEventTypeLabels(supabase),
+  ]);
 
   if (!event) notFound();
 
@@ -148,21 +152,15 @@ export default async function EventDetailPage({
       <BackButton href="/events" />
       <SavedQueryNotice />
       <h1 className="mb-1 text-xl font-semibold">
-        {event.type === "training"
-          ? "Training"
-          : event.type === "game"
-            ? "Spiel"
-            : event.type === "tournament"
-              ? "Turnier"
-              : "Event"}{" "}
-        – {event.event_date}
+        {eventTypeLabel(typeLabels, event.type)} – {event.event_date}
       </h1>
       <p className="mb-6 text-sm text-zinc-500">
         Saison {event.season}
         {event.opponent ? ` · gegen ${event.opponent}` : ""}
         {event.event_time ? ` · ${event.event_time.slice(0, 5)} Uhr` : ""}
         {event.location ? ` · ${event.location}` : ""}
-        {event.label ? ` · ${event.label}` : ""}
+        {/* Bezeichnung nur, wenn sie nicht ohnehin der Terminart entspricht */}
+        {event.label && event.label !== eventTypeLabel(typeLabels, event.type) ? ` · ${event.label}` : ""}
       </p>
 
       {/* Das Formular beginnt schon hier, damit "Zum Trainingsplatzplan" ungespeicherte

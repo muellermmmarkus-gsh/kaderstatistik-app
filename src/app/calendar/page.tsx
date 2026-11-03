@@ -168,7 +168,7 @@ function eventLabel(
   const time = event.event_time ? `${event.event_time.slice(0, 5)} ` : "";
   const base =
     event.type === "training"
-      ? "Training"
+      ? `${time}${typeLabelByKey.get("training") ?? "Training"}`
       : event.type === "game"
         ? event.opponent
           ? `${time}Spiel vs ${event.opponent}`
@@ -177,7 +177,7 @@ function eventLabel(
           ? event.opponent
             ? `${time}Turnier: ${event.opponent}`
             : `${time}Turnier`
-          : (event.label ?? typeLabelByKey.get(event.type) ?? "Termin");
+          : `${time}${event.label ?? typeLabelByKey.get(event.type) ?? "Termin"}`;
 
   if (!totalTrainers) return base;
   const confirmed = event.trainer_attendance.filter((a) => a.confirmed).length;
