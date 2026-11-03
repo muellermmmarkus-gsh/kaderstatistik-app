@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 // team_exercises: per RLS nur die Zeile des eigenen Teams.
 type ExerciseRow = { id: string; name: string; team_exercises: { exercise_id: string }[] };
@@ -8,13 +9,15 @@ type TrainingRow = { event_id: string; training_exercises: { exercise_id: string
 
 export default async function ExerciseHistoryPage() {
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
   const [{ data: exercisesData }, { data: eventsData }, { data: trainingsData }] =
     await Promise.all([
       supabase.from("exercises").select("id, name, team_exercises(exercise_id)").order("name"),
       supabase
         .from("events")
         .select("id, event_date")
-        .eq("type", "training")
+        .in("type", trainingTypes)
         .is("deleted_at", null)
         .order("event_date", { ascending: true }),
       supabase

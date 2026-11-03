@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 type AttendanceRow = {
   player_id: string;
@@ -262,6 +263,8 @@ export default async function StatsPage({
   const { season: selectedSeason, view: rawView } = await searchParams;
   const view: View = rawView === "month" ? "month" : "season";
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
 
   const { data: seasonRows } = await supabase
     .from("events")
@@ -327,7 +330,7 @@ export default async function StatsPage({
           .from("attendance_assessments")
           .select("player_id, performance, motivation, discipline, events!inner(season, type)")
           .eq("events.season", season)
-          .eq("events.type", "training")
+          .in("events.type", trainingTypes)
           .is("events.deleted_at", null)
       : Promise.resolve({ data: [] as AssessmentAttendanceRow[] }),
     isTrainer(),

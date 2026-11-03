@@ -4,6 +4,7 @@ import { isTrainer } from "@/lib/supabase/profile";
 import { deleteEvent } from "@/app/events/actions";
 import BackButton from "@/components/BackButton";
 import DeleteConfirmButton from "@/components/DeleteConfirmButton";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 type EventRow = { id: string; event_date: string };
 type TrainingRow = {
@@ -26,11 +27,13 @@ function totalMinutesOf(exercises: { duration_minutes: number; block: number }[]
 
 export default async function TrainingsPage() {
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
   const [{ data: eventsData }, { data: trainingsData }, canWrite] = await Promise.all([
     supabase
       .from("events")
       .select("id, event_date")
-      .eq("type", "training")
+      .in("type", trainingTypes)
       .is("deleted_at", null)
       .order("event_date", { ascending: false }),
     supabase

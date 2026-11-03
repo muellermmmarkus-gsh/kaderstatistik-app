@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 import { SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 
 async function persistAttendance(
@@ -19,7 +20,8 @@ async function persistAttendance(
     .eq("id", eventId)
     .single();
   const isGame = event?.type === "game";
-  const isTraining = event?.type === "training";
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
+  const isTraining = !!event && trainingTypes.includes(event.type);
 
   const attendanceRows = playerIds.map((playerId) => {
     const shirt = Number(formData.get(`shirt_${playerId}`) || NaN);

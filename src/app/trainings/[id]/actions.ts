@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 export async function saveTrainingPlan(eventId: string, formData: FormData) {
   const focus = String(formData.get("focus") ?? "").trim();
@@ -150,6 +151,8 @@ export async function copyTrainingPlan(
 ): Promise<{ error?: string }> {
   if (sourceEventId === targetEventId) return { error: "Quell- und Zieltermin sind identisch." };
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
 
   const [{ data: source }, { data: target }] = await Promise.all([
     supabase
@@ -164,7 +167,7 @@ export async function copyTrainingPlan(
       .from("events")
       .select("id")
       .eq("id", targetEventId)
-      .eq("type", "training")
+      .in("type", trainingTypes)
       .is("deleted_at", null)
       .maybeSingle(),
   ]);

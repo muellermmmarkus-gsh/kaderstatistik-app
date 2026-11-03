@@ -11,7 +11,7 @@ import FieldPlanButton from "./FieldPlanButton";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 import { ownSideOf } from "@/app/results/teams";
-import { eventTypeLabel, loadEventTypeLabels } from "@/lib/eventTypes";
+import { eventTypeLabel, loadEventTypeLabels, loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 const SHIRT_NUMBERS = Array.from({ length: SHIRT_NUMBER_MAX }, (_, i) => i + 1);
 
@@ -23,7 +23,7 @@ export default async function EventDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: event }, typeLabels] = await Promise.all([
+  const [{ data: event }, typeLabels, trainingTypes] = await Promise.all([
     supabase
       .from("events")
       .select("id, type, event_date, opponent, event_time, location, label, season")
@@ -31,9 +31,12 @@ export default async function EventDetailPage({
       .is("deleted_at", null)
       .single(),
     loadEventTypeLabels(supabase),
+    loadTrainingTypeKeys(supabase),
   ]);
 
   if (!event) notFound();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const isTraining = trainingTypes.includes(event.type);
 
   const [
     { data: players },
@@ -138,12 +141,12 @@ export default async function EventDetailPage({
 
   const hasGoals = event.type === "game" || event.type === "tournament";
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
-  const showAssessment = event.type === "training" && canWrite;
+  const showAssessment = isTraining && canWrite;
 
   const playerColSpan =
     2 +
     (isGame ? 4 : 0) +
-    (event.type === "training" ? 1 : 0) +
+    (isTraining ? 1 : 0) +
     (hasGoals ? 1 : 0) +
     (showAssessment ? 4 : 0);
 
@@ -166,7 +169,7 @@ export default async function EventDetailPage({
       {/* Das Formular beginnt schon hier, damit "Zum Trainingsplatzplan" ungespeicherte
           Aenderungen erkennt und auf Wunsch mitspeichert (siehe FieldPlanButton). */}
       <form action={save}>
-      {event.type === "training" && (
+      {isTraining && (
         <div className="mb-6 flex flex-wrap gap-3">
           <Link
             href={`/trainings/${event.id}`}
@@ -219,7 +222,7 @@ export default async function EventDetailPage({
                   {isGame && <th className="py-2">Rückennr.</th>}
                   {isGame && <th className="py-2">Angemeldet</th>}
                   <th className="py-2">Anwesend</th>
-                  {event.type === "training" && <th className="py-2">Entschuldigt</th>}
+                  {isTraining && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
                   {isGame && <th className="py-2 pl-2">Kapitän</th>}
                   {isGame && <th className="py-2 pl-2">Torwart</th>}
@@ -280,7 +283,7 @@ export default async function EventDetailPage({
                         className="h-4 w-4"
                       />
                     </td>
-                    {event.type === "training" && (
+                    {isTraining && (
                       <td className="py-2">
                         <input
                           type="checkbox"

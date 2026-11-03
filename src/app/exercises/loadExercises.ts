@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 type ExerciseRow = {
   id: string;
@@ -62,6 +63,8 @@ function placeCopiesUnderOriginals(sorted: ExerciseRow[]): ExerciseRow[] {
  */
 export async function loadExercises(scope: "team" | "all") {
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
   const [
     { data: exercisesData },
     { data: trainingsData },
@@ -82,7 +85,7 @@ export async function loadExercises(scope: "team" | "all") {
         .select("event_id, training_exercises(exercise_id)")
         .not("event_id", "is", null),
       supabase.from("seasons").select("name, is_default").order("name", { ascending: false }),
-      supabase.from("events").select("id, season").eq("type", "training").is("deleted_at", null),
+      supabase.from("events").select("id, season").in("type", trainingTypes).is("deleted_at", null),
       // Einsaetze aller Teams in ihrer jeweils laufenden Saison (nur Summen,
       // siehe migration_036) - nur fuer die Uebungsdatenbank.
       scope === "all"

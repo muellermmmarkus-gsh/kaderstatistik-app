@@ -3,6 +3,7 @@ import { getCurrentProfile, isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
 import FieldPlanner, { type PlanOption } from "./FieldPlanner";
 import { sanitizeItems } from "./model";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -35,6 +36,8 @@ export default async function FieldPlanningPage({
 }) {
   const { plan: planParam, date: dateParam } = await searchParams;
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
   const [{ data: planRows }, { data: dateRows }, canWrite, profile] = await Promise.all([
     supabase
       .from("field_plans")
@@ -95,7 +98,7 @@ export default async function FieldPlanningPage({
     const { data: ownEvent } = await supabase
       .from("events")
       .select("id")
-      .eq("type", "training")
+      .in("type", trainingTypes)
       .eq("event_date", date)
       .eq("team_id", profile.teamId)
       .is("deleted_at", null)

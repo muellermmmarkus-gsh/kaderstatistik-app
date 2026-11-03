@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/supabase/profile";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 type EventKind = "training" | "game";
 
@@ -14,6 +15,7 @@ export default async function Home() {
     { data: completedEvents },
     { data: overallAttendance },
     profile,
+    trainingTypes,
   ] = await Promise.all([
     supabase
       .from("players")
@@ -32,12 +34,21 @@ export default async function Home() {
       .from("attendance_overall_by_season")
       .select("season, attendance_pct"),
     getCurrentProfile(),
+    loadTrainingTypeKeys(supabase),
   ]);
 
   const unitsBySeason = new Map<string, { training: number; game: number }>();
   for (const event of completedEvents ?? []) {
+    // Eigene Terminarten "wie Training" zaehlen als Training; andere Arten
+    // (Turnier, Event, ...) erscheinen in dieser Uebersicht nicht.
+    const kind: EventKind | null = trainingTypes.includes(event.type)
+      ? "training"
+      : event.type === "game"
+        ? "game"
+        : null;
+    if (!kind) continue;
     const entry = unitsBySeason.get(event.season) ?? { training: 0, game: 0 };
-    entry[event.type as EventKind] += 1;
+    entry[kind] += 1;
     unitsBySeason.set(event.season, entry);
   }
 

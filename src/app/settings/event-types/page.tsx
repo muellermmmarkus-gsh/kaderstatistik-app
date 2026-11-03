@@ -3,6 +3,7 @@ import { isAdmin } from "@/lib/supabase/profile";
 import { saveEventTypes } from "./actions";
 import EventTypeForm from "./EventTypeForm";
 import BackButton from "@/components/BackButton";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 // "unassigned" ist ein internes Fangnetz fuer Termine, deren Terminart
 // geloescht wurde - taucht bewusst nicht in der Verwaltung auf.
@@ -10,10 +11,11 @@ const HIDDEN_KEYS = ["unassigned"];
 
 export default async function EventTypesSettingsPage() {
   const supabase = await createClient();
-  const [{ data: types }, { data: allEvents }, canWrite] = await Promise.all([
+  const [{ data: types }, { data: allEvents }, canWrite, trainingTypes] = await Promise.all([
     supabase.from("event_types").select("key, label").order("sort_order"),
     supabase.from("events").select("type").is("deleted_at", null),
     isAdmin(),
+    loadTrainingTypeKeys(supabase),
   ]);
 
   const countByType = new Map<string, number>();
@@ -23,7 +25,11 @@ export default async function EventTypesSettingsPage() {
 
   const initialTypes = (types ?? [])
     .filter((t) => !HIDDEN_KEYS.includes(t.key))
-    .map((t) => ({ ...t, eventCount: countByType.get(t.key) ?? 0 }));
+    .map((t) => ({
+      ...t,
+      eventCount: countByType.get(t.key) ?? 0,
+      isTraining: trainingTypes.includes(t.key),
+    }));
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8">
@@ -34,10 +40,11 @@ export default async function EventTypesSettingsPage() {
         Diese Terminarten stehen unter „Termine“ und im Kalender in der
         Auswahl „Art“ zur Verfügung. Training, Spiel, Turnier und Event
         kannst du hier umbenennen (aber nicht löschen); über „zusätzliche
-        Terminart“ fügst du weitere Arten hinzu (diese verhalten sich wie
-        „Event“ und benötigen nur eine Bezeichnung, aber keine
-        Trainingsplanung oder Anwesenheit) und kannst sie auch wieder
-        löschen.
+        Terminart“ fügst du weitere Arten hinzu und kannst sie auch wieder
+        löschen. Zusätzliche Arten verhalten sich wie „Event“ (nur
+        Anwesenheit) – mit Haken bei „wie Training“ dagegen wie ein Training
+        (Entschuldigt, Bewertungen, Trainingsplan, Trainingsplatzplan, in der
+        Statistik als Training gezählt), z.B. für ein Hallentraining.
       </p>
 
       {canWrite ? (
@@ -49,7 +56,12 @@ export default async function EventTypesSettingsPage() {
           </p>
           <ul className="space-y-1 text-sm">
             {initialTypes.map((t) => (
-              <li key={t.key}>{t.label}</li>
+              <li key={t.key}>
+                {t.label}
+                {t.isTraining && t.key !== "training" && (
+                  <span className="text-zinc-500"> (wie Training)</span>
+                )}
+              </li>
             ))}
           </ul>
         </>

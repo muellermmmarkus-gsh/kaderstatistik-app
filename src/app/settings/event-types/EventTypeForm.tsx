@@ -9,14 +9,14 @@ import DeleteEventTypeButton from "./DeleteEventTypeButton";
 // Label ist editierbar.
 const BUILTIN_KEYS = ["training", "game", "tournament", "event"];
 
-type TypeField = { formKey: string; key: string; label: string; eventCount: number };
+type TypeField = { formKey: string; key: string; label: string; eventCount: number; isTraining: boolean };
 
 export default function EventTypeForm({
   action,
   initialTypes,
 }: {
   action: (formData: FormData) => void;
-  initialTypes: { key: string; label: string; eventCount: number }[];
+  initialTypes: { key: string; label: string; eventCount: number; isTraining: boolean }[];
 }) {
   const [types, setTypes] = useState<TypeField[]>(() =>
     initialTypes.map((t) => ({
@@ -24,6 +24,7 @@ export default function EventTypeForm({
       key: t.key,
       label: t.label,
       eventCount: t.eventCount,
+      isTraining: t.isTraining,
     })),
   );
 
@@ -31,10 +32,14 @@ export default function EventTypeForm({
     setTypes((prev) => prev.map((t) => (t.formKey === formKey ? { ...t, label } : t)));
   }
 
+  function updateIsTraining(formKey: string, isTraining: boolean) {
+    setTypes((prev) => prev.map((t) => (t.formKey === formKey ? { ...t, isTraining } : t)));
+  }
+
   function addType() {
     setTypes((prev) => [
       ...prev,
-      { formKey: crypto.randomUUID(), key: "", label: "", eventCount: 0 },
+      { formKey: crypto.randomUUID(), key: "", label: "", eventCount: 0, isTraining: false },
     ]);
   }
 
@@ -49,6 +54,7 @@ export default function EventTypeForm({
         key: t.key,
         label: t.label,
         eventCount: t.eventCount,
+        isTraining: t.isTraining,
       })),
     );
   }
@@ -71,6 +77,8 @@ export default function EventTypeForm({
         return (
           <div key={type.formKey} className="flex items-center gap-2">
             <input type="hidden" name="key" value={type.key} />
+            {/* Pro Zeile immer ein Wert, damit er zur Reihenfolge der Labels passt */}
+            <input type="hidden" name="is_training" value={type.isTraining ? "1" : ""} />
             <input
               type="text"
               name="label"
@@ -79,6 +87,19 @@ export default function EventTypeForm({
               placeholder={type.key ? undefined : `Terminart ${index + 1}`}
               className="w-full rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
             />
+            {!isBuiltin && (
+              <label
+                className="flex shrink-0 items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400"
+                title="Verhält sich wie ein Training: Entschuldigt, Bewertungen, Trainingsplan, Trainingsplatzplan, Statistik"
+              >
+                <input
+                  type="checkbox"
+                  checked={type.isTraining}
+                  onChange={(e) => updateIsTraining(type.formKey, e.target.checked)}
+                />
+                wie Training
+              </label>
+            )}
             {!isBuiltin &&
               (type.key ? (
                 <DeleteEventTypeButton

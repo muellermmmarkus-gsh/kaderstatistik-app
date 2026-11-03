@@ -7,6 +7,7 @@ import CopyPlanButton, { type CopyTarget } from "./CopyPlanButton";
 import TrainingBuilder from "../TrainingBuilder";
 import BackButton from "@/components/BackButton";
 import { optimizedImage } from "@/lib/optimizedImage";
+import { loadTrainingTypeKeys } from "@/lib/eventTypes";
 
 type ExerciseOption = {
   id: string;
@@ -50,6 +51,8 @@ export default async function TrainingDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  // Training und eigene Terminarten "wie Training" (z.B. Hallentraining)
+  const trainingTypes = await loadTrainingTypeKeys(supabase);
 
   const [
     { data: event },
@@ -65,7 +68,7 @@ export default async function TrainingDetailPage({
       .from("events")
       .select("id, event_date, season")
       .eq("id", id)
-      .eq("type", "training")
+      .in("type", trainingTypes)
       .is("deleted_at", null)
       .maybeSingle(),
     supabase
@@ -93,7 +96,7 @@ export default async function TrainingDetailPage({
     supabase
       .from("events")
       .select("id, event_date, trainings(training_exercises(count))")
-      .eq("type", "training")
+      .in("type", trainingTypes)
       .is("deleted_at", null)
       .gte("event_date", new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }))
       .neq("id", id)

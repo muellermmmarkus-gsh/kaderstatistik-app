@@ -18,9 +18,12 @@ function slugify(label: string): string {
   return base || "typ";
 }
 
+const BUILTIN_KEYS = ["training", "game", "tournament", "event"];
+
 export async function saveEventTypes(formData: FormData) {
   const keys = formData.getAll("key").map(String);
   const labels = formData.getAll("label").map((v) => String(v).trim());
+  const trainingFlags = formData.getAll("is_training").map((v) => String(v) === "1");
 
   const supabase = await createClient();
   const { data: existing } = await supabase.from("event_types").select("key");
@@ -42,9 +45,15 @@ export async function saveEventTypes(formData: FormData) {
         }
       }
       usedKeys.add(finalKey);
-      return { key: finalKey, label, sort_order: index };
+      // Eingebaute Arten behalten ihr Verhalten (nur "training" ist ein Training).
+      const isTraining = BUILTIN_KEYS.includes(finalKey)
+        ? finalKey === "training"
+        : trainingFlags[index] ?? false;
+      return { key: finalKey, label, sort_order: index, is_training: isTraining };
     })
-    .filter((row): row is { key: string; label: string; sort_order: number } => row !== null);
+    .filter(
+      (row): row is { key: string; label: string; sort_order: number; is_training: boolean } => row !== null,
+    );
 
   if (!rows.length) {
     throw new Error("Mindestens eine Terminart wird benötigt.");
@@ -57,6 +66,8 @@ export async function saveEventTypes(formData: FormData) {
     throw new Error(`Terminarten konnten nicht gespeichert werden: ${error.message}`);
   }
 
+  // "wie Training" wirkt sich auf viele Seiten aus (Termine, Trainingsplanung, Statistik).
+  revalidatePath("/", "layout");
   revalidatePath("/settings/event-types");
   revalidatePath("/events");
   revalidatePath("/calendar");
