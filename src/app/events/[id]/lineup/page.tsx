@@ -65,9 +65,13 @@ export default async function LineupPage({
   // zusaetzlich bereits zugewiesene Spieler (falls die Anmeldung im
   // Nachgang wieder entfernt wurde) - so geht keine bestehende Zuordnung
   // stillschweigend verloren.
-  const eligiblePlayers = (players ?? []).filter(
+  const registeredPlayers = (players ?? []).filter(
     (p) => registeredIds.has(p.id) || assignedIds.has(p.id),
   );
+  // Ist noch niemand angemeldet, stehen alle aktiven Spieler zur Auswahl -
+  // sonst bliebe die Aufstellung leer.
+  const nobodyRegistered = !registeredPlayers.length;
+  const eligiblePlayers = nobodyRegistered ? (players ?? []) : registeredPlayers;
 
   const action = saveLineup.bind(null, id);
 
@@ -87,9 +91,11 @@ export default async function LineupPage({
         </p>
       )}
 
-      {!eligiblePlayers.length && (
+      {nobodyRegistered && (
         <p className="mb-6 text-sm text-zinc-500">
-          Noch keine Spieler für diesen Termin als „angemeldet“ markiert.
+          Noch keine Spieler für diesen Termin als „angemeldet“ markiert – es stehen alle aktiven
+          Spieler zur Auswahl. Wer im Termin als „angemeldet“ markiert ist, wird hier ausschließlich
+          angeboten.
         </p>
       )}
 

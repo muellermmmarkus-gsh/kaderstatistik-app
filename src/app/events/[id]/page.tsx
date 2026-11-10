@@ -144,12 +144,15 @@ export default async function EventDetailPage({
   const saveAndOpenFieldPlan = saveAttendanceAndOpenFieldPlan.bind(null, id, playerIds, trainerIds);
 
   const hasGoals = event.type === "game" || event.type === "tournament";
+  // "Angemeldet" steuert, wer in der Aufstellung zur Auswahl steht (Spiele und Turniere).
+  const showRegistered = isGame || event.type === "tournament";
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
   const showAssessment = isTraining && canWrite;
 
   const playerColSpan =
     2 +
-    (isGame ? 4 : 0) +
+    (isGame ? 3 : 0) +
+    (showRegistered ? 1 : 0) +
     (isTraining ? 1 : 0) +
     (hasGoals ? 1 : 0) +
     (showAssessment ? 4 : 0);
@@ -237,7 +240,7 @@ export default async function EventDetailPage({
                 <tr className="border-b border-zinc-200 dark:border-zinc-800">
                   <th className="py-2">Spieler</th>
                   {isGame && <th className="py-2">Rückennr.</th>}
-                  {isGame && <th className="py-2">Angemeldet</th>}
+                  {showRegistered && <th className="py-2">Angemeldet</th>}
                   <th className="py-2">Anwesend</th>
                   {isTraining && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
@@ -280,7 +283,7 @@ export default async function EventDetailPage({
                         </select>
                       </td>
                     )}
-                    {isGame && (
+                    {showRegistered && (
                       <td className="py-2">
                         <input
                           type="checkbox"
