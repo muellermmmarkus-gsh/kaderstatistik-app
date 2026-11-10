@@ -1,21 +1,33 @@
-// Taktikformationen fuer 6+1-Kleinfeldmannschaften (6 Feldspieler + Torwart).
-// Die "1" am Anfang steht fuer den Torwart, die Summe der restlichen drei
-// Zahlen (Abwehr-Mittelfeld-Sturm) ergibt immer 6 Feldspieler.
+// Taktikformationen fuer Kleinfeldmannschaften. Die "1" am Anfang steht fuer
+// den Torwart, die restlichen Zahlen sind die Reihen von hinten (Abwehr) nach
+// vorne (Sturm); ihre Summe ergibt die Zahl der Feldspieler des Spielmodus.
 export type Formation = {
   key: string;
-  defense: number;
-  midfield: number;
-  forward: number;
+  rows: number[];
 };
 
-export const FORMATIONS: Formation[] = [
-  { key: "1-3-2-1", defense: 3, midfield: 2, forward: 1 },
-  { key: "1-2-3-1", defense: 2, midfield: 3, forward: 1 },
-  { key: "1-3-1-2", defense: 3, midfield: 1, forward: 2 },
-  { key: "1-1-3-2", defense: 1, midfield: 3, forward: 2 },
-  { key: "1-2-2-2", defense: 2, midfield: 2, forward: 2 },
-  { key: "1-4-1-1", defense: 4, midfield: 1, forward: 1 },
-];
+/** Spielmodus = Anzahl Feldspieler (+ Torwart). Spiele laufen immer 6+1. */
+export const GAME_MODES = [4, 5, 6] as const;
+export type GameMode = (typeof GAME_MODES)[number];
+export const DEFAULT_GAME_MODE: GameMode = 6;
+export const gameModeLabel = (mode: number) => `${mode}+1`;
+
+const formation = (key: string): Formation => ({
+  key,
+  rows: key.split("-").slice(1).map(Number),
+});
+
+export const FORMATIONS_BY_MODE: Record<GameMode, Formation[]> = {
+  4: ["1-2-2", "1-1-2-1", "1-2-1-1", "1-3-1", "1-1-3"].map(formation),
+  5: ["1-2-2-1", "1-3-1-1", "1-2-1-2", "1-1-3-1", "1-3-2", "1-2-3"].map(formation),
+  6: ["1-3-2-1", "1-2-3-1", "1-3-1-2", "1-1-3-2", "1-2-2-2", "1-4-1-1"].map(formation),
+};
+
+/** Alle Formationen aller Spielmodi (Keys sind eindeutig, die Summe ergibt den Modus). */
+export const FORMATIONS: Formation[] = GAME_MODES.flatMap((m) => FORMATIONS_BY_MODE[m]);
+
+export const isGameMode = (value: number): value is GameMode =>
+  (GAME_MODES as readonly number[]).includes(value);
 
 export type Slot = {
   key: string;
@@ -39,22 +51,28 @@ function rowX(count: number): number[] {
   }
 }
 
+// Slot-Keys: erste Reihe "def", letzte "fwd", dazwischen "mid", "mid2", ...
+// (bei drei Reihen wie bisher def/mid/fwd, damit gespeicherte Aufstellungen passen).
+function rowKey(index: number, total: number): { key: string; label: string } {
+  if (index === 0) return { key: "def", label: "Abwehr" };
+  if (index === total - 1) return { key: "fwd", label: "Sturm" };
+  return { key: index === 1 ? "mid" : `mid${index}`, label: "Mittelfeld" };
+}
+
 // Aufstellung von unten (eigenes Tor) nach oben (Angriffsrichtung), analog
 // zu einer klassischen Taktiktafel.
-export function getSlots(formation: Formation): Slot[] {
+export function getSlots(f: Formation): Slot[] {
   const slots: Slot[] = [{ key: "gk", label: "TW", x: 50, y: 90 }];
-  rowX(formation.defense).forEach((x, i) => {
-    slots.push({ key: `def-${i}`, label: `Abwehr`, x, y: 68 });
-  });
-  rowX(formation.midfield).forEach((x, i) => {
-    slots.push({ key: `mid-${i}`, label: `Mittelfeld`, x, y: 45 });
-  });
-  rowX(formation.forward).forEach((x, i) => {
-    slots.push({ key: `fwd-${i}`, label: `Sturm`, x, y: 18 });
+  const n = f.rows.length;
+  f.rows.forEach((count, rowIndex) => {
+    const y = n === 1 ? 45 : 68 - ((68 - 18) * rowIndex) / (n - 1);
+    const { key, label } = rowKey(rowIndex, n);
+    rowX(count).forEach((x, i) => slots.push({ key: `${key}-${i}`, label, x, y }));
   });
   return slots;
 }
 
-export function getFormation(key: string): Formation {
-  return FORMATIONS.find((f) => f.key === key) ?? FORMATIONS[0];
+export function getFormation(key: string, mode?: number): Formation {
+  const list = mode && isGameMode(mode) ? FORMATIONS_BY_MODE[mode] : FORMATIONS;
+  return list.find((f) => f.key === key) ?? (mode ? list[0] : FORMATIONS_BY_MODE[DEFAULT_GAME_MODE][0]);
 }

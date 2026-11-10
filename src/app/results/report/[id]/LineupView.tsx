@@ -64,11 +64,14 @@ export default function LineupView({
     assignments: Record<string, string> | null;
     bench_formation: string | null;
     bench_assignments: Record<string, string> | null;
+    third_formation?: string | null;
+    third_assignments?: Record<string, string> | null;
   };
   players: Player[];
 }) {
   const playerById = new Map(players.map((p) => [p.id, p]));
   const bench = lineup.bench_assignments ?? {};
+  const third = lineup.third_assignments ?? {};
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row">
@@ -83,6 +86,14 @@ export default function LineupView({
           title="Ersatzbank"
           formationKey={lineup.bench_formation}
           assignments={bench}
+          playerById={playerById}
+        />
+      )}
+      {lineup.third_formation && Object.keys(third).length > 0 && (
+        <Pitch
+          title="3. Formation"
+          formationKey={lineup.third_formation}
+          assignments={third}
           playerById={playerById}
         />
       )}

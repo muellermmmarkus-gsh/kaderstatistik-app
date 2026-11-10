@@ -202,7 +202,7 @@ export default async function EventDetailPage({
         </div>
       )}
 
-      {event.type === "game" && (
+      {(event.type === "game" || event.type === "tournament") && (
         <Link
           href={`/events/${event.id}/lineup`}
           className="mb-6 inline-block rounded border border-zinc-300 px-4 py-2 text-sm dark:border-zinc-700"

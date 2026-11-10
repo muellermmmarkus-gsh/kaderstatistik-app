@@ -1,11 +1,12 @@
 "use client";
 
-import { FORMATIONS, getFormation, getSlots } from "./formations";
+import { FORMATIONS_BY_MODE, getFormation, getSlots, type GameMode } from "./formations";
 
 type Player = { id: string; first_name: string; last_name: string };
 
 export default function PitchBoard({
   title,
+  mode,
   formationKey,
   onFormationChange,
   assignments,
@@ -15,6 +16,7 @@ export default function PitchBoard({
   canWrite,
 }: {
   title: string;
+  mode: GameMode;
   formationKey: string;
   onFormationChange: (key: string) => void;
   assignments: Record<string, string>;
@@ -23,7 +25,7 @@ export default function PitchBoard({
   excludedPlayerIds: Set<string>;
   canWrite: boolean;
 }) {
-  const slots = getSlots(getFormation(formationKey));
+  const slots = getSlots(getFormation(formationKey, mode));
   const playerById = new Map(players.map((p) => [p.id, p]));
 
   return (
@@ -35,7 +37,7 @@ export default function PitchBoard({
         disabled={!canWrite}
         className="w-full max-w-xs rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
       >
-        {FORMATIONS.map((f) => (
+        {FORMATIONS_BY_MODE[mode].map((f) => (
           <option key={f.key} value={f.key}>
             {f.key}
           </option>

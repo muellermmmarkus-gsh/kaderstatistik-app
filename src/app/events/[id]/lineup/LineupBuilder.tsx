@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import SaveNotice from "@/components/SaveNotice";
-import { FORMATIONS, getFormation, getSlots } from "./formations";
+import {
+  DEFAULT_GAME_MODE,
+  GAME_MODES,
+  gameModeLabel,
+  getFormation,
+  getSlots,
+  type GameMode,
+} from "./formations";
 import PitchBoard from "./PitchBoard";
 
 type Player = { id: string; first_name: string; last_name: string };
@@ -13,65 +20,77 @@ type Player = { id: string; first_name: string; last_name: string };
 // weiter mitgefuehrt werden.
 function visibleAssignmentsFor(
   formationKey: string,
+  mode: GameMode,
   assignments: Record<string, string>,
 ): Record<string, string> {
   const visible: Record<string, string> = {};
-  for (const slot of getSlots(getFormation(formationKey))) {
+  for (const slot of getSlots(getFormation(formationKey, mode))) {
     const playerId = assignments[slot.key];
     if (playerId) visible[slot.key] = playerId;
   }
   return visible;
 }
 
+type Board = { formation: string; assignments: Record<string, string> };
+const BOARD_TITLES = ["Startaufstellung", "Ersatzbank", "3. Formation"];
+
 export default function LineupBuilder({
   players,
-  initialFormation,
-  initialAssignments,
-  initialBenchFormation,
-  initialBenchAssignments,
+  isTournament,
+  initialMode,
+  initialBoards,
   canWrite,
   action,
 }: {
   players: Player[];
-  initialFormation?: string;
-  initialAssignments: Record<string, string>;
-  initialBenchFormation?: string;
-  initialBenchAssignments: Record<string, string>;
+  /** Bei Turnieren wird zuerst der Spielmodus gewaehlt, Spiele laufen immer 6+1. */
+  isTournament: boolean;
+  initialMode: GameMode | null;
+  /** Start, Ersatzbank, 3. Formation */
+  initialBoards: { formation?: string | null; assignments: Record<string, string> }[];
   canWrite: boolean;
   action: (formData: FormData) => void;
 }) {
-  const [formationKey, setFormationKey] = useState(initialFormation ?? FORMATIONS[0].key);
-  const [assignments, setAssignments] = useState<Record<string, string>>(initialAssignments);
-  const [benchFormationKey, setBenchFormationKey] = useState(
-    initialBenchFormation ?? FORMATIONS[0].key,
+  const [mode, setMode] = useState<GameMode | null>(
+    isTournament ? initialMode : DEFAULT_GAME_MODE,
   );
-  const [benchAssignments, setBenchAssignments] = useState<Record<string, string>>(
-    initialBenchAssignments,
+  const [boards, setBoards] = useState<Board[]>(() =>
+    BOARD_TITLES.map((_, i) => ({
+      formation: getFormation(initialBoards[i]?.formation ?? "", initialMode ?? DEFAULT_GAME_MODE).key,
+      assignments: initialBoards[i]?.assignments ?? {},
+    })),
   );
 
-  const visible = visibleAssignmentsFor(formationKey, assignments);
-  const visibleBench = visibleAssignmentsFor(benchFormationKey, benchAssignments);
-
-  const usedOnPitch = new Set(Object.values(visible));
-  const usedOnBench = new Set(Object.values(visibleBench));
-
-  function assignSlot(slotKey: string, playerId: string) {
-    setAssignments((prev) => {
-      const next = { ...prev };
-      if (playerId) next[slotKey] = playerId;
-      else delete next[slotKey];
-      return next;
-    });
+  function changeMode(next: GameMode) {
+    setMode(next);
+    // Formationen auf den neuen Modus umstellen (gleiche Formation, sonst die erste).
+    setBoards((prev) => prev.map((b) => ({ ...b, formation: getFormation(b.formation, next).key })));
   }
 
-  function assignBenchSlot(slotKey: string, playerId: string) {
-    setBenchAssignments((prev) => {
-      const next = { ...prev };
-      if (playerId) next[slotKey] = playerId;
-      else delete next[slotKey];
-      return next;
-    });
+  function updateBoard(index: number, patch: Partial<Board>) {
+    setBoards((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
   }
+
+  function assignSlot(index: number, slotKey: string, playerId: string) {
+    setBoards((prev) =>
+      prev.map((b, i) => {
+        if (i !== index) return b;
+        const next = { ...b.assignments };
+        if (playerId) next[slotKey] = playerId;
+        else delete next[slotKey];
+        return { ...b, assignments: next };
+      }),
+    );
+  }
+
+  const activeMode = mode ?? DEFAULT_GAME_MODE;
+  const visible = boards.map((b) => visibleAssignmentsFor(b.formation, activeMode, b.assignments));
+  const usedOn = visible.map((v) => new Set(Object.values(v)));
+  // Ein Spieler steht in hoechstens einer der drei Formationen.
+  const excludedFor = (index: number) =>
+    new Set(usedOn.flatMap((set, i) => (i === index ? [] : [...set])));
+
+  const names = ["", "bench_", "third_"];
 
   return (
     <form
@@ -85,35 +104,60 @@ export default function LineupBuilder({
       action={action}
       className="space-y-6"
     >
-      <input type="hidden" name="formation" value={formationKey} />
-      <input type="hidden" name="assignments" value={JSON.stringify(visible)} />
-      <input type="hidden" name="bench_formation" value={benchFormationKey} />
-      <input type="hidden" name="bench_assignments" value={JSON.stringify(visibleBench)} />
+      <input type="hidden" name="game_mode" value={activeMode} />
+      {boards.map((b, i) => (
+        <span key={i}>
+          <input type="hidden" name={`${names[i]}formation`} value={b.formation} />
+          <input type="hidden" name={`${names[i]}assignments`} value={JSON.stringify(visible[i])} />
+        </span>
+      ))}
 
-      <div className="flex flex-col gap-8 md:flex-row md:items-start">
-        <PitchBoard
-          title="Startaufstellung"
-          formationKey={formationKey}
-          onFormationChange={setFormationKey}
-          assignments={visible}
-          onAssign={assignSlot}
-          players={players}
-          excludedPlayerIds={usedOnBench}
-          canWrite={canWrite}
-        />
-        <PitchBoard
-          title="Ersatzbank"
-          formationKey={benchFormationKey}
-          onFormationChange={setBenchFormationKey}
-          assignments={visibleBench}
-          onAssign={assignBenchSlot}
-          players={players}
-          excludedPlayerIds={usedOnPitch}
-          canWrite={canWrite}
-        />
-      </div>
+      {isTournament && (
+        <div>
+          <label className="mb-1 block text-sm font-medium" htmlFor="game-mode">
+            Spielmodus
+          </label>
+          <select
+            id="game-mode"
+            value={mode ?? ""}
+            onChange={(e) => changeMode(Number(e.target.value) as GameMode)}
+            disabled={!canWrite}
+            className="w-full max-w-xs rounded border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            {mode === null && <option value="">– bitte wählen –</option>}
+            {GAME_MODES.map((m) => (
+              <option key={m} value={m}>
+                {gameModeLabel(m)} ({m} Feldspieler + Torwart)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      {canWrite && (
+      {mode === null ? (
+        <p className="text-sm text-zinc-500">
+          Bitte zuerst den Spielmodus wählen, danach die Formationen.
+        </p>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+          {BOARD_TITLES.map((title, i) => (
+            <PitchBoard
+              key={title}
+              title={title}
+              mode={mode}
+              formationKey={boards[i].formation}
+              onFormationChange={(formation) => updateBoard(i, { formation })}
+              assignments={visible[i]}
+              onAssign={(slotKey, playerId) => assignSlot(i, slotKey, playerId)}
+              players={players}
+              excludedPlayerIds={excludedFor(i)}
+              canWrite={canWrite}
+            />
+          ))}
+        </div>
+      )}
+
+      {canWrite && mode !== null && (
         <div className="flex items-center gap-3">
           <button
             type="submit"

@@ -56,7 +56,7 @@ export default async function MatchReportPage({
     // Aufstellung aus Termine -> Aufstellung fuer dieses Spiel.
     supabase
       .from("lineups")
-      .select("formation, assignments, bench_formation, bench_assignments")
+      .select("formation, assignments, bench_formation, bench_assignments, third_formation, third_assignments")
       .eq("event_id", id)
       .maybeSingle(),
     // Auch inaktive Spieler, damit Namen in alten Aufstellungen erhalten bleiben.
@@ -165,6 +165,8 @@ export default async function MatchReportPage({
                 assignments: lineup.assignments as Record<string, string> | null,
                 bench_formation: lineup.bench_formation,
                 bench_assignments: lineup.bench_assignments as Record<string, string> | null,
+                third_formation: lineup.third_formation,
+                third_assignments: lineup.third_assignments as Record<string, string> | null,
               }}
               players={players ?? []}
             />

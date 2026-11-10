@@ -4,6 +4,7 @@ import { isTrainer } from "@/lib/supabase/profile";
 import BackButton from "@/components/BackButton";
 import LineupBuilder from "./LineupBuilder";
 import { saveLineup } from "./actions";
+import { gameModeLabel, isGameMode } from "./formations";
 
 export default async function LineupPage({
   params,
@@ -21,8 +22,9 @@ export default async function LineupPage({
     .single();
 
   if (!event) notFound();
-  // Aufstellung ist nur bei Spielterminen relevant.
-  if (event.type !== "game") notFound();
+  // Aufstellung gibt es bei Spielen (immer 6+1) und Turnieren (Spielmodus waehlbar).
+  if (event.type !== "game" && event.type !== "tournament") notFound();
+  const isTournament = event.type === "tournament";
 
   const [{ data: players }, { data: attendance }, { data: lineup }, canWrite] =
     await Promise.all([
@@ -34,7 +36,9 @@ export default async function LineupPage({
       supabase.from("attendance").select("player_id, registered").eq("event_id", id),
       supabase
         .from("lineups")
-        .select("formation, assignments, bench_formation, bench_assignments")
+        .select(
+          "game_mode, formation, assignments, bench_formation, bench_assignments, third_formation, third_assignments",
+        )
         .eq("event_id", id)
         .maybeSingle(),
       isTrainer(),
@@ -46,10 +50,16 @@ export default async function LineupPage({
   const initialAssignments = (lineup?.assignments as Record<string, string> | null) ?? {};
   const initialBenchAssignments =
     (lineup?.bench_assignments as Record<string, string> | null) ?? {};
+  const initialThirdAssignments =
+    (lineup?.third_assignments as Record<string, string> | null) ?? {};
   const assignedIds = new Set([
     ...Object.values(initialAssignments),
     ...Object.values(initialBenchAssignments),
+    ...Object.values(initialThirdAssignments),
   ]);
+  // Bei einem Turnier ohne gespeicherte Aufstellung ist noch kein Spielmodus gewaehlt.
+  const savedMode = lineup && isGameMode(Number(lineup.game_mode)) ? Number(lineup.game_mode) : null;
+  const initialMode = (savedMode ?? (isTournament ? null : 6)) as 4 | 5 | 6 | null;
 
   // Fuer die Spieler-Auswahl zaehlen als "angemeldet" markierte Spieler,
   // zusaetzlich bereits zugewiesene Spieler (falls die Anmeldung im
@@ -66,8 +76,9 @@ export default async function LineupPage({
       <BackButton href={`/events/${id}`} />
       <h1 className="mb-1 text-xl font-semibold">Aufstellung</h1>
       <p className="mb-6 text-sm text-zinc-500">
-        Spiel – {event.event_date}
+        {isTournament ? "Turnier" : "Spiel"} – {event.event_date}
         {event.opponent ? ` · gegen ${event.opponent}` : ""}
+        {isTournament && savedMode ? ` · Spielmodus ${gameModeLabel(savedMode)}` : ""}
       </p>
 
       {!canWrite && (
@@ -84,10 +95,13 @@ export default async function LineupPage({
 
       <LineupBuilder
         players={eligiblePlayers}
-        initialFormation={lineup?.formation}
-        initialAssignments={initialAssignments}
-        initialBenchFormation={lineup?.bench_formation ?? undefined}
-        initialBenchAssignments={initialBenchAssignments}
+        isTournament={isTournament}
+        initialMode={initialMode}
+        initialBoards={[
+          { formation: lineup?.formation, assignments: initialAssignments },
+          { formation: lineup?.bench_formation, assignments: initialBenchAssignments },
+          { formation: lineup?.third_formation, assignments: initialThirdAssignments },
+        ]}
         canWrite={canWrite}
         action={action}
       />
