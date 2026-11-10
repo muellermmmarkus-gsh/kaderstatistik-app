@@ -176,3 +176,20 @@ export async function updateEventSeason(eventId: string, season: string): Promis
   revalidatePath("/", "layout");
   return {};
 }
+
+/** Aendert die Startuhrzeit eines Termins ("HH:MM") oder entfernt sie (""). */
+export async function updateEventTime(eventId: string, time: string): Promise<{ error?: string }> {
+  const value = time.trim();
+  if (value && !/^\d{2}:\d{2}$/.test(value)) return { error: "Ungültige Uhrzeit." };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .update({ event_time: value || null })
+    .eq("id", eventId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { error: `Uhrzeit konnte nicht geändert werden: ${error?.message ?? "keine Berechtigung"}` };
+  // Uhrzeit steht in Terminliste, Kalender, Live-Ergebnis und Spielberichten.
+  revalidatePath("/", "layout");
+  return {};
+}

@@ -9,6 +9,7 @@ import SavedQueryNotice from "@/components/SavedQueryNotice";
 import EventDetailActions from "./EventDetailActions";
 import FieldPlanButton from "./FieldPlanButton";
 import SeasonSelect from "./SeasonSelect";
+import EventTimeSelect from "./EventTimeSelect";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
 import { ownSideOf } from "@/app/results/teams";
@@ -167,7 +168,16 @@ export default async function EventDetailPage({
           <>Saison {event.season}</>
         )}
         {event.opponent ? ` · gegen ${event.opponent}` : ""}
-        {event.event_time ? ` · ${event.event_time.slice(0, 5)} Uhr` : ""}
+        {canWrite ? (
+          <>
+            {" · "}
+            <EventTimeSelect eventId={event.id} time={event.event_time} />
+          </>
+        ) : event.event_time ? (
+          ` · ${event.event_time.slice(0, 5)} Uhr`
+        ) : (
+          ""
+        )}
         {event.location ? ` · ${event.location}` : ""}
         {/* Bezeichnung nur, wenn sie nicht ohnehin der Terminart entspricht */}
         {event.label && event.label !== eventTypeLabel(typeLabels, event.type) ? ` · ${event.label}` : ""}
