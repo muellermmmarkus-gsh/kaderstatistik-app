@@ -32,7 +32,8 @@ export async function getShirtNumbers(
     .from("attendance")
     .select("player_id, shirt_number, event_id, events!inner(event_date, type, deleted_at)")
     .not("shirt_number", "is", null)
-    .eq("events.type", "game")
+    // Vorbelegung aus dem letzten vorherigen Spiel oder Turnier
+    .in("events.type", ["game", "tournament"])
     .is("events.deleted_at", null)
     .lt("events.event_date", eventDate);
 

@@ -20,6 +20,8 @@ async function persistAttendance(
     .eq("id", eventId)
     .single();
   const isGame = event?.type === "game";
+  // Spiele und Turniere: Rueckennummer, Kapitaen, Torwart
+  const isMatch = isGame || event?.type === "tournament";
   const trainingTypes = await loadTrainingTypeKeys(supabase);
   const isTraining = !!event && trainingTypes.includes(event.type);
 
@@ -31,8 +33,8 @@ async function persistAttendance(
       present: formData.get(`present_player_${playerId}`) === "on",
       excused: formData.get(`excused_player_${playerId}`) === "on",
       registered: formData.get(`registered_player_${playerId}`) === "on",
-      // Rueckennummer nur bei Spielen (Auswahl des Torschuetzen im Live-Ergebnis)
-      ...(isGame && {
+      // Rueckennummer, Kapitaen und Torwart nur bei Spielen und Turnieren
+      ...(isMatch && {
         is_captain: formData.get(`captain_player_${playerId}`) === "on",
         is_goalkeeper: formData.get(`goalkeeper_player_${playerId}`) === "on",
         shirt_number:
@@ -41,7 +43,7 @@ async function persistAttendance(
     };
   });
 
-  if (isGame) {
+  if (isMatch) {
     const numbers = attendanceRows
       .map((row) => row.shirt_number)
       .filter((n): n is number => n != null);

@@ -9,6 +9,7 @@ import SavedQueryNotice from "@/components/SavedQueryNotice";
 import EventDetailActions from "./EventDetailActions";
 import FieldPlanButton from "./FieldPlanButton";
 import SeasonSelect from "./SeasonSelect";
+import BulkCheckButton from "./BulkCheckButton";
 import EventTimeSelect from "./EventTimeSelect";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
@@ -78,10 +79,12 @@ export default async function EventDetailPage({
   ]);
 
   const isGame = event.type === "game";
+  // Turniere zeigen dieselben Spalten wie Spiele (Tore dort per Eingabe statt Live-Ergebnis).
+  const isMatch = isGame || event.type === "tournament";
 
   // Bei Spielen: Rueckennummern (ggf. Voreinstellung aus dem letzten Spiel)
   // und Tore ausschliesslich aus den Live-Ergebnis-Eintraegen.
-  const shirtNumbers = isGame
+  const shirtNumbers = isMatch
     ? await getShirtNumbers(supabase, id, event.event_date)
     : { numbers: new Map<string, number>(), isPreset: false };
   const liveGoalsByPlayer = new Map<string, number>();
@@ -145,13 +148,13 @@ export default async function EventDetailPage({
 
   const hasGoals = event.type === "game" || event.type === "tournament";
   // "Angemeldet" steuert, wer in der Aufstellung zur Auswahl steht (Spiele und Turniere).
-  const showRegistered = isGame || event.type === "tournament";
+  const showRegistered = isMatch;
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
   const showAssessment = isTraining && canWrite;
 
   const playerColSpan =
     2 +
-    (isGame ? 3 : 0) +
+    (isMatch ? 3 : 0) +
     (showRegistered ? 1 : 0) +
     (isTraining ? 1 : 0) +
     (hasGoals ? 1 : 0) +
@@ -220,7 +223,7 @@ export default async function EventDetailPage({
         </p>
       )}
 
-        {isGame && canWrite && <ShirtNumberGuard />}
+        {isMatch && canWrite && <ShirtNumberGuard />}
         <section className="mb-8">
           <h2 className="mb-3 font-medium">Spieler</h2>
           {isGame && (
@@ -234,18 +237,34 @@ export default async function EventDetailPage({
                 " Die Rückennummern sind aus dem letzten Spiel übernommen – mit Speichern werden sie für dieses Spiel festgelegt."}
             </p>
           )}
+          {!isGame && isMatch && canWrite && shirtNumbers.isPreset && (
+            <p className="mb-3 text-sm text-zinc-500">
+              Die Rückennummern sind aus dem letzten Spiel bzw. Turnier übernommen – mit Speichern
+              werden sie für dieses Turnier festgelegt.
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                <tr className="border-b border-zinc-200 align-bottom dark:border-zinc-800">
                   <th className="py-2">Spieler</th>
-                  {isGame && <th className="py-2">Rückennr.</th>}
-                  {showRegistered && <th className="py-2">Angemeldet</th>}
-                  <th className="py-2">Anwesend</th>
+                  {isMatch && <th className="py-2">Rückennr.</th>}
+                  {showRegistered && (
+                    <th className="py-2 pr-2">
+                      {canWrite && <BulkCheckButton target="registered" label="Alle angemeldet" />}
+                      Angemeldet
+                    </th>
+                  )}
+                  <th className="py-2 pr-2">
+                    {canWrite && isMatch && (
+                      <BulkCheckButton target="present" label="Alle angemeldeten anwesend" />
+                    )}
+                    Anwesend
+                  </th>
                   {isTraining && <th className="py-2">Entschuldigt</th>}
                   {hasGoals && <th className="py-2">Tore</th>}
-                  {isGame && <th className="py-2 pl-2">Kapitän</th>}
-                  {isGame && <th className="py-2 pl-2">Torwart</th>}
+                  {isMatch && <th className="py-2 pl-2">Kapitän</th>}
+                  {isMatch && <th className="py-2 pl-2">Torwart</th>}
                   {showAssessment && (
                     <>
                       <th className="py-2">Leistung</th>
@@ -265,7 +284,7 @@ export default async function EventDetailPage({
                     <td className="py-2 whitespace-nowrap">
                       {player.first_name} {player.last_name}
                     </td>
-                    {isGame && (
+                    {isMatch && (
                       <td className="py-2">
                         <select
                           name={`shirt_${player.id}`}
@@ -331,7 +350,7 @@ export default async function EventDetailPage({
                         />
                       </td>
                     )}
-                    {isGame && (
+                    {isMatch && (
                       <td className="py-2 pl-2">
                         <input
                           type="checkbox"
@@ -343,7 +362,7 @@ export default async function EventDetailPage({
                         />
                       </td>
                     )}
-                    {isGame && (
+                    {isMatch && (
                       <td className="py-2 pl-2">
                         <input
                           type="checkbox"
