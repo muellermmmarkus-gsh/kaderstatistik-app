@@ -8,28 +8,68 @@ import { updatePassword } from "./actions";
 export default function UpdatePasswordPage() {
   const [error, formAction, pending] = useActionState(updatePassword, null);
   const [status, setStatus] = useState<"checking" | "ready" | "invalid">("checking");
+  const [reason, setReason] = useState<string | null>(null);
 
   useEffect(() => {
-    // Der Reset-Link liefert die Session nur als URL-Fragment (#access_token=...),
-    // das der Server nie sieht. Wichtig: nicht einfach pruefen, ob "irgendeine"
-    // Session existiert - war im Browser bereits ein anderer Nutzer eingeloggt
-    // (oder wurde der Einmal-Link z.B. durch das Vorab-Scannen von Gmail schon
-    // verbraucht), waere sonst faelschlich dessen alte Session akzeptiert und
-    // durch das Formular dessen Passwort geaendert worden, statt das des
-    // Nutzers, fuer den der Link erzeugt wurde. Nur das "PASSWORD_RECOVERY"-
-    // Event bestaetigt, dass die Session frisch aus einem gueltigen Reset-Link
-    // stammt; es setzt die Session dabei automatisch in Cookies, damit die
-    // Server Action sie lesen kann.
+    // Wichtig: nicht einfach pruefen, ob "irgendeine" Session existiert - war
+    // im Browser bereits ein anderer Nutzer eingeloggt, waere sonst faelschlich
+    // dessen Session akzeptiert und dessen Passwort geaendert worden. Gueltig
+    // ist nur eine Session, die nachweislich frisch aus einem Reset-Link stammt.
     const supabase = createClient();
     let recovered = false;
+    const markReady = () => {
+      recovered = true;
+      setStatus("ready");
+    };
 
+    // Neue Links (implizites Verfahren, siehe ../actions.ts): Supabase haengt
+    // die Session oder einen Fehler als URL-Fragment an (#access_token=...&type=recovery
+    // bzw. #error_code=otp_expired&...). Funktioniert auf jedem Geraet.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    // Fragment sofort aus der Adresszeile entfernen (Tokens nicht im Verlauf lassen).
+    if (window.location.hash) {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
+    const errorCode = hash.get("error_code");
+    const errorDescription = hash.get("error_description");
+    if (errorCode || errorDescription) {
+      // Fehler aus dem Link (z.B. otp_expired) - nach dem Effekt anzeigen.
+      queueMicrotask(() => {
+        setReason(
+          errorCode === "otp_expired"
+            ? "Der Link ist abgelaufen oder wurde bereits verwendet (manche E-Mail-Programme öffnen Links vorab zur Prüfung)."
+            : (errorDescription ?? errorCode),
+        );
+        setStatus("invalid");
+      });
+      return;
+    }
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (accessToken && refreshToken && hash.get("type") === "recovery") {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            setReason(error.message);
+            setStatus("invalid");
+          } else {
+            markReady();
+          }
+        })
+        .catch(() => {
+          // z.B. beschaedigter Link (Token nicht lesbar)
+          setStatus("invalid");
+        });
+      return;
+    }
+
+    // Aeltere Links (PKCE, ?code=...): nur im Browser gueltig, in dem der Reset
+    // angefordert wurde; das "PASSWORD_RECOVERY"-Event bestaetigt die Session.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        recovered = true;
-        setStatus("ready");
-      }
+      if (event === "PASSWORD_RECOVERY") markReady();
     });
 
     const timeout = setTimeout(() => {
@@ -56,8 +96,8 @@ export default function UpdatePasswordPage() {
         <div className="max-w-sm">
           <h1 className="mb-3 text-xl font-semibold">Link ungültig</h1>
           <p className="mb-6 text-sm text-zinc-500">
-            Der Link ist abgelaufen oder wurde bereits verwendet. Bitte
-            fordere einen neuen Link an.
+            {reason ?? "Der Link ist abgelaufen oder wurde bereits verwendet."} Bitte
+            fordere einen neuen Link an. Es gilt immer nur der zuletzt angeforderte Link.
           </p>
           <Link href="/reset-password" className="underline">
             Neuen Link anfordern
