@@ -147,8 +147,10 @@ export default async function EventDetailPage({
   const saveAndOpenFieldPlan = saveAttendanceAndOpenFieldPlan.bind(null, id, playerIds, trainerIds);
 
   const hasGoals = event.type === "game" || event.type === "tournament";
-  // "Angemeldet" steuert, wer in der Aufstellung zur Auswahl steht (Spiele und Turniere).
-  const showRegistered = isMatch;
+  // Spiele/Turniere: "Angemeldet" (steuert die Aufstellung); Trainings: "Zugesagt"
+  // (gleiches Feld attendance.registered, Info in der Trainingsplanung).
+  const showRegistered = isMatch || isTraining;
+  const registeredLabel = isTraining ? "Zugesagt" : "Angemeldet";
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
   const showAssessment = isTraining && canWrite;
 
@@ -251,8 +253,10 @@ export default async function EventDetailPage({
                   {isMatch && <th className="py-2">Rückennr.</th>}
                   {showRegistered && (
                     <th className="py-2 pr-2">
-                      {canWrite && <BulkCheckButton target="registered" label="Alle angemeldet" />}
-                      Angemeldet
+                      {canWrite && isMatch && (
+                        <BulkCheckButton target="registered" label="Alle angemeldet" />
+                      )}
+                      {registeredLabel}
                     </th>
                   )}
                   <th className="py-2 pr-2">

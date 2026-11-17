@@ -97,6 +97,7 @@ export default function TrainingBuilder({
   submitLabel,
   backHref,
   headerActions,
+  confirmedPlayerIds,
 }: {
   exercises: Exercise[];
   players: Player[];
@@ -119,6 +120,8 @@ export default function TrainingBuilder({
   backHref: string;
   /** Zusaetzliche Buttons in der Kopfzeile neben "Visuelle Ansicht". */
   headerActions?: React.ReactNode;
+  /** Spieler mit "Zugesagt" im Trainingstermin (nur Anzeige). */
+  confirmedPlayerIds?: string[];
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
 
@@ -937,12 +940,17 @@ export default function TrainingBuilder({
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800">
               <th className="py-1">Spieler</th>
+              {confirmedPlayerIds && (
+                <th className="py-1 pr-2" title="Aus dem Trainingstermin (dort änderbar)">
+                  Zugesagt
+                </th>
+              )}
               <th className="py-1">Gruppe</th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-zinc-100 dark:border-zinc-900">
-              <td className="py-1" colSpan={2}>
+              <td className="py-1" colSpan={confirmedPlayerIds ? 3 : 2}>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -959,6 +967,19 @@ export default function TrainingBuilder({
                   {p.first_name} {p.last_name}
                   <input type="hidden" name="player_id" value={p.id} />
                 </td>
+                {confirmedPlayerIds && (
+                  <td className="py-1 pr-2">
+                    {confirmedPlayerIds.includes(p.id) ? (
+                      <span className="text-green-700 dark:text-green-400" aria-label="zugesagt">
+                        ✓
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400" aria-label="nicht zugesagt">
+                        –
+                      </span>
+                    )}
+                  </td>
+                )}
                 <td className="py-1">
                   <select
                     name="player_group"
@@ -980,7 +1001,7 @@ export default function TrainingBuilder({
             ))}
             {!players.length && (
               <tr>
-                <td colSpan={2} className="py-2 text-zinc-500">
+                <td colSpan={confirmedPlayerIds ? 3 : 2} className="py-2 text-zinc-500">
                   Keine Spieler angelegt.
                 </td>
               </tr>

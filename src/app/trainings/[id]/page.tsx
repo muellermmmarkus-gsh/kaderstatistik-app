@@ -62,6 +62,7 @@ export default async function TrainingDetailPage({
     { data: focuses },
     { data: latestGrades },
     { data: futureTrainings },
+    { data: confirmedRows },
     canWrite,
   ] = await Promise.all([
     supabase
@@ -101,6 +102,8 @@ export default async function TrainingDetailPage({
       .gte("event_date", new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" }))
       .neq("id", id)
       .order("event_date"),
+    // "Zugesagt" aus dem Trainingstermin (attendance.registered), nur Anzeige
+    supabase.from("attendance").select("player_id").eq("event_id", id).eq("registered", true),
     isTrainer(),
   ]);
 
@@ -250,6 +253,7 @@ export default async function TrainingDetailPage({
           initialPlayerGroups={initialPlayerGroups}
           submitLabel="Änderungen speichern"
           headerActions={<CopyPlanButton sourceEventId={id} targets={copyTargets} />}
+          confirmedPlayerIds={(confirmedRows ?? []).map((r) => r.player_id as string)}
         />
       ) : (
         <>
