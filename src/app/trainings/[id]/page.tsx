@@ -103,7 +103,11 @@ export default async function TrainingDetailPage({
       .neq("id", id)
       .order("event_date"),
     // "Zugesagt" aus dem Trainingstermin (attendance.registered), nur Anzeige
-    supabase.from("attendance").select("player_id").eq("event_id", id).eq("registered", true),
+    supabase
+      .from("attendance")
+      .select("player_id, registered_tentative")
+      .eq("event_id", id)
+      .eq("registered", true),
     isTrainer(),
   ]);
 
@@ -254,6 +258,9 @@ export default async function TrainingDetailPage({
           submitLabel="Änderungen speichern"
           headerActions={<CopyPlanButton sourceEventId={id} targets={copyTargets} />}
           confirmedPlayerIds={(confirmedRows ?? []).map((r) => r.player_id as string)}
+          tentativePlayerIds={(confirmedRows ?? [])
+            .filter((r) => r.registered_tentative)
+            .map((r) => r.player_id as string)}
         />
       ) : (
         <>

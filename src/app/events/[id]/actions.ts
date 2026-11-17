@@ -33,6 +33,11 @@ async function persistAttendance(
       present: formData.get(`present_player_${playerId}`) === "on",
       excused: formData.get(`excused_player_${playerId}`) === "on",
       registered: formData.get(`registered_player_${playerId}`) === "on",
+      // "Mit Vorbehalt zugesagt" nur bei Trainings und nur zusammen mit einer Zusage
+      registered_tentative:
+        isTraining &&
+        formData.get(`registered_player_${playerId}`) === "on" &&
+        formData.get(`tentative_player_${playerId}`) === "on",
       // Rueckennummer, Kapitaen und Torwart nur bei Spielen und Turnieren
       ...(isMatch && {
         is_captain: formData.get(`captain_player_${playerId}`) === "on",

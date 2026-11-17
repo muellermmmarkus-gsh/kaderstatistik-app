@@ -98,6 +98,7 @@ export default function TrainingBuilder({
   backHref,
   headerActions,
   confirmedPlayerIds,
+  tentativePlayerIds = [],
 }: {
   exercises: Exercise[];
   players: Player[];
@@ -122,6 +123,8 @@ export default function TrainingBuilder({
   headerActions?: React.ReactNode;
   /** Spieler mit "Zugesagt" im Trainingstermin (nur Anzeige). */
   confirmedPlayerIds?: string[];
+  /** Davon "mit Vorbehalt zugesagt". */
+  tentativePlayerIds?: string[];
 }) {
   const exerciseById = new Map(exercises.map((e) => [e.id, e]));
 
@@ -943,6 +946,10 @@ export default function TrainingBuilder({
               {confirmedPlayerIds && (
                 <th className="py-1 pr-2" title="Aus dem Trainingstermin (dort änderbar)">
                   Zugesagt
+                  <span className="block text-xs font-normal text-zinc-500">
+                    {confirmedPlayerIds.filter((id) => players.some((p) => p.id === id)).length} gesamt
+                    {tentativePlayerIds.length > 0 && ` · ${tentativePlayerIds.length} m. V.`}
+                  </span>
                 </th>
               )}
               <th className="py-1">Gruppe</th>
@@ -969,7 +976,15 @@ export default function TrainingBuilder({
                 </td>
                 {confirmedPlayerIds && (
                   <td className="py-1 pr-2">
-                    {confirmedPlayerIds.includes(p.id) ? (
+                    {tentativePlayerIds.includes(p.id) ? (
+                      <span
+                        className="font-semibold text-amber-600 dark:text-amber-400"
+                        aria-label="mit Vorbehalt zugesagt"
+                        title="Mit Vorbehalt zugesagt"
+                      >
+                        ?
+                      </span>
+                    ) : confirmedPlayerIds.includes(p.id) ? (
                       <span className="text-green-700 dark:text-green-400" aria-label="zugesagt">
                         ✓
                       </span>

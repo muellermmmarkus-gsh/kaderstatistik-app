@@ -10,6 +10,8 @@ import EventDetailActions from "./EventDetailActions";
 import FieldPlanButton from "./FieldPlanButton";
 import SeasonSelect from "./SeasonSelect";
 import BulkCheckButton from "./BulkCheckButton";
+import TriStateRegistration from "./TriStateRegistration";
+import RegistrationCount from "./RegistrationCount";
 import EventTimeSelect from "./EventTimeSelect";
 import ShirtNumberGuard from "./ShirtNumberGuard";
 import { getShirtNumbers, SHIRT_NUMBER_MAX } from "@/lib/shirtNumbers";
@@ -58,7 +60,7 @@ export default async function EventDetailPage({
       .order("last_name"),
     supabase
       .from("attendance")
-      .select("player_id, present, excused, registered, is_captain, is_goalkeeper")
+      .select("player_id, present, excused, registered, registered_tentative, is_captain, is_goalkeeper")
       .eq("event_id", id),
     supabase
       .from("attendance_assessments")
@@ -116,6 +118,9 @@ export default async function EventDetailPage({
   const registeredByPlayer = new Map(
     attendance?.map((a) => [a.player_id, a.registered]),
   );
+  const tentativeByPlayer = new Map(
+    attendance?.map((a) => [a.player_id, a.registered && a.registered_tentative]),
+  );
   const captainByPlayer = new Map(attendance?.map((a) => [a.player_id, a.is_captain]));
   const goalkeeperByPlayer = new Map(attendance?.map((a) => [a.player_id, a.is_goalkeeper]));
   const performanceByPlayer = new Map(
@@ -151,6 +156,14 @@ export default async function EventDetailPage({
   // (gleiches Feld attendance.registered, Info in der Trainingsplanung).
   const showRegistered = isMatch || isTraining;
   const registeredLabel = isTraining ? "Zugesagt" : "Angemeldet";
+  // Summe im Spaltenkopf (nur aktive Spieler, die in der Tabelle stehen)
+  const activeIds = new Set(players?.map((p) => p.id) ?? []);
+  const registeredCounts = {
+    total: [...registeredByPlayer].filter(([pid, r]) => r && activeIds.has(pid)).length,
+    tentative: isTraining
+      ? [...tentativeByPlayer].filter(([pid, t]) => t && activeIds.has(pid)).length
+      : 0,
+  };
   // Bewertungen sind nur fuer Trainer sichtbar (Datenschutz, siehe migration_031).
   const showAssessment = isTraining && canWrite;
 
@@ -257,6 +270,7 @@ export default async function EventDetailPage({
                         <BulkCheckButton target="registered" label="Alle angemeldet" />
                       )}
                       {registeredLabel}
+                      <RegistrationCount initial={registeredCounts} />
                     </th>
                   )}
                   <th className="py-2 pr-2">
@@ -308,13 +322,28 @@ export default async function EventDetailPage({
                     )}
                     {showRegistered && (
                       <td className="py-2">
-                        <input
-                          type="checkbox"
-                          name={`registered_player_${player.id}`}
-                          defaultChecked={registeredByPlayer.get(player.id) ?? false}
-                          disabled={!canWrite}
-                          className="h-4 w-4"
-                        />
+                        {isTraining ? (
+                          <TriStateRegistration
+                            playerId={player.id}
+                            playerName={`${player.first_name} ${player.last_name}`}
+                            initial={
+                              tentativeByPlayer.get(player.id)
+                                ? "tentative"
+                                : registeredByPlayer.get(player.id)
+                                  ? "yes"
+                                  : "none"
+                            }
+                            disabled={!canWrite}
+                          />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            name={`registered_player_${player.id}`}
+                            defaultChecked={registeredByPlayer.get(player.id) ?? false}
+                            disabled={!canWrite}
+                            className="h-4 w-4"
+                          />
+                        )}
                       </td>
                     )}
                     <td className="py-2">
